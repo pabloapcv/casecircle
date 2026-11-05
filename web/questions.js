@@ -299,6 +299,7 @@ const home = {
   howLead: ["", ""],
   willNotTitle: ["What this site will not do", "Lo que este sitio no hace"],
   homeNavWhat: ["Add-ons", "Complementos"],
+  homeNavPain: ["Pain points", "Puntos de dolor"],
   homeNavPains: ["The waits", "Las esperas"],
   homeNavHow: ["How it works", "Cómo funciona"],
   footBlurb: [
@@ -364,4 +365,123 @@ export function homeSteps(lang) {
 export function homeLimits(lang) {
   const es = lang === "es";
   return limitRows.map((row) => (es ? row[1] : row[0]));
+}
+
+const stageExplanations = {
+  filed: {
+    en: "Your application has been received. USCIS will review it for completeness and send a receipt notice. This is the start of the process.",
+    es: "Tu solicitud ha sido recibida. USCIS la revisará para verificar que esté completa y enviará un aviso de recibo. Este es el inicio del proceso."
+  },
+  biometrics: {
+    en: "Biometrics (fingerprints) confirm your identity. After this, the case returns to a queue. A quiet status after biometrics is common and does not mean there's a problem.",
+    es: "La biometría (huellas dactilares) confirma tu identidad. Después de esto, el caso vuelve a una cola. Un estatus quieto después de la biometría es común y no significa que haya un problema."
+  },
+  rfe: {
+    en: "USCIS needs additional evidence. Read the notice carefully for the exact documents requested and the deadline. An RFE is not a denial—it's a chance to provide more information.",
+    es: "USCIS necesita evidencia adicional. Lee el aviso con cuidado para ver los documentos exactos y el plazo. Un RFE no es una negación—es una oportunidad de dar más información."
+  },
+  interview_scheduled: {
+    en: "An interview has been scheduled. Bring original documents, dress appropriately, and arrive early. Review your application to answer questions consistently.",
+    es: "Una entrevista ha sido programada. Lleva documentos originales, vístete apropiadamente y llega temprano. Revisa tu solicitud para responder las preguntas de manera consistente."
+  },
+  interview_done: {
+    en: "The interview is complete. Decisions can take days to months. A quiet status after an interview is common while background checks complete.",
+    es: "La entrevista está completa. Las decisiones pueden tomar días o meses. Un estatus quieto después de la entrevista es común mientras se completan las verificaciones de fondo."
+  },
+  approved: {
+    en: "Your case has been approved. If a card is being produced, you'll receive it by mail. For naturalization, you'll be scheduled for an oath ceremony.",
+    es: "Tu caso ha sido aprobado. Si se está produciendo una tarjeta, la recibirás por correo. Para naturalización, se programará una ceremonia de juramento."
+  },
+  denied: {
+    en: "The case was denied. The notice explains the reason and your options, which may include an appeal, motion to reopen, or refiling. Consider consulting an attorney.",
+    es: "El caso fue negado. El aviso explica el motivo y tus opciones, que pueden incluir una apelación, moción de reapertura, o volver a presentar. Considera consultar a un abogado."
+  },
+  oath: {
+    en: "You're scheduled for the oath ceremony to complete naturalization. Bring the oath notice and any required documents. After the ceremony, you're a U.S. citizen.",
+    es: "Estás programado para la ceremonia de juramento para completar la naturalización. Lleva el aviso del juramento y los documentos requeridos. Después de la ceremonia, eres ciudadano estadounidense."
+  }
+};
+
+export function statusDecoder(lang, stage) {
+  const explanation = stageExplanations[stage];
+  if (!explanation) return null;
+  return {
+    stage,
+    explanation: lang === "es" ? explanation.es : explanation.en
+  };
+}
+
+const interviewTipsData = {
+  "i-485": [
+    {
+      en: { title: "Bring originals of everything you filed", body: "The officer will compare names, dates, and addresses. Bring your passport, birth certificate, marriage certificate, and supporting documents." },
+      es: { title: "Lleva originales de todo lo que presentaste", body: "El oficial comparará nombres, fechas y direcciones. Lleva tu pasaporte, acta de nacimiento, acta de matrimonio y documentos de apoyo." }
+    },
+    {
+      en: { title: "Answer truthfully and concisely", body: "Listen to the question, answer it directly, and stop. Don't volunteer extra information. If you don't understand, ask for clarification." },
+      es: { title: "Responde con la verdad y de manera concisa", body: "Escucha la pregunta, respóndela directamente y detente. No ofrezcas información extra. Si no entiendes, pide aclaración." }
+    },
+    {
+      en: { title: "If married, both spouses usually attend", body: "For marriage-based cases, expect questions about your relationship: how you met, daily life, finances, and future plans." },
+      es: { title: "Si están casados, ambos esposos usualmente asisten", body: "Para casos basados en matrimonio, espera preguntas sobre su relación: cómo se conocieron, vida diaria, finanzas y planes futuros." }
+    },
+    {
+      en: { title: "Dress professionally", body: "Business casual is appropriate. You don't need a suit, but avoid very casual clothing. This shows respect for the process." },
+      es: { title: "Vístete profesionalmente", body: "Ropa de negocios casual es apropiada. No necesitas traje, pero evita ropa muy casual. Esto muestra respeto por el proceso." }
+    }
+  ],
+  "n-400": [
+    {
+      en: { title: "Study the civics test materials", body: "You'll be asked up to 10 civics questions and need to answer 6 correctly. USCIS publishes the exact questions—study them." },
+      es: { title: "Estudia los materiales del examen de civismo", body: "Te harán hasta 10 preguntas de civismo y necesitas responder 6 correctamente. USCIS publica las preguntas exactas—estúdialas." }
+    },
+    {
+      en: { title: "Bring your green card and ID", body: "You'll need your green card, state ID or driver's license, and any travel documents. Bring your passport if you have one." },
+      es: { title: "Lleva tu tarjeta verde e identificación", body: "Necesitarás tu tarjeta verde, identificación estatal o licencia, y documentos de viaje. Lleva tu pasaporte si tienes uno." }
+    },
+    {
+      en: { title: "Know your application", body: "Review your N-400 before the interview. Be ready to explain any trips abroad, address history, and answer questions about arrests or tax issues." },
+      es: { title: "Conoce tu solicitud", body: "Revisa tu N-400 antes de la entrevista. Prepárate para explicar viajes al extranjero, historial de direcciones, y responder preguntas sobre arrestos o impuestos." }
+    },
+    {
+      en: { title: "English reading and writing test", body: "You'll read a sentence aloud and write a sentence dictated by the officer. Practice with the USCIS reading and writing vocabulary." },
+      es: { title: "Examen de lectura y escritura en inglés", body: "Leerás una oración en voz alta y escribirás una oración dictada por el oficial. Practica con el vocabulario de USCIS." }
+    }
+  ],
+  "i-130": [
+    {
+      en: { title: "Prove the relationship is real", body: "Bring joint financial records, photos over time, lease agreements, and affidavits from people who know your relationship." },
+      es: { title: "Prueba que la relación es real", body: "Lleva registros financieros conjuntos, fotos a lo largo del tiempo, contratos de arrendamiento, y declaraciones juradas de personas que conocen su relación." }
+    },
+    {
+      en: { title: "Know the details of your relationship", body: "When did you meet? How did you get engaged? What are your daily routines? Be ready to answer these naturally." },
+      es: { title: "Conoce los detalles de tu relación", body: "¿Cuándo se conocieron? ¿Cómo se comprometieron? ¿Cuáles son sus rutinas diarias? Prepárate para responder naturalmente." }
+    },
+    {
+      en: { title: "If previously married, bring divorce decrees", body: "You need to prove all prior marriages ended legally before the current marriage." },
+      es: { title: "Si estuvieron casados antes, lleven decretos de divorcio", body: "Necesitan probar que todos los matrimonios anteriores terminaron legalmente antes del matrimonio actual." }
+    }
+  ],
+  default: [
+    {
+      en: { title: "Arrive early", body: "Plan to arrive 15-30 minutes before your appointment. Check in at the window and wait to be called." },
+      es: { title: "Llega temprano", body: "Planea llegar 15-30 minutos antes de tu cita. Regístrate en la ventana y espera a que te llamen." }
+    },
+    {
+      en: { title: "Bring original documents", body: "Have originals of everything you submitted, plus any additional evidence. Keep copies for yourself." },
+      es: { title: "Lleva documentos originales", body: "Ten originales de todo lo que presentaste, más cualquier evidencia adicional. Guarda copias para ti." }
+    },
+    {
+      en: { title: "Answer only what is asked", body: "Listen carefully, answer truthfully, and don't elaborate unnecessarily. If you don't know, say so." },
+      es: { title: "Responde solo lo que te preguntan", body: "Escucha con cuidado, responde con la verdad, y no elabores innecesariamente. Si no sabes, dilo." }
+    }
+  ]
+};
+
+export function interviewTips(lang, spaceId) {
+  const tips = interviewTipsData[spaceId] || interviewTipsData.default;
+  return tips.map(tip => ({
+    title: lang === "es" ? tip.es.title : tip.en.title,
+    body: lang === "es" ? tip.es.body : tip.en.body
+  }));
 }

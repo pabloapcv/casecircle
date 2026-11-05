@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test logic.test.js prepare.test.js",
+    "test": "node --test logic.test.js prepare.test.js folder-chat.test.js && python3 -m unittest folder_chat_test.py",
     "start": "python3 serve.py 8080"
   }
 }

@@ -37,7 +37,37 @@ const text = {
   featureCommunityBody: ["Each community is one form. The posts listed there are public titles from r/USCIS and r/USCIS_FORUM.", "Cada comunidad es un formulario. Las publicaciones que aparecen son títulos públicos de r/USCIS y r/USCIS_FORUM."],
   featureTime: ["Your own clock", "Tu propio reloj"],
   featureTimeBody: ["The timeline counts months from your filing month. Benchmarks stay hidden until enough people share a stage change.", "El tiempo cuenta los meses desde tu mes de presentación. Los puntos de referencia quedan ocultos hasta que bastantes personas comparten un cambio de etapa."],
-  backToForms: ["All folders", "Todas las carpetas"]
+  backToForms: ["All folders", "Todas las carpetas"],
+  chatTitle: ["Folder chat", "Chat de la carpeta"],
+  chatLead: [
+    "Ask about what to gather for this form. The language model only receives this form’s checklist labels and status, plus your question. Papers stay on this device.",
+    "Pregunta qué reunir para este formulario. El modelo de lenguaje solo recibe las etiquetas y el estado de esta lista, más tu pregunta. Los papeles se quedan en este dispositivo."
+  ],
+  chatLocal: ["On-device next item (not an AI answer)", "Siguiente dato en este dispositivo (no es una respuesta de IA)"],
+  chatConsent: [
+    "I agree to send this form’s checklist labels, their status, and my question to the language model. I will not send documents, receipt numbers, A-numbers, Social Security numbers, or passport numbers.",
+    "Acepto enviar las etiquetas de esta lista, su estado y mi pregunta al modelo de lenguaje. No enviaré documentos, números de recibo, números A, Seguro Social ni pasaportes."
+  ],
+  chatPlaceholder: ["Ask what to put in this folder…", "Pregunta qué poner en esta carpeta…"],
+  chatSend: ["Send to the language model", "Enviar al modelo de lenguaje"],
+  chatCancel: ["Cancel", "Cancelar"],
+  chatRetry: ["Retry", "Reintentar"],
+  chatUnavailable: ["Language-model chat is unavailable", "El chat con modelo de lenguaje no está disponible"],
+  chatUnavailableBody: [
+    "The local server has no language-model key. This is not a generated answer. Checklist marks stay on this device. Configure CASECIRCLE_LLM_API_KEY on the server, then restart python3 serve.py.",
+    "El servidor local no tiene clave de modelo de lenguaje. Esto no es una respuesta generada. Las marcas de la carpeta se quedan en este dispositivo. Configura CASECIRCLE_LLM_API_KEY en el servidor y vuelve a iniciar python3 serve.py."
+  ],
+  chatLoading: ["Waiting for the language model…", "Esperando al modelo de lenguaje…"],
+  chatEmpty: ["Ask a follow-up about this packet. Completeness is not an approval.", "Haz una pregunta sobre este paquete. Estar completo no es una aprobación."],
+  chatError: ["The language model did not respond. You can retry. Nothing was filed.", "El modelo de lenguaje no respondió. Puedes reintentar. No se presentó nada."],
+  chatBlocked: ["That question cannot be sent. Leave identifiers out.", "Esa pregunta no se puede enviar. Deja los identificadores fuera."],
+  chatMockNote: ["Test-only mock reply. This is not a language-model answer.", "Respuesta de prueba solamente. No es una respuesta de un modelo de lenguaje."],
+  chatLegal: [
+    "This chat helps you organize papers. It does not decide eligibility, file a form, or predict an approval. Verify current instructions on uscis.gov. For denials, notices of intent to deny, or legal eligibility, talk to a lawyer or accredited representative.",
+    "Este chat ayuda a organizar papeles. No decide elegibilidad, no presenta un formulario y no predice una aprobación. Verifica las instrucciones vigentes en uscis.gov. Para negaciones, avisos de intención de negar o elegibilidad legal, habla con un abogado o representante acreditado."
+  ],
+  chatYou: ["You", "Tú"],
+  chatAssistant: ["Language model", "Modelo de lenguaje"]
 };
 
 const fraud = /\b(fake|forged?|forge|falsif\w*|lie|lying|lies|pretend|notario|guaranteed|gift cards?|whatsapp|mentira|mentir|falso|fals\w*|esconder|garantizad\w*|invent\w*)\b/i;

@@ -1,3 +1,7 @@
+.env
+.env.local
+web/.env
+web/.env.local
 .DS_Store
 .build/
 DerivedData/

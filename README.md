@@ -71,6 +71,16 @@ Safety rules, usernames, similar-thread matching, and benchmark math live in `Ca
 swift run CaseCircleChecks
 ```
 
+## Website
+
+The browser app lives in `web/`. On a Mac, from that folder:
+
+```bash
+python3 serve.py 8766
+```
+
+Then open [http://127.0.0.1:8766/](http://127.0.0.1:8766/). That process serves the site and the folder language-model chat on loopback. Chat setup (exact environment variable names, OpenAI-compatible and xAI URLs, mock mode) is in [`web/README.md`](web/README.md). Do not put a provider key in the browser.
+
 ## Data
 
 Accounts, posts, and case profiles are stored on the device as JSON. There is no server in this version. Deleting the app deletes that data. Sample stories are part of the app and are labeled as samples.

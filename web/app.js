@@ -7,6 +7,7 @@ import {
   normalizeWebState
 } from "./logic.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
+import { buildFolderChatPayload, scanFolderChatPayload } from "./folder-chat.js";
 import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
@@ -31,6 +32,9 @@ let rfeText = "";
 let rfeParsed = null;
 let waitCalcProfile = null;
 let evidenceMarks = {};
+const folderChats = new Map();
+let folderChatStatus = { available: null, mock: false, reason: "", loaded: false, inflight: false };
+let folderChatAbort = null;
 
 function withoutSamples(saved) {
   const sampleIds = new Set((saved.members || []).filter((person) => person.sample).map((person) => person.id));
@@ -844,6 +848,197 @@ function readFolder(spaceId) {
   return state.folders[user.id][spaceId];
 }
 
+function chatFor(spaceId) {
+  if (!folderChats.has(spaceId)) {
+    folderChats.set(spaceId, { consent: false, draft: "", messages: [], status: "idle", error: "", retry: "" });
+  }
+  return folderChats.get(spaceId);
+}
+
+async function ensureChatStatus() {
+  if (folderChatStatus.loaded || folderChatStatus.inflight) return;
+  folderChatStatus.inflight = true;
+  try {
+    const response = await fetch("/api/folder-chat", { headers: { Accept: "application/json" } });
+    const data = response.ok ? await response.json() : {};
+    folderChatStatus = {
+      available: Boolean(data.available),
+      mock: Boolean(data.mock),
+      reason: data.reason || (response.ok ? "unavailable" : "unavailable"),
+      loaded: true
+    };
+  } catch {
+    folderChatStatus = { available: false, mock: false, reason: "unavailable", loaded: true };
+  }
+  render();
+}
+
+function folderChatPanel(spaceId, packet, folder) {
+  const chat = chatFor(spaceId);
+  const local = guideReply(lang(), packet, folder, "");
+  const loading = chat.status === "loading";
+  const pendingStatus = !folderChatStatus.loaded;
+  const unavailable = folderChatStatus.loaded && folderChatStatus.available === false;
+  const messages = chat.messages.map((row, index) => {
+    const who = row.role === "assistant" ? P("chatAssistant") : P("chatYou");
+    const streamId = row.streaming ? " id=\"chat-stream\"" : "";
+    const mock = row.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : "";
+    return `<article class="chat-msg ${esc(row.role)}"${streamId}><p class="chat-who">${esc(who)}</p>${mock}<p>${esc(row.text)}</p></article>`;
+  }).join("");
+  const composer = unavailable || pendingStatus ? "" : `<label class="field">${esc(P("chatPlaceholder"))}
+      <textarea id="chat-q" ${chat.consent && !loading ? "" : "disabled"} placeholder="${esc(P("chatPlaceholder"))}" aria-label="${esc(P("chatTitle"))}">${esc(chat.draft)}</textarea>
+    </label>
+    <div class="chat-actions">
+      ${loading ? `<button class="btn-secondary" data-act="chat-cancel">${esc(P("chatCancel"))}</button>` : `<button class="btn" data-act="chat-send" data-space="${esc(spaceId)}" ${chat.consent ? "" : "disabled"}>${esc(P("chatSend"))}</button>`}
+      ${chat.status === "error" && chat.retry ? `<button class="ghost" data-act="chat-retry" data-space="${esc(spaceId)}">${esc(P("chatRetry"))}</button>` : ""}
+    </div>`;
+  return `<aside class="guide-card card stack chat-panel" aria-labelledby="chat-heading">
+    <div class="kicker">${esc(P("guide"))}</div>
+    <p class="muted">${esc(P("chatLocal"))}</p>
+    <strong>${esc(local.title)}</strong>
+    <p>${esc(local.body)}</p>
+    <a href="${esc(local.href)}" target="_blank" rel="noreferrer">${esc(local.link)}</a>
+    <h2 id="chat-heading">${esc(P("chatTitle"))}</h2>
+    <p class="muted">${esc(P("chatLead"))}</p>
+    ${pendingStatus ? `<p class="muted" role="status">${esc(lang() === "es" ? "Comprobando si el modelo de lenguaje está disponible…" : "Checking whether the language model is available…")}</p>` : ""}
+    ${unavailable ? `<div class="chat-unavailable" role="status"><strong>${esc(P("chatUnavailable"))}</strong><p>${esc(P("chatUnavailableBody"))}</p></div>` : ""}
+    ${folderChatStatus.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : ""}
+    ${unavailable || pendingStatus ? "" : `<label class="check-item chat-consent"><input id="chat-consent" type="checkbox" data-act="chat-consent" data-space="${esc(spaceId)}" ${chat.consent ? "checked" : ""} ${loading ? "disabled" : ""}><span>${esc(P("chatConsent"))}</span></label>`}
+    <div class="chat-log" id="chat-log" role="log" aria-live="polite">${messages || (unavailable || pendingStatus ? "" : `<p class="muted">${esc(P("chatEmpty"))}</p>`)}</div>
+    ${loading ? `<p class="muted" role="status">${esc(P("chatLoading"))}</p>` : ""}
+    ${chat.error ? `<p class="danger" role="alert">${esc(chat.error)}</p>` : ""}
+    ${composer}
+    <p class="footer-note muted">${esc(P("chatLegal"))}</p>
+    <p class="footer-note muted">${esc(P("noPromise"))}</p>
+  </aside>`;
+}
+
+async function sendFolderChat(spaceId, question) {
+  const chat = chatFor(spaceId);
+  const asked = String(question || chat.draft || "").trim();
+  if (!asked || chat.status === "loading") return;
+  if (!chat.consent) {
+    chat.error = P("chatConsent");
+    render();
+    return;
+  }
+  const folder = readFolder(spaceId);
+  const payload = buildFolderChatPayload({
+    spaceId,
+    lang: lang(),
+    question: asked,
+    history: chat.messages.filter((row) => !row.streaming).map((row) => ({ role: row.role, text: row.text })),
+    folder,
+    consent: true
+  });
+  const blocked = scanFolderChatPayload(payload);
+  if (blocked.verdict === "block") {
+    chat.error = P("chatBlocked");
+    chat.draft = asked;
+    render();
+    return;
+  }
+  if (folderChatAbort) folderChatAbort.abort();
+  const abort = new AbortController();
+  folderChatAbort = abort;
+  chat.draft = "";
+  chat.error = "";
+  chat.retry = asked;
+  chat.status = "loading";
+  chat.messages.push({ role: "user", text: asked });
+  chat.messages.push({ role: "assistant", text: "", streaming: true, mock: false });
+  restoreFocus = "chat-q";
+  render();
+  try {
+    const response = await fetch("/api/folder-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify(payload),
+      signal: abort.signal
+    });
+    if (!response.ok) {
+      let reason = "error";
+      try {
+        const err = await response.json();
+        reason = err.error || err.reason || reason;
+      } catch { /* use default */ }
+      if (reason === "unavailable" || reason === "no_key") {
+        folderChatStatus = { available: false, mock: false, reason, loaded: true };
+        chat.messages.pop();
+        chat.messages.pop();
+        chat.draft = asked;
+        chat.status = "idle";
+        chat.error = "";
+        render();
+        return;
+      }
+      if (reason === "blocked" || reason === "consent") {
+        chat.messages.pop();
+        chat.messages.pop();
+        chat.draft = asked;
+        chat.status = "idle";
+        chat.error = reason === "blocked" ? P("chatBlocked") : P("chatConsent");
+        render();
+        return;
+      }
+      throw new Error(reason);
+    }
+    const assistant = chat.messages[chat.messages.length - 1];
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (!abort.signal.aborted) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() || "";
+      for (const frame of frames) {
+        const line = frame.split("\n").find((item) => item.startsWith("data:"));
+        if (!line) continue;
+        const data = JSON.parse(line.slice(5).trim());
+        if (data.delta) {
+          assistant.text += data.delta;
+          const node = document.querySelector("#chat-stream p:last-child");
+          if (node) node.textContent = assistant.text;
+          else {
+            restoreFocus = "chat-q";
+            render();
+          }
+        }
+        if (data.mock) assistant.mock = true;
+        if (data.error) throw new Error(data.error);
+      }
+    }
+    assistant.streaming = false;
+    chat.status = "idle";
+    restoreFocus = "chat-q";
+    render();
+    document.querySelector("#chat-log")?.scrollTo?.(0, 99999);
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      const assistant = chat.messages[chat.messages.length - 1];
+      if (assistant?.streaming) {
+        assistant.streaming = false;
+        if (!assistant.text) assistant.text = lang() === "es" ? "Cancelado." : "Cancelled.";
+      }
+      chat.status = "idle";
+      restoreFocus = "chat-q";
+      render();
+      return;
+    }
+    chat.status = "error";
+    chat.error = P("chatError");
+    const assistant = chat.messages[chat.messages.length - 1];
+    if (assistant?.streaming && !assistant.text) chat.messages.pop();
+    else if (assistant) assistant.streaming = false;
+    restoreFocus = "chat-q";
+    render();
+  } finally {
+    if (folderChatAbort === abort) folderChatAbort = null;
+  }
+}
+
 function prepareScreen(spaceId) {
   const user = me(state);
   const choices = [...new Set([...(user?.spaces || []), "i-485", "i-765", "n-400", "i-130", "i-751", "i-131"])];
@@ -878,7 +1073,7 @@ function prepareScreen(spaceId) {
   const folder = readFolder(spaceId);
   const counts = tally(packet, folder);
   const focus = packet.sections.find((section) => section.id === folder.focus) || packet.sections[0];
-  const answer = guideAnswer || guideReply(lang(), packet, folder, "");
+  if (!folderChatStatus.loaded) ensureChatStatus();
   const pct = Math.round((counts.ready / Math.max(counts.total, 1)) * 100);
   
   const scoreLevel = pct >= 80 ? "high" : pct >= 50 ? "medium" : "low";
@@ -917,16 +1112,7 @@ function prepareScreen(spaceId) {
         </div>
       </article>`;
     }).join("")}</div>
-    <aside class="guide-card card stack">
-      <div class="kicker">${esc(P("guide"))}</div>
-      <strong>${esc(answer.title)}</strong>
-      <p>${esc(answer.body)}</p>
-      <a href="${esc(answer.href)}" target="_blank" rel="noreferrer">${esc(answer.link)}</a>
-      <p class="footer-note muted">${esc(P("guideHelp"))}</p>
-      <textarea id="guide-q" placeholder="${esc(P("guidePlaceholder"))}" aria-label="${esc(P("guide"))}">${esc(guideQuestion)}</textarea>
-      <button class="btn" data-act="guide-ask" data-space="${esc(spaceId)}">${esc(P("askGuide"))}</button>
-      <p class="footer-note muted">${esc(P("noPromise"))}</p>
-    </aside>
+    ${folderChatPanel(spaceId, packet, folder)}
   </div>
   
   ${legalDisclaimer()}`;
@@ -1249,6 +1435,7 @@ document.addEventListener("click", (event) => {
     state.route = { name: "prepare", spaceId: node.dataset.id };
     guideAnswer = null;
     guideQuestion = "";
+    if (folderChatAbort) folderChatAbort.abort();
     save();
     render();
     return;
@@ -1273,6 +1460,29 @@ document.addEventListener("click", (event) => {
     guideQuestion = document.querySelector("#guide-q")?.value || guideQuestion;
     guideAnswer = guideReply(lang(), packetFor(node.dataset.space), folder, guideQuestion);
     render();
+    return;
+  }
+  if (act === "chat-consent") {
+    const chat = chatFor(node.dataset.space);
+    chat.consent = Boolean(node.checked);
+    chat.error = "";
+    restoreFocus = "chat-q";
+    render();
+    return;
+  }
+  if (act === "chat-send") {
+    const chat = chatFor(node.dataset.space);
+    chat.draft = document.querySelector("#chat-q")?.value || chat.draft;
+    sendFolderChat(node.dataset.space, chat.draft);
+    return;
+  }
+  if (act === "chat-retry") {
+    const chat = chatFor(node.dataset.space);
+    sendFolderChat(node.dataset.space, chat.retry);
+    return;
+  }
+  if (act === "chat-cancel") {
+    if (folderChatAbort) folderChatAbort.abort();
     return;
   }
   if (act === "parse-rfe") {
@@ -1458,6 +1668,10 @@ document.addEventListener("input", (event) => {
   if (event.target.id === "ask-body") ask.body = event.target.value;
   if (event.target.id === "ask-stage") ask.stage = event.target.value;
   if (event.target.id === "guide-q") guideQuestion = event.target.value;
+  if (event.target.id === "chat-q") {
+    const spaceId = state.route?.spaceId;
+    if (spaceId) chatFor(spaceId).draft = event.target.value;
+  }
   if (event.target.id === "rfe-text") rfeText = event.target.value;
   if (event.target.id === "search") { filters.query = event.target.value; restoreFocus = "search"; render(); }
   if (event.target.id === "space-search") { spaceQuery = event.target.value; restoreFocus = "space-search"; render(); }

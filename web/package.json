@@ -1,5 +1,9 @@
 {
   "name": "casecircle-web",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "node --test logic.test.js prepare.test.js",
+    "start": "python3 -m http.server 8080"
+  }
 }

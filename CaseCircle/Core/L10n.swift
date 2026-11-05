@@ -58,6 +58,7 @@ public enum LKey: String {
     case verifiedFootnote, threeReportNote, statusHeld, statusRemoved, statusLive
     case thisWeek, newPostsCount, dismiss, choose, commentHeld, saved
     case couldNotSignIn, moreActions, upvote, statusWord, retry, reply, sendReply
+    case skipSetup, slowDown
     case caseProfiles, settings, openPost
 }
 
@@ -245,6 +246,8 @@ public enum L10n {
             "Elige la etapa actual y luego guarda."
         )
         case .skipForNow: return ("Skip for now", "Omitir por ahora")
+        case .skipSetup: return ("Skip setup", "Saltar configuración")
+        case .slowDown: return ("Wait a moment before doing that again.", "Espera un momento antes de volver a hacerlo.")
         case .saveProfile: return ("Save profile", "Guardar perfil")
         case .back: return ("Back", "Atrás")
         case .next: return ("Next", "Siguiente")

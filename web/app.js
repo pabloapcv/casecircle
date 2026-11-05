@@ -3,9 +3,9 @@ import {
   deleteAccount, emailOk, enterDemo, evaluate, initialState, kindHelp, kindLabel, kinds, levelName,
   markHelpful, me, member, moderate, monthLabel, monthsSince, officeById, officeName, offices,
   publish, queuedPosts, report, saveProfile, similarThreads, spaceById, spaceName, spaces,
-  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue
+  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue, waitComparison
 } from "./logic.js";
-import { blankFolder, guideReply, packetFor, prepareText, tally, formChecklists, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
+import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
@@ -29,6 +29,7 @@ let botAnswer = null;
 let rfeText = "";
 let rfeParsed = null;
 let waitCalcProfile = null;
+let evidenceMarks = {};
 
 function withoutSamples(saved) {
   const sampleIds = new Set((saved.members || []).filter((person) => person.sample).map((person) => person.id));
@@ -781,16 +782,16 @@ function waitCalculator() {
     </div>`;
   }
   
-  const monthsWaiting = monthsSince(profile.filed);
-  const percentile = calculateWaitPercentile(profile, monthsWaiting);
-  const cohortSize = getCohortSize(profile);
-  
-  const percentileClass = percentile > 75 ? "coral" : percentile > 50 ? "amber" : "green";
-  const percentileDesc = percentile > 75 
-    ? (lang() === "es" ? "Tu espera es más larga que la mayoría" : "Your wait is longer than most")
-    : percentile > 50 
-      ? (lang() === "es" ? "Tu espera está en el rango medio" : "Your wait is in the middle range")
-      : (lang() === "es" ? "Tu espera es más corta que la mayoría" : "Your wait is shorter than most");
+  const comparison = waitComparison(state, profile);
+  const percentile = comparison.percentile;
+  const percentileClass = percentile == null ? "" : percentile > 75 ? "coral" : percentile > 50 ? "amber" : "green";
+  const percentileDesc = percentile == null
+    ? ""
+    : percentile > 75
+      ? (lang() === "es" ? "Tu espera es más larga que la mayoría en este grupo" : "Your wait is longer than most in this group")
+      : percentile > 50
+        ? (lang() === "es" ? "Tu espera está en el rango medio de este grupo" : "Your wait is in the middle of this group")
+        : (lang() === "es" ? "Tu espera es más corta que la mayoría en este grupo" : "Your wait is shorter than most in this group");
   
   return `<div class="wait-calc">
     <h3>${esc(lang() === "es" ? "¿Es normal mi espera?" : "Is my wait normal?")}</h3>
@@ -802,53 +803,23 @@ function waitCalculator() {
     </label>` : ""}
     
     <div class="wait-result">
-      <div class="wait-percentile ${percentileClass}">${cohortSize >= 20 ? `${percentile}%` : "—"}</div>
+      ${comparison.publishable ? `<div class="wait-percentile ${percentileClass}">${percentile}%</div>` : ""}
       <div class="wait-desc">
-        ${cohortSize >= 20 ? `
+        ${comparison.publishable ? `
           <strong>${esc(percentileDesc)}</strong>
-          <span>${esc(lang() === "es" ? `De ${cohortSize} personas con perfil similar` : `Of ${cohortSize} people with similar profiles`)}</span>
+          <span>${esc(lang() === "es" ? `De ${comparison.count} personas con perfil similar en CaseCircle` : `Of ${comparison.count} people with similar profiles on CaseCircle`)}</span>
         ` : `
-          <strong>${esc(lang() === "es" ? "No hay suficientes datos aún" : "Not enough data yet")}</strong>
-          <span>${esc(lang() === "es" ? "Se necesitan 20+ perfiles similares para mostrar estadísticas" : "Need 20+ similar profiles to show statistics")}</span>
+          <strong>${esc(L("notEnough"))}</strong>
+          <span>${esc(L("notEnoughBody"))}</span>
         `}
       </div>
     </div>
     
     <div class="meta" style="margin-top:12px;">
-      <strong>${esc(spaceName(lang(), profile.spaceId))}</strong> · ${esc(badge(lang(), profile))} · ${monthsWaiting} ${esc(L("months"))}
+      <strong>${esc(spaceName(lang(), profile.spaceId))}</strong> · ${esc(badge(lang(), profile))} · ${comparison.mine} ${esc(L("months"))}
     </div>
+    <p class="read-note">${esc(L("exampleBody"))}</p>
   </div>`;
-}
-
-function calculateWaitPercentile(profile, monthsWaiting) {
-  const estimates = {
-    "i-485": { median: 12, p75: 18, p90: 24 },
-    "i-765": { median: 4, p75: 7, p90: 10 },
-    "n-400": { median: 8, p75: 12, p90: 16 },
-    "i-130": { median: 14, p75: 20, p90: 28 },
-    "i-751": { median: 18, p75: 24, p90: 30 },
-    "i-131": { median: 3, p75: 5, p90: 8 }
-  };
-  const est = estimates[profile.spaceId] || { median: 12, p75: 18, p90: 24 };
-  
-  if (monthsWaiting <= est.median) {
-    return Math.round((monthsWaiting / est.median) * 50);
-  } else if (monthsWaiting <= est.p75) {
-    return 50 + Math.round(((monthsWaiting - est.median) / (est.p75 - est.median)) * 25);
-  } else if (monthsWaiting <= est.p90) {
-    return 75 + Math.round(((monthsWaiting - est.p75) / (est.p90 - est.p75)) * 15);
-  } else {
-    return Math.min(99, 90 + Math.round(((monthsWaiting - est.p90) / est.p90) * 10));
-  }
-}
-
-function getCohortSize(profile) {
-  return state.members.filter(m => 
-    m.profiles?.some(p => 
-      p.spaceId === profile.spaceId && 
-      p.officeId === profile.officeId
-    )
-  ).length;
 }
 
 function benchCard(cell, example) {
@@ -886,7 +857,7 @@ function prepareScreen(spaceId) {
       const folder = readFolder(id);
       const packet = packetFor(id);
       const counts = tally(packet, folder);
-      const score = Math.round((counts.ready / Math.max(counts.total, 1)) * 100);
+      const score = calculateScore(packet, folder);
       return `<button class="card" data-act="open-folder" data-id="${esc(id)}">
         <div class="kicker">${esc(item.forms[0])}</div>
         <strong>${esc(lang() === "es" ? item.es : item.en)}</strong>
@@ -1023,7 +994,7 @@ function marriageEvidenceChecklist() {
     { id: "correspondence", text: lang() === "es" ? "Correspondencia con ambos nombres" : "Mail addressed to both", required: false }
   ];
   
-  const checkedCount = items.filter(i => document.getElementById(`ev-${i.id}`)?.checked).length;
+  const checkedCount = items.filter((item) => evidenceMarks[item.id]).length;
   const score = Math.round((checkedCount / items.length) * 100);
   const scoreLevel = score >= 70 ? "high" : score >= 40 ? "medium" : "low";
   
@@ -1040,7 +1011,7 @@ function marriageEvidenceChecklist() {
     </div>
     
     <div class="checklist">${items.map(item => `<label class="check-item">
-      <input type="checkbox" id="ev-${item.id}" data-act="evidence-check">
+      <input type="checkbox" id="ev-${item.id}" data-act="evidence-check" data-id="${esc(item.id)}" ${evidenceMarks[item.id] ? "checked" : ""}>
       <div class="text">
         <div class="label">${esc(item.text)}</div>
         ${item.required ? `<span class="pill coral">${esc(lang() === "es" ? "Requerido" : "Required")}</span>` : ""}
@@ -1137,7 +1108,7 @@ function readProfile(scope) {
 
 function apply(result, success) {
   if (!result.ok) {
-    const key = result.error === "short" ? "tooShort" : result.error === "stage" ? "stageRequired" : result.error === "already" ? "alreadyReported" : result.error === "taken" ? "taken" : result.error === "reserved" ? "reserved" : result.error === "invalid" ? "invalidName" : result.error === "email" ? "emailInvalid" : ["receipt", "a-number", "ssn", "passport", "abuse"].includes(result.error) ? "blockedText" : "couldNot";
+    const key = result.error === "short" ? "tooShort" : result.error === "stage" ? "stageRequired" : result.error === "already" ? "alreadyReported" : result.error === "taken" ? "taken" : result.error === "reserved" ? "reserved" : result.error === "invalid" ? "invalidName" : result.error === "email" ? "emailInvalid" : result.error === "rate" ? "slowDown" : ["receipt", "a-number", "ssn", "passport", "abuse"].includes(result.error) ? "blockedText" : "couldNot";
     toast = L(key);
     render();
     return;
@@ -1233,6 +1204,17 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (act === "skip-onboard") {
+    const taken = new Set(state.members.map((person) => person.username.toLowerCase()));
+    const name = onboard.username.trim();
+    if (!name) {
+      let guest = `member_${Math.random().toString(36).slice(2, 8)}`;
+      while (usernameIssue(guest, taken)) guest = `member_${Math.random().toString(36).slice(2, 8)}`;
+      onboard.username = guest;
+    } else if (usernameIssue(name, taken)) {
+      toast = usernameIssue(name, taken) === "taken" ? L("taken") : usernameIssue(name, taken) === "reserved" ? L("reserved") : L("invalidName");
+      render();
+      return;
+    }
     onboard.spaces = onboard.spaces.length ? onboard.spaces : ["i-485"];
     finishOnboard(false);
     return;
@@ -1242,10 +1224,12 @@ document.addEventListener("click", (event) => {
   if (act === "onboard-next") { advanceOnboard(); return; }
   if (act === "tab") {
     const name = node.dataset.tab;
-    const profile = me(state)?.profiles?.[0];
-    state.route = name === "prepare" && profile ? { name: "prepare", spaceId: profile.spaceId } : { name };
+    state.route = { name };
     if (name === "ask") ask = blankAsk();
-    if (name === "prepare") guideAnswer = null;
+    if (name === "prepare") {
+      guideAnswer = null;
+      rfeParsed = null;
+    }
     save();
     render();
     return;
@@ -1455,14 +1439,17 @@ document.addEventListener("change", (event) => {
   }
   if (node.dataset.act === "filter-stage") { filters.stage = node.value; render(); }
   if (node.dataset.act === "filter-office") { filters.officeId = node.value; render(); }
-  if (node.dataset.act === "evidence-check") { render(); }
+  if (node.dataset.act === "evidence-check") {
+    evidenceMarks[node.dataset.id] = node.checked;
+    render();
+  }
 });
 
 document.addEventListener("input", (event) => {
   if (event.target.id === "username") onboard.username = event.target.value;
   if (event.target.id === "email") onboard.emailDraft = event.target.value;
-  if (event.target.id === "rules") onboard.rules = event.target.checked;
-  if (event.target.id === "advice") onboard.advice = event.target.checked;
+  if (event.target.id === "rules") { onboard.rules = event.target.checked; restoreFocus = "rules"; render(); }
+  if (event.target.id === "advice") { onboard.advice = event.target.checked; restoreFocus = "advice"; render(); }
   if (event.target.id === "ask-title") ask.title = event.target.value;
   if (event.target.id === "ask-body") ask.body = event.target.value;
   if (event.target.id === "ask-stage") ask.stage = event.target.value;

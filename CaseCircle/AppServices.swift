@@ -223,4 +223,11 @@ enum ActionError: Error {
     case editExpired
     case alreadyReported
     case notAllowed
+    case rateLimited
+}
+
+enum RateLimit {
+    static let post: TimeInterval = 30
+    static let comment: TimeInterval = 8
+    static let vote: TimeInterval = 0.8
 }

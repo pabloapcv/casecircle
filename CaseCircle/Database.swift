@@ -12,6 +12,7 @@ final class Database {
     private let fileURL: URL?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let ioLock = NSLock()
 
     init() {
         if CommandLine.arguments.contains("-memory") {
@@ -122,14 +123,29 @@ final class Database {
 
     func save() {
         revision += 1
+        persistToDisk()
+    }
+
+    private func persistToDisk() {
         guard let fileURL else { return }
+        ioLock.lock()
+        defer { ioLock.unlock() }
         let snapshot = Snapshot(database: self)
         guard let data = try? encoder.encode(snapshot) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        let tempURL = fileURL.appendingPathExtension("tmp")
+        do {
+            try data.write(to: tempURL, options: .atomic)
+            _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tempURL)
+        } catch {
+            try? data.write(to: fileURL, options: .atomic)
+        }
     }
 
     private func load() {
-        guard let fileURL, let data = try? Data(contentsOf: fileURL),
+        guard let fileURL else { return }
+        ioLock.lock()
+        defer { ioLock.unlock() }
+        guard let data = try? Data(contentsOf: fileURL),
               let snapshot = try? decoder.decode(Snapshot.self, from: data) else { return }
         snapshot.apply(to: self)
     }

@@ -55,6 +55,11 @@ struct OnboardingView: View {
                 Text(L10n.s(.notAffiliated, lang)).font(.caption).foregroundStyle(Theme.secondary)
             }
             Spacer()
+            if step > 0 {
+                Button(L10n.s(.skipSetup, lang)) { skipSetup() }
+                    .font(.caption.weight(.semibold))
+                    .disabled(working)
+            }
             Text("\(step + 1)/5")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.secondary)
@@ -319,6 +324,19 @@ struct OnboardingView: View {
             return
         }
         step += 1
+    }
+
+    private func skipSetup() {
+        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || usernameIssue != nil {
+            let taken = Set(members.map { $0.username.lowercased() })
+            var guest = "member_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).lowercased()
+            while UsernameRules.issue(for: guest, taken: taken) != nil {
+                guest = "member_" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)).lowercased()
+            }
+            username = guest
+        }
+        if selected.isEmpty { selected = ["i-485"] }
+        finish(includeProfile: false)
     }
 
     private func finish(includeProfile: Bool) {

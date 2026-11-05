@@ -1107,6 +1107,9 @@ input:focus, select:focus, textarea:focus {
   color: var(--teal-deep);
   letter-spacing: -0.03em;
 }
+.wait-percentile.coral { color: var(--coral); }
+.wait-percentile.amber { color: var(--amber); }
+.wait-percentile.green { color: var(--green); }
 .wait-desc { flex: 1; min-width: 200px; }
 .wait-desc strong { display: block; font-size: 1.1rem; }
 .wait-desc span { color: var(--muted); }

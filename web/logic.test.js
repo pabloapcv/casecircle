@@ -5,10 +5,12 @@ import {
   createAccount,
   evaluate,
   initialState,
+  normalizeWebState,
   publish,
   rateLimited,
   RATE_WINDOWS,
   toggleVote,
+  visiblePosts,
   waitComparison
 } from "./logic.js";
 
@@ -147,5 +149,35 @@ describe("wait comparison privacy threshold", () => {
     const visible = waitComparison(state, me.profiles[0]);
     assert.equal(visible.publishable, true);
     assert.equal(typeof visible.percentile, "number");
+  });
+});
+
+describe("existing browser storage", () => {
+  it("keeps a signed-in account and fills missing member fields", () => {
+    const restored = normalizeWebState({
+      seq: 2,
+      lang: "en",
+      meId: "id1",
+      members: [{ id: "id1", username: "keepuser", email: "keepuser@example.com" }]
+    });
+    assert.equal(restored.meId, "id1");
+    assert.deepEqual(restored.members[0].blocks, []);
+    assert.deepEqual(restored.members[0].spaces, []);
+    assert.deepEqual(restored.posts, []);
+    assert.deepEqual(visiblePosts(restored), []);
+  });
+
+  it("does not drop posts or the signed-in id when repairing v3 JSON", () => {
+    const restored = normalizeWebState({
+      seq: 4,
+      lang: "es",
+      meId: "id1",
+      members: [{ id: "id1", username: "keepuser", spaces: ["i-485"], blocks: ["id9"] }],
+      posts: [{ id: "p1", authorId: "id1", status: "live", type: "question", title: "Quiet since biometrics", body: "Looking for similar waits.", spaceIds: ["i-485"], comments: null }]
+    });
+    assert.equal(restored.meId, "id1");
+    assert.equal(restored.lang, "es");
+    assert.equal(restored.posts[0].comments.length, 0);
+    assert.equal(visiblePosts(restored).length, 1);
   });
 });

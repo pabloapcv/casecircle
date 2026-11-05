@@ -80,6 +80,11 @@ enum RenderHarness {
         shot(SpacesView(), model: model, database: database, name: "04-spaces", directory: directory)
         shot(SpaceDetailView(spaceID: "n-400"), model: model, database: database, name: "05-space-n400", directory: directory)
         shot(TimelinesView(), model: model, database: database, name: "06-timelines", directory: directory)
+        shot(PrepareView(), model: model, database: database, name: "14-prepare", directory: directory)
+        shot(InterviewPrepView(spaceID: "i-485"), model: model, database: database, name: "15-interview", directory: directory)
+        shot(OnboardingView(), model: model, database: database, name: "16-onboarding-pains", directory: directory)
+        shot(HomeView(), model: model, database: database, name: "17-home-dark", directory: directory, appearance: .darkAqua)
+        shot(PrepareView(), model: model, database: database, name: "18-prepare-dark", directory: directory, appearance: .darkAqua)
         shot(AskView(), model: model, database: database, name: "07-ask", directory: directory)
         shot(ProfileView(), model: model, database: database, name: "08-profile", directory: directory)
         if let post = live.first {

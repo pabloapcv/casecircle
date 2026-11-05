@@ -101,6 +101,9 @@ struct PostDetailView: View {
                 if !badge.isEmpty {
                     Text(badge).font(.subheadline.weight(.medium)).foregroundStyle(Theme.teal)
                 }
+                if !post.stage.isEmpty {
+                    StatusDecoderCard(stage: post.stage)
+                }
                 Text(post.bodyText).font(.body).textSelection(.enabled)
                 if post.editedAt != nil {
                     Text(L10n.s(.editedLabel, lang)).font(.caption).foregroundStyle(Theme.secondary)

@@ -27,6 +27,15 @@ struct HomeView: View {
                     Text(L10n.s(.notAffiliated, lang))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.secondary)
+                    if me?.profiles.isEmpty == true {
+                        EmptyState(
+                            title: L10n.s(.addFirstCase, lang),
+                            message: L10n.s(.addFirstCaseBody, lang),
+                            actionTitle: L10n.s(.addCaseCTA, lang),
+                            action: { model.selectedTab = .timelines }
+                        )
+                    }
+                    tools
                     sortPicker
                     filters
                     if !hideSampleNote {
@@ -35,8 +44,13 @@ struct HomeView: View {
                     if visible.isEmpty {
                         EmptyState(
                             title: emptyTitle,
-                            message: emptyMessage
+                            message: emptyMessage,
+                            actionTitle: L10n.s(.emptyFeedCTAAsk, lang),
+                            action: { model.selectedTab = .ask }
                         )
+                        Button(L10n.s(.emptyFeedCTAJoin, lang)) { model.selectedTab = .spaces }
+                            .font(.subheadline.weight(.semibold))
+                            .frame(minHeight: 44)
                     } else {
                         ForEach(visible, id: \.id) { post in
                             NavigationLink {
@@ -182,6 +196,51 @@ struct HomeView: View {
         .background(Theme.card)
         .clipShape(Capsule())
         .overlay(Capsule().stroke(Theme.line, lineWidth: 1))
+    }
+
+    private var tools: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L10n.s(.toolsTitle, lang))
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                Button { model.selectedTab = .timelines } label: {
+                    PainPointCard(icon: "clock", title: L10n.s(.painWaitTitle, lang), bodyText: L10n.s(.painWaitBody, lang))
+                }
+                .buttonStyle(.plain)
+                NavigationLink {
+                    InterviewPrepView(spaceID: me?.profiles.first?.spaceID ?? me?.memberships.first?.spaceID ?? "i-485")
+                } label: {
+                    PainPointCard(icon: "person.2.wave.2", title: L10n.s(.painInterviewTitle, lang), bodyText: L10n.s(.painInterviewBody, lang))
+                }
+                .buttonStyle(.plain)
+                NavigationLink {
+                    PrepareView(initialSpaceID: "i-765")
+                } label: {
+                    PainPointCard(icon: "briefcase", title: L10n.s(.painEADTitle, lang), bodyText: L10n.s(.painEADBody, lang))
+                }
+                .buttonStyle(.plain)
+                NavigationLink {
+                    PrepareView()
+                } label: {
+                    PainPointCard(icon: "doc.text.magnifyingglass", title: L10n.s(.painRFETitle, lang), bodyText: L10n.s(.painRFEBody, lang))
+                }
+                .buttonStyle(.plain)
+                NavigationLink {
+                    InterviewPrepView(spaceID: "i-485")
+                } label: {
+                    PainPointCard(icon: "heart", title: L10n.s(.painEvidenceTitle, lang), bodyText: L10n.s(.painEvidenceBody, lang))
+                }
+                .buttonStyle(.plain)
+                NavigationLink {
+                    PrepareView()
+                } label: {
+                    PainPointCard(icon: "folder", title: L10n.s(.painFolderTitle, lang), bodyText: L10n.s(.painFolderBody, lang))
+                }
+                .buttonStyle(.plain)
+            }
+            LegalNotice()
+        }
     }
 
     private var sampleNote: some View {

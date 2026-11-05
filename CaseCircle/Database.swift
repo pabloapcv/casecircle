@@ -208,6 +208,8 @@ private struct MemberDTO: Codable {
     var notifyFollowed: Bool
     var notifyDigest: Bool
     var quietHours: Bool
+    var folderMarks: [String: String]?
+    var evidenceMarks: [String: Bool]?
     var memberships: [MembershipDTO]
     var profiles: [ProfileDTO]
     var votes: [VoteDTO]
@@ -232,6 +234,8 @@ private struct MemberDTO: Codable {
         notifyFollowed = member.notifyFollowed
         notifyDigest = member.notifyDigest
         quietHours = member.quietHours
+        folderMarks = member.folderMarks
+        evidenceMarks = member.evidenceMarks
         memberships = member.memberships.map { MembershipDTO(id: $0.id, spaceID: $0.spaceID) }
         profiles = member.profiles.map(ProfileDTO.init)
         votes = member.votes.map { VoteDTO(id: $0.id, targetID: $0.targetID, targetType: $0.targetType) }
@@ -247,6 +251,8 @@ private struct MemberDTO: Codable {
             notifyRepliesToPost: notifyRepliesToPost, notifyRepliesToComment: notifyRepliesToComment,
             notifySolved: notifySolved, notifyFollowed: notifyFollowed, notifyDigest: notifyDigest, quietHours: quietHours
         )
+        member.folderMarks = folderMarks ?? [:]
+        member.evidenceMarks = evidenceMarks ?? [:]
         member.memberships = memberships.map { dto in
             let item = Membership(id: dto.id, spaceID: dto.spaceID, member: member)
             return item

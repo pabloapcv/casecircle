@@ -48,21 +48,26 @@ struct OnboardingView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            MarkView(size: 32)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(L10n.s(.appName, lang)).font(.headline)
-                Text(L10n.s(.notAffiliated, lang)).font(.caption).foregroundStyle(Theme.secondary)
-            }
-            Spacer()
-            if step > 0 {
-                Button(L10n.s(.skipSetup, lang)) { skipSetup() }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                MarkView(size: 32)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(L10n.s(.appName, lang)).font(.headline)
+                    Text(L10n.s(.notAffiliated, lang)).font(.caption).foregroundStyle(Theme.secondary)
+                }
+                Spacer()
+                Text("\(step + 1)/5")
                     .font(.caption.weight(.semibold))
-                    .disabled(working)
+                    .foregroundStyle(Theme.secondary)
+                    .accessibilityLabel("\(step + 1) / 5")
             }
-            Text("\(step + 1)/5")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.secondary)
+            Button(L10n.s(.skipSetup, lang)) { skipSetup() }
+                .font(.subheadline.weight(.semibold))
+                .frame(minHeight: 44)
+                .disabled(working)
+                .accessibilityLabel(L10n.s(.skipSetup, lang))
+                .accessibilityHint(L10n.s(.skipForNow, lang))
+                .accessibilityIdentifier("onboarding.skip")
         }
     }
 
@@ -75,6 +80,7 @@ struct OnboardingView: View {
                 .font(.body)
                 .foregroundStyle(Theme.secondary)
             DisclaimerBanner()
+            painPoints
             languagePicker
             SignInWithAppleButton(.continue) { request in
                 request.requestedScopes = []
@@ -107,6 +113,43 @@ struct OnboardingView: View {
             .padding(.top, 8)
             Link(L10n.s(.contactFooter, lang), destination: Links.supportMail)
                 .font(.footnote)
+        }
+    }
+
+    private var painPoints: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L10n.s(.painSectionTitle, lang))
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            Text(L10n.s(.painSectionLead, lang))
+                .font(.subheadline)
+                .foregroundStyle(Theme.secondary)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                Button { showEmail = true } label: {
+                    PainPointCard(icon: "clock", title: L10n.s(.painWaitTitle, lang), bodyText: L10n.s(.painWaitBody, lang))
+                }
+                .buttonStyle(.plain)
+                Button { showEmail = true } label: {
+                    PainPointCard(icon: "person.2.wave.2", title: L10n.s(.painInterviewTitle, lang), bodyText: L10n.s(.painInterviewBody, lang))
+                }
+                .buttonStyle(.plain)
+                Button { showEmail = true } label: {
+                    PainPointCard(icon: "briefcase", title: L10n.s(.painEADTitle, lang), bodyText: L10n.s(.painEADBody, lang))
+                }
+                .buttonStyle(.plain)
+                Button { showEmail = true } label: {
+                    PainPointCard(icon: "doc.text.magnifyingglass", title: L10n.s(.painRFETitle, lang), bodyText: L10n.s(.painRFEBody, lang))
+                }
+                .buttonStyle(.plain)
+                Button { showEmail = true } label: {
+                    PainPointCard(icon: "heart", title: L10n.s(.painEvidenceTitle, lang), bodyText: L10n.s(.painEvidenceBody, lang))
+                }
+                .buttonStyle(.plain)
+                Button { showEmail = true } label: {
+                    PainPointCard(icon: "folder", title: L10n.s(.painFolderTitle, lang), bodyText: L10n.s(.painFolderBody, lang))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 

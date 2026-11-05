@@ -90,15 +90,106 @@ struct DisclaimerBanner: View {
 struct EmptyState: View {
     var title: String
     var message: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             MarkView(size: 28)
-            Text(title).font(.headline)
+            Text(title)
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
             Text(message).font(.subheadline).foregroundStyle(Theme.secondary)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
+                    .accessibilityLabel(actionTitle)
+            }
         }
         .cardStyle()
+        .accessibilityElement(children: actionTitle == nil ? .combine : .contain)
+    }
+}
+
+struct LegalNotice: View {
+    @Environment(\.appLanguage) private var lang
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.s(.legalNoticeTitle, lang))
+                .font(.footnote.weight(.semibold))
+            Text(L10n.s(.legalNoticeBody, lang))
+                .font(.footnote)
+                .foregroundStyle(Theme.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.line, lineWidth: 1))
         .accessibilityElement(children: .combine)
+    }
+}
+
+struct PainPointCard: View {
+    var icon: String
+    var title: String
+    var bodyText: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(Theme.teal)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(bodyText)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(bodyText)")
+    }
+}
+
+struct ScoreMeter: View {
+    var title: String
+    var score: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title).font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(score)%")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(barColor)
+                    .accessibilityLabel("\(title) \(score) percent")
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.line)
+                    Capsule()
+                        .fill(barColor)
+                        .frame(width: max(8, geo.size.width * CGFloat(score) / 100))
+                }
+            }
+            .frame(height: 8)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var barColor: Color {
+        if score >= 70 { return Theme.good }
+        if score >= 40 { return Theme.amber }
+        return Theme.coral
     }
 }
 

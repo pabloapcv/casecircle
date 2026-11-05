@@ -33,6 +33,8 @@ final class Member: Identifiable {
     var notifyFollowed: Bool
     var notifyDigest: Bool
     var quietHours: Bool
+    var folderMarks: [String: String] = [:]
+    var evidenceMarks: [String: Bool] = [:]
     var memberships: [Membership] = []
     var profiles: [CaseProfile] = []
     var posts: [Post] = []
@@ -77,6 +79,15 @@ final class Member: Identifiable {
         self.notifyFollowed = notifyFollowed
         self.notifyDigest = notifyDigest
         self.quietHours = quietHours
+    }
+
+    func waitInput(from profile: CaseProfile) -> WaitInput {
+        WaitInput(
+            spaceId: profile.spaceID,
+            officeId: profile.officeID,
+            filedMonth: profile.filedMonth,
+            isSample: isSample || profile.isSample
+        )
     }
 }
 

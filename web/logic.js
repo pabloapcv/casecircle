@@ -405,6 +405,45 @@ export function initialState(lang = "en") {
   return { seq: 1, lang, meId: null, members: [], posts: [], reports: [], route: { name: "home" } };
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeMember(person) {
+  if (!person || typeof person !== "object") return person;
+  person.spaces = asArray(person.spaces);
+  person.profiles = asArray(person.profiles);
+  person.votes = person.votes && typeof person.votes === "object" && !Array.isArray(person.votes) ? person.votes : {};
+  person.bookmarks = asArray(person.bookmarks);
+  person.blocks = asArray(person.blocks);
+  person.notes = asArray(person.notes);
+  person.completed = asArray(person.completed);
+  person.username = String(person.username || "member");
+  return person;
+}
+
+function normalizePost(post) {
+  if (!post || typeof post !== "object") return post;
+  post.comments = asArray(post.comments);
+  post.spaceIds = asArray(post.spaceIds);
+  post.body = String(post.body ?? "");
+  post.title = String(post.title ?? "");
+  return post;
+}
+
+export function normalizeWebState(saved, fallbackLang = "en") {
+  if (!saved || typeof saved !== "object" || Array.isArray(saved)) return initialState(fallbackLang);
+  saved.lang = saved.lang === "es" ? "es" : "en";
+  saved.seq = Number(saved.seq) > 0 ? Number(saved.seq) : 1;
+  saved.members = asArray(saved.members).map(normalizeMember);
+  saved.posts = asArray(saved.posts).map(normalizePost);
+  saved.reports = asArray(saved.reports);
+  saved.folders = saved.folders && typeof saved.folders === "object" && !Array.isArray(saved.folders) ? saved.folders : {};
+  saved.route = saved.route && typeof saved.route === "object" ? saved.route : { name: "home" };
+  if (saved.meId && !saved.members.some((person) => person.id === saved.meId)) saved.meId = null;
+  return saved;
+}
+
 function next(db) {
   const id = `id${db.seq}`;
   db.seq += 1;
@@ -412,7 +451,7 @@ function next(db) {
 }
 
 export function member(state, id) {
-  return state.members.find((item) => item.id === id) || null;
+  return asArray(state.members).find((item) => item.id === id) || null;
 }
 
 export function me(state) {
@@ -500,17 +539,18 @@ function percentile(sorted, p) {
 export function visiblePosts(state, { spaceId = null, sort = "new", kind = "", stage = "", officeId = "", query = "" } = {}) {
   const user = me(state);
   const blocked = new Set();
+  const members = asArray(state.members);
   if (user) {
-    for (const id of user.blocks) blocked.add(id);
-    for (const other of state.members) {
-      if (other.blocks.includes(user.id)) blocked.add(other.id);
+    for (const id of asArray(user.blocks)) blocked.add(id);
+    for (const other of members) {
+      if (asArray(other.blocks).includes(user.id)) blocked.add(other.id);
     }
   }
-  let posts = state.posts.filter((post) => post.status === "live" && !blocked.has(post.authorId));
-  if (spaceId) posts = posts.filter((post) => post.spaceIds.includes(spaceId));
+  let posts = asArray(state.posts).filter((post) => post.status === "live" && !blocked.has(post.authorId));
+  if (spaceId) posts = posts.filter((post) => asArray(post.spaceIds).includes(spaceId));
   else if (user) {
-    const joined = new Set(user.spaces);
-    posts = posts.filter((post) => post.spaceIds.some((id) => joined.has(id)));
+    const joined = new Set(asArray(user.spaces));
+    posts = posts.filter((post) => asArray(post.spaceIds).some((id) => joined.has(id)));
   } else posts = [];
   if (kind) posts = posts.filter((post) => post.type === kind);
   if (stage) posts = posts.filter((post) => post.stage === stage);
@@ -519,7 +559,7 @@ export function visiblePosts(state, { spaceId = null, sort = "new", kind = "", s
     const folded = query.toLowerCase();
     posts = posts.filter((post) => `${post.title} ${post.body}`.toLowerCase().includes(folded));
   }
-  if (sort === "unanswered") posts = posts.filter((post) => post.type === "question" && post.comments.filter((comment) => comment.status === "live").length === 0);
+  if (sort === "unanswered") posts = posts.filter((post) => post.type === "question" && asArray(post.comments).filter((comment) => comment.status === "live").length === 0);
   if (sort === "top") {
     const cutoff = Date.now() - 7 * 86400000;
     posts = posts.filter((post) => new Date(post.createdAt).getTime() >= cutoff);
@@ -532,8 +572,8 @@ export function visiblePosts(state, { spaceId = null, sort = "new", kind = "", s
 
 export function similarThreads(state, title, body, spaceId) {
   const tokens = new Set(`${title} ${body}`.toLowerCase().split(/[^a-z0-9áéíóúñ]+/i).filter((token) => token.length > 3));
-  return state.posts
-    .filter((post) => post.status === "live" && post.type === "question" && post.spaceIds.includes(spaceId))
+  return asArray(state.posts)
+    .filter((post) => post.status === "live" && post.type === "question" && asArray(post.spaceIds).includes(spaceId))
     .map((post) => {
       const words = `${post.title} ${post.body}`.toLowerCase().split(/[^a-z0-9áéíóúñ]+/i);
       const score = words.filter((word) => tokens.has(word)).length;

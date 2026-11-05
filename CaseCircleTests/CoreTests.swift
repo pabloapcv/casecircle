@@ -130,3 +130,110 @@ final class TaxonomyTests: XCTestCase {
         XCTAssertEqual(Taxonomy.searchSpaces("h-1b").first?.id, "i-129")
     }
 }
+
+final class FolderScoringTests: XCTestCase {
+    func testEmptyFolderScoresZero() {
+        let items = FormChecklists.items(for: "i-485")
+        XCTAssertFalse(items.isEmpty)
+        XCTAssertEqual(FormChecklists.score(items: items, marks: [:]), 0)
+    }
+
+    func testReadyMarksRaiseScore() {
+        let items = FormChecklists.items(for: "i-485")
+        var marks: [String: String] = [:]
+        marks[items[0].id] = FolderMark.ready.rawValue
+        let score = FormChecklists.score(items: items, marks: marks)
+        XCTAssertGreaterThan(score, 0)
+        XCTAssertLessThan(score, 100)
+    }
+
+    func testCompleteFolderScoresOneHundred() {
+        let items = FormChecklists.items(for: "n-400")
+        let marks = Dictionary(uniqueKeysWithValues: items.map { ($0.id, FolderMark.ready.rawValue) })
+        XCTAssertEqual(FormChecklists.score(items: items, marks: marks), 100)
+    }
+
+    func testFeaturedFormsHaveChecklists() {
+        for spaceId in FormChecklists.featuredSpaceIDs {
+            XCTAssertGreaterThan(FormChecklists.items(for: spaceId).count, 3, spaceId)
+        }
+        XCTAssertEqual(FormChecklists.featuredSpaceIDs, ["i-485", "i-765", "n-400", "i-130"])
+        XCTAssertEqual(StatsMath.minimumSample, 20)
+    }
+}
+
+final class RFEParserTests: XCTestCase {
+    func testParsesCommonEvidence() {
+        let items = RFEParser.parse("Please send your birth certificate, marriage certificate, and a copy of your passport. Include tax transcripts.")
+        XCTAssertNotNil(items)
+        let labels = items!.map(\.en).joined(separator: " ").lowercased()
+        XCTAssertTrue(labels.contains("birth certificate"))
+        XCTAssertTrue(labels.contains("marriage certificate"))
+        XCTAssertTrue(labels.contains("passport"))
+        XCTAssertTrue(labels.contains("tax"))
+    }
+
+    func testBlocksIdentifiers() {
+        let items = RFEParser.parse("Respond with receipt IOE1234567890 and your birth certificate.")
+        XCTAssertEqual(items?.count, 1)
+        XCTAssertTrue(items?.first?.en.lowercased().contains("identifier") == true)
+    }
+
+    func testShortTextReturnsNil() {
+        XCTAssertNil(RFEParser.parse("too short"))
+    }
+}
+
+final class RiskAndWaitTests: XCTestCase {
+    func testI693ExpiryFlag() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1))!
+        let filed = calendar.date(from: DateComponents(year: 2024, month: 8, day: 1))!
+        let flags = RiskFlags.flags(spaceId: "i-485", stage: "filed", filed: filed, marks: [:], now: now, calendar: calendar)
+        XCTAssertTrue(flags.contains { $0.kind == "i693" && $0.level == "error" })
+    }
+
+    func testTranslationAndPassportFlags() {
+        let flags = RiskFlags.flags(
+            spaceId: "i-485",
+            stage: "biometrics",
+            filed: nil,
+            marks: [
+                "i485-passport": FolderMark.need.rawValue,
+                "i485-translate": FolderMark.need.rawValue
+            ]
+        )
+        XCTAssertTrue(flags.contains { $0.kind == "passport" })
+        XCTAssertTrue(flags.contains { $0.kind == "translation" })
+    }
+
+    func testWaitPercentileHiddenBelowTwenty() {
+        let now = Date()
+        let filed = now
+        let mine = WaitInput(spaceId: "i-485", officeId: "nyc", filedMonth: filed, isSample: false)
+        let hidden = (0..<19).map { _ in mine }
+        let hiddenResult = WaitEngine.comparison(mine: mine, cohort: hidden, now: now)
+        XCTAssertFalse(hiddenResult.isPublishable)
+        XCTAssertNil(hiddenResult.percentile)
+        let visible = (0..<20).map { _ in mine }
+        let visibleResult = WaitEngine.comparison(mine: mine, cohort: visible, now: now)
+        XCTAssertTrue(visibleResult.isPublishable)
+        XCTAssertNotNil(visibleResult.percentile)
+    }
+
+    func testSamplesDoNotCountTowardThreshold() {
+        let now = Date()
+        let mine = WaitInput(spaceId: "i-485", officeId: "nyc", filedMonth: now, isSample: false)
+        let samples = (0..<20).map { _ in WaitInput(spaceId: "i-485", officeId: "nyc", filedMonth: now, isSample: true) }
+        let result = WaitEngine.comparison(mine: mine, cohort: samples + [mine], now: now)
+        XCTAssertFalse(result.isPublishable)
+    }
+
+    func testStatusDecoderAndEvidenceScore() {
+        XCTAssertNotNil(StatusDecoder.explain("rfe"))
+        XCTAssertNil(StatusDecoder.explain("not-a-stage"))
+        XCTAssertEqual(InterviewGuide.evidenceScore(checked: []), 0)
+        XCTAssertEqual(InterviewGuide.evidenceScore(checked: Set(InterviewGuide.marriageEvidence.map(\.id))), 100)
+    }
+}

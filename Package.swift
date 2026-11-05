@@ -31,6 +31,12 @@ let package = Package(
             dependencies: ["CaseCircleCore"],
             path: "Checks",
             swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "CaseCircleCoreTests",
+            dependencies: ["CaseCircleCore"],
+            path: "CaseCircleTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]
 )

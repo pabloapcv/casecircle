@@ -124,6 +124,9 @@ enum CommunityActions {
     }
 
     static func publish(_ draft: NewPostDraft, author: Member, database: Database) throws -> Post {
+        if let last = author.posts.map(\.createdAt).max(), Date().timeIntervalSince(last) < RateLimit.post {
+            throw ActionError.rateLimited
+        }
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let body = draft.body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard title.count >= 8, body.count >= 20, !draft.spaceIDs.isEmpty else { throw ActionError.tooShort }
@@ -219,6 +222,9 @@ enum CommunityActions {
     }
 
     static func comment(on post: Post, parentID: UUID?, body: String, author: Member, database: Database) throws -> Comment {
+        if let last = author.comments.map(\.createdAt).max(), Date().timeIntervalSince(last) < RateLimit.comment {
+            throw ActionError.rateLimited
+        }
         let clean = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard clean.count >= 8 else { throw ActionError.tooShort }
         let verdict = SafetyFilter.evaluate(clean)
@@ -268,6 +274,8 @@ enum CommunityActions {
         return comment
     }
 
+    private static var lastVoteAt: [UUID: Date] = [:]
+
     static func toggleVote(targetID: UUID, targetType: String, voter: Member, database: Database) throws {
         let posts = database.posts
         let comments = database.allComments
@@ -283,6 +291,10 @@ enum CommunityActions {
             applyVote(targetID: targetID, targetType: targetType, delta: -1, posts: posts, comments: comments)
             database.delete(existing)
         } else {
+            if let last = lastVoteAt[voter.id], Date().timeIntervalSince(last) < RateLimit.vote {
+                throw ActionError.rateLimited
+            }
+            lastVoteAt[voter.id] = .now
             database.add(Vote(targetID: targetID, targetType: targetType, voter: voter))
             applyVote(targetID: targetID, targetType: targetType, delta: 1, posts: posts, comments: comments)
         }

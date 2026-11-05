@@ -19,6 +19,22 @@ struct TimelinesView: View {
                     Text(L10n.s(.notAffiliated, lang))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.secondary)
+                    if let first = mine.first {
+                        WaitCalculatorCard(profile: first, cohort: waitCohort)
+                    } else {
+                        EmptyState(
+                            title: L10n.s(.waitNormalTitle, lang),
+                            message: L10n.s(.addFirstCaseBody, lang)
+                        )
+                        NavigationLink {
+                            ProfileEditorScreen(existing: nil, preferredSpaceID: me?.memberships.first?.spaceID)
+                        } label: {
+                            Text(L10n.s(.addCaseCTA, lang))
+                                .font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44)
+                        }
+                        .accessibilityLabel(L10n.s(.addCaseCTA, lang))
+                    }
                     Text(L10n.s(.yourCases, lang)).font(.headline)
                     if mine.isEmpty {
                         EmptyState(title: L10n.s(.noCaseYet, lang), message: L10n.s(.profileStepHelp, lang))
@@ -53,15 +69,31 @@ struct TimelinesView: View {
                             ProfileEditorScreen(existing: nil, preferredSpaceID: first)
                         } label: {
                             Text(L10n.s(.addCaseProfile, lang)).font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44)
                         }
+                    }
+                    NavigationLink {
+                        PrepareView()
+                    } label: {
+                        Text(L10n.s(.prepareTitle, lang)).font(.subheadline.weight(.semibold))
+                            .frame(minHeight: 44)
                     }
                     benchmarkBlock
                     OfficialTimesLink().padding(.top, 8)
+                    LegalNotice()
                 }
                 .padding(16)
             }
             .background(Theme.paper)
             .navigationTitle(L10n.s(.tabTimelines, lang))
+        }
+    }
+
+    private var waitCohort: [WaitInput] {
+        members.flatMap { member in
+            member.profiles.map { profile in
+                member.waitInput(from: profile)
+            }
         }
     }
 

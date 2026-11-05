@@ -58,7 +58,22 @@ public enum LKey: String {
     case verifiedFootnote, threeReportNote, statusHeld, statusRemoved, statusLive
     case thisWeek, newPostsCount, dismiss, choose, commentHeld, saved
     case couldNotSignIn, moreActions, upvote, statusWord, retry, reply, sendReply
+    case skipSetup, slowDown
     case caseProfiles, settings, openPost
+    case painSectionTitle, painSectionLead
+    case painWaitTitle, painWaitBody, painInterviewTitle, painInterviewBody
+    case painEADTitle, painEADBody, painRFETitle, painRFEBody
+    case painEvidenceTitle, painEvidenceBody, painFolderTitle, painFolderBody
+    case waitNormalTitle, waitLonger, waitMiddle, waitShorter, waitOfPeople, waitPrivacyNote
+    case addFirstCase, addFirstCaseBody, emptyFeedCTAJoin, emptyFeedCTAAsk
+    case toolsTitle, prepareTitle, prepareLead, pickFolder, completenessScore
+    case rfeHelperTitle, rfeHelperLead, rfePlaceholder, generateChecklist
+    case requestedItems, requiredLabel, ifApplicable, rfeTooShort
+    case folderReady, folderNeed, folderNA, backToFolders
+    case legalNoticeTitle, legalNoticeBody
+    case interviewPrep, interviewPrepLead, generalTips, marriageEvidenceTitle
+    case evidenceStrength, moreEvidenceNote, statusMeansTitle
+    case openFolder, addCaseCTA
 }
 
 public enum L10n {
@@ -245,6 +260,8 @@ public enum L10n {
             "Elige la etapa actual y luego guarda."
         )
         case .skipForNow: return ("Skip for now", "Omitir por ahora")
+        case .skipSetup: return ("Skip setup", "Saltar configuración")
+        case .slowDown: return ("Wait a moment before doing that again.", "Espera un momento antes de volver a hacerlo.")
         case .saveProfile: return ("Save profile", "Guardar perfil")
         case .back: return ("Back", "Atrás")
         case .next: return ("Next", "Siguiente")
@@ -590,6 +607,64 @@ public enum L10n {
         case .caseProfiles: return ("Case profiles", "Perfiles de caso")
         case .settings: return ("Settings", "Ajustes")
         case .openPost: return ("Open", "Abrir")
+        case .painSectionTitle: return ("What concerns you?", "¿Qué te preocupa?")
+        case .painSectionLead: return ("Tools for the questions people ask most.", "Herramientas para las preguntas que más se repiten.")
+        case .painWaitTitle: return ("Is my wait normal?", "¿Mi espera es normal?")
+        case .painWaitBody: return ("Compare your timeline with people like you.", "Compara tu tiempo con personas en la misma situación.")
+        case .painInterviewTitle: return ("Interview preparation", "Preparación para entrevista")
+        case .painInterviewBody: return ("Tips and a marriage-evidence checklist.", "Consejos y una lista de pruebas de matrimonio.")
+        case .painEADTitle: return ("Work permit (EAD)", "Permiso de trabajo (EAD)")
+        case .painEADBody: return ("I-765 folder and wait comparison.", "Carpeta I-765 y comparación de espera.")
+        case .painRFETitle: return ("RFE / Evidence", "RFE / Evidencia")
+        case .painRFEBody: return ("Paste the notice text into a response checklist.", "Pega el texto del aviso y arma una lista.")
+        case .painEvidenceTitle: return ("Marriage evidence", "Pruebas de matrimonio")
+        case .painEvidenceBody: return ("Checklist and a strength score.", "Lista de verificación y puntaje de fortaleza.")
+        case .painFolderTitle: return ("Document folder", "Carpeta de documentos")
+        case .painFolderBody: return ("Build your packet with a completeness score.", "Arma tu paquete con un puntaje de completitud.")
+        case .waitNormalTitle: return ("Is my wait normal?", "¿Es normal mi espera?")
+        case .waitLonger: return ("Your wait is longer than most in this group.", "Tu espera es más larga que la mayoría en este grupo.")
+        case .waitMiddle: return ("Your wait is in the middle of this group.", "Tu espera está en el rango medio de este grupo.")
+        case .waitShorter: return ("Your wait is shorter than most in this group.", "Tu espera es más corta que la mayoría en este grupo.")
+        case .waitOfPeople: return ("Of %d people with similar profiles on CaseCircle.", "De %d personas con perfil similar en CaseCircle.")
+        case .waitPrivacyNote: return (
+            "A comparison appears after 20 people with the same form and office share a filing month. Sample profiles are labeled and do not count.",
+            "La comparación aparece cuando 20 personas con el mismo formulario y oficina comparten un mes de presentación. Los perfiles de ejemplo están marcados y no cuentan."
+        )
+        case .addFirstCase: return ("Add your first case", "Agrega tu primer caso")
+        case .addFirstCaseBody: return ("To see personalized wait times and a folder for your form.", "Para ver tiempos personalizados y una carpeta de tu formulario.")
+        case .emptyFeedCTAJoin: return ("Join communities", "Únete a comunidades")
+        case .emptyFeedCTAAsk: return ("Share a thought", "Comparte lo que piensas")
+        case .toolsTitle: return ("Tools", "Herramientas")
+        case .prepareTitle: return ("Filing folder", "Carpeta de presentación")
+        case .prepareLead: return ("Mark papers you already have. This does not fill out or file a form.", "Marca los papeles que ya tienes. Esto no llena ni presenta un formulario.")
+        case .pickFolder: return ("Which folder are you building?", "¿Qué carpeta estás armando?")
+        case .completenessScore: return ("Completeness score", "Puntaje de completitud")
+        case .rfeHelperTitle: return ("RFE helper", "Ayuda para RFE")
+        case .rfeHelperLead: return ("Paste the notice text. Leave receipt numbers and other identifiers out.", "Pega el texto del aviso. Deja fuera números de recibo y otros identificadores.")
+        case .rfePlaceholder: return ("Paste your RFE text here…", "Pega aquí el texto de tu RFE…")
+        case .generateChecklist: return ("Generate checklist", "Generar lista")
+        case .requestedItems: return ("Requested items", "Items solicitados")
+        case .requiredLabel: return ("Required", "Requerido")
+        case .ifApplicable: return ("If applicable", "Si aplica")
+        case .rfeTooShort: return ("Paste more of the notice so the helper can find the documents it names.", "Pega más del aviso para que la ayuda encuentre los documentos que nombra.")
+        case .folderReady: return ("In the folder", "En la carpeta")
+        case .folderNeed: return ("Still need", "Todavía falta")
+        case .folderNA: return ("Does not apply", "No aplica")
+        case .backToFolders: return ("All folders", "Todas las carpetas")
+        case .legalNoticeTitle: return ("Important legal notice", "Aviso legal importante")
+        case .legalNoticeBody: return (
+            "CaseCircle is for organization only. It is not legal advice. It does not guarantee approval, does not replace an attorney, and does not represent USCIS requirements, which may change. Always verify with current official instructions.",
+            "CaseCircle es solo para organización. No es asesoría legal. No garantiza aprobación, no reemplaza a un abogado y no representa los requisitos de USCIS, que pueden cambiar. Verifica siempre las instrucciones oficiales vigentes."
+        )
+        case .interviewPrep: return ("Interview preparation", "Preparación para entrevista")
+        case .interviewPrepLead: return ("Orientation for the appointment. It is not a script and not a prediction.", "Orientación para la cita. No es un guion ni un pronóstico.")
+        case .generalTips: return ("General tips", "Consejos generales")
+        case .marriageEvidenceTitle: return ("Marriage evidence checklist", "Lista de pruebas de matrimonio")
+        case .evidenceStrength: return ("Evidence strength", "Fortaleza de evidencia")
+        case .moreEvidenceNote: return ("More genuine evidence can make a marriage case easier to review. Do not create documents to fill a gap.", "Más evidencia genuina puede facilitar un caso de matrimonio. No crees documentos para llenar un hueco.")
+        case .statusMeansTitle: return ("What does this stage mean?", "¿Qué significa esta etapa?")
+        case .openFolder: return ("Open folder", "Abrir carpeta")
+        case .addCaseCTA: return ("Add a case", "Agregar un caso")
         }
     }
 }

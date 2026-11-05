@@ -12,6 +12,7 @@ final class Database {
     private let fileURL: URL?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let ioLock = NSLock()
 
     init() {
         if CommandLine.arguments.contains("-memory") {
@@ -122,14 +123,29 @@ final class Database {
 
     func save() {
         revision += 1
+        persistToDisk()
+    }
+
+    private func persistToDisk() {
         guard let fileURL else { return }
+        ioLock.lock()
+        defer { ioLock.unlock() }
         let snapshot = Snapshot(database: self)
         guard let data = try? encoder.encode(snapshot) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        let tempURL = fileURL.appendingPathExtension("tmp")
+        do {
+            try data.write(to: tempURL, options: .atomic)
+            _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tempURL)
+        } catch {
+            try? data.write(to: fileURL, options: .atomic)
+        }
     }
 
     private func load() {
-        guard let fileURL, let data = try? Data(contentsOf: fileURL),
+        guard let fileURL else { return }
+        ioLock.lock()
+        defer { ioLock.unlock() }
+        guard let data = try? Data(contentsOf: fileURL),
               let snapshot = try? decoder.decode(Snapshot.self, from: data) else { return }
         snapshot.apply(to: self)
     }
@@ -192,6 +208,8 @@ private struct MemberDTO: Codable {
     var notifyFollowed: Bool
     var notifyDigest: Bool
     var quietHours: Bool
+    var folderMarks: [String: String]?
+    var evidenceMarks: [String: Bool]?
     var memberships: [MembershipDTO]
     var profiles: [ProfileDTO]
     var votes: [VoteDTO]
@@ -216,6 +234,8 @@ private struct MemberDTO: Codable {
         notifyFollowed = member.notifyFollowed
         notifyDigest = member.notifyDigest
         quietHours = member.quietHours
+        folderMarks = member.folderMarks
+        evidenceMarks = member.evidenceMarks
         memberships = member.memberships.map { MembershipDTO(id: $0.id, spaceID: $0.spaceID) }
         profiles = member.profiles.map(ProfileDTO.init)
         votes = member.votes.map { VoteDTO(id: $0.id, targetID: $0.targetID, targetType: $0.targetType) }
@@ -231,6 +251,8 @@ private struct MemberDTO: Codable {
             notifyRepliesToPost: notifyRepliesToPost, notifyRepliesToComment: notifyRepliesToComment,
             notifySolved: notifySolved, notifyFollowed: notifyFollowed, notifyDigest: notifyDigest, quietHours: quietHours
         )
+        member.folderMarks = folderMarks ?? [:]
+        member.evidenceMarks = evidenceMarks ?? [:]
         member.memberships = memberships.map { dto in
             let item = Membership(id: dto.id, spaceID: dto.spaceID, member: member)
             return item

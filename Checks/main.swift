@@ -82,6 +82,54 @@ checkEqual(Taxonomy.searchSpaces("ds-260").first?.id, "consular", "search consul
 checkEqual(Taxonomy.searchSpaces("h-1b").first?.id, "i-129", "search h1b")
 checkEqual(L10n.s(.notAffiliated, "es"), "Sin afiliación con USCIS", "spanish chrome")
 checkEqual(L10n.stage("biometrics", "es"), "Biometría", "spanish stage")
+checkEqual(L10n.s(.skipSetup, "en"), "Skip setup", "skip setup")
+checkEqual(L10n.s(.painWaitTitle, "es"), "¿Mi espera es normal?", "pain wait es")
+checkEqual(FormChecklists.featuredSpaceIDs, ["i-485", "i-765", "n-400", "i-130"], "featured folders")
+checkEqual(StatsMath.minimumSample, 20, "privacy threshold")
+check(!L10n.s(.waitPrivacyNote, "en").isEmpty, "wait privacy note")
+
+let i485Items = FormChecklists.items(for: "i-485")
+check(!i485Items.isEmpty, "i-485 checklist")
+checkEqual(FormChecklists.score(items: i485Items, marks: [:]), 0, "empty score")
+var oneReady: [String: String] = [:]
+oneReady[i485Items[0].id] = FolderMark.ready.rawValue
+check(FormChecklists.score(items: i485Items, marks: oneReady) > 0, "partial score")
+let allReady = Dictionary(uniqueKeysWithValues: FormChecklists.items(for: "n-400").map { ($0.id, FolderMark.ready.rawValue) })
+checkEqual(FormChecklists.score(items: FormChecklists.items(for: "n-400"), marks: allReady), 100, "complete score")
+
+let parsed = RFEParser.parse("Please send your birth certificate, marriage certificate, and a copy of your passport. Include tax transcripts.")
+check(parsed != nil && parsed!.count >= 4, "rfe parse")
+let rfeLabels = parsed!.map(\.en).joined(separator: " ").lowercased()
+check(rfeLabels.contains("birth certificate") && rfeLabels.contains("passport"), "rfe labels")
+let blockedRFE = RFEParser.parse("Respond with receipt IOE1234567890 and your birth certificate.")
+checkEqual(blockedRFE?.count ?? 0, 1, "rfe pii")
+check(RFEParser.parse("too short") == nil, "rfe short")
+
+var riskCalendar = Calendar(identifier: .gregorian)
+riskCalendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+let riskNow = riskCalendar.date(from: DateComponents(year: 2026, month: 11, day: 1))!
+let riskFiled = riskCalendar.date(from: DateComponents(year: 2024, month: 8, day: 1))!
+let i693Flags = RiskFlags.flags(spaceId: "i-485", stage: "filed", filed: riskFiled, marks: [:], now: riskNow, calendar: riskCalendar)
+check(i693Flags.contains { $0.kind == "i693" && $0.level == "error" }, "i693 expired")
+let mixFlags = RiskFlags.flags(spaceId: "i-485", stage: "biometrics", filed: nil, marks: [
+    "i485-passport": FolderMark.need.rawValue,
+    "i485-translate": FolderMark.need.rawValue
+])
+check(mixFlags.contains { $0.kind == "passport" }, "passport flag")
+check(mixFlags.contains { $0.kind == "translation" }, "translation flag")
+
+let waitMine = WaitInput(spaceId: "i-485", officeId: "nyc", filedMonth: Date(), isSample: false)
+let waitHidden = WaitEngine.comparison(mine: waitMine, cohort: Array(repeating: waitMine, count: 19))
+check(!waitHidden.isPublishable && waitHidden.percentile == nil, "wait n=19 hidden")
+let waitVisible = WaitEngine.comparison(mine: waitMine, cohort: Array(repeating: waitMine, count: 20))
+check(waitVisible.isPublishable && waitVisible.percentile != nil, "wait n=20 visible")
+let waitSamples = (0..<20).map { _ in WaitInput(spaceId: "i-485", officeId: "nyc", filedMonth: Date(), isSample: true) }
+let waitSampleResult = WaitEngine.comparison(mine: waitMine, cohort: waitSamples + [waitMine])
+check(!waitSampleResult.isPublishable, "samples excluded from wait")
+check(StatusDecoder.explain("rfe") != nil, "status rfe")
+check(StatusDecoder.explain("missing") == nil, "status missing")
+checkEqual(InterviewGuide.evidenceScore(checked: []), 0, "evidence empty")
+checkEqual(InterviewGuide.evidenceScore(checked: Set(InterviewGuide.marriageEvidence.map(\.id))), 100, "evidence full")
 
 if failures == 0 {
     print("All checks passed")

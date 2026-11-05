@@ -3,14 +3,14 @@ import {
   deleteAccount, emailOk, enterDemo, evaluate, initialState, kindHelp, kindLabel, kinds, levelName,
   markHelpful, me, member, moderate, monthLabel, monthsSince, officeById, officeName, offices,
   publish, queuedPosts, report, saveProfile, similarThreads, spaceById, spaceName, spaces,
-  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue
+  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue, waitComparison
 } from "./logic.js";
-import { blankFolder, guideReply, packetFor, prepareText, tally } from "./prepare.js";
-import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote } from "./questions.js";
+import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
+import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
 
-const KEY = "casecircle.web.v2";
+const KEY = "casecircle.web.v3";
 let state = load();
 let toast = "";
 let onboard = blankOnboard();
@@ -26,6 +26,10 @@ let publicView = "home";
 let webShown = { home: 20, feed: 30, space: 30 };
 let botQuestion = "";
 let botAnswer = null;
+let rfeText = "";
+let rfeParsed = null;
+let waitCalcProfile = null;
+let evidenceMarks = {};
 
 function withoutSamples(saved) {
   const sampleIds = new Set((saved.members || []).filter((person) => person.sample).map((person) => person.id));
@@ -58,7 +62,7 @@ function save() {
 }
 
 function blankOnboard() {
-  return { step: 0, email: "", emailDraft: "", showEmail: false, username: "", spaces: [], rules: false, advice: false, profile: blankProfile("i-751") };
+  return { step: 0, email: "", emailDraft: "", showEmail: false, username: "", spaces: [], rules: false, advice: false, profile: blankProfile("i-485"), skippedProfile: false };
 }
 
 function blankProfile(spaceId) {
@@ -125,16 +129,19 @@ function render() {
 }
 
 function shell() {
-  return `<div class="site">${topbar()}<main class="page">${screen()}</main>${siteFoot()}</div>`;
+  return `<div class="site">${topbar()}<main class="page" id="main">${screen()}</main>${bottomNav()}${siteFoot()}</div>`;
 }
 
 function topbar() {
   const item = (name, label) => `<button data-act="tab" data-tab="${name}" class="${navOn(name)}">${esc(label)}</button>`;
-  return `<header class="topbar">
-    <button class="brand" data-act="tab" data-tab="home"><div class="mark"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
-    <nav class="nav">
+  return `<a href="#main" class="skip-link">Skip to content</a>
+  <header class="topbar">
+    <button class="brand" data-act="tab" data-tab="home" aria-label="CaseCircle Home"><div class="mark" aria-hidden="true"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
+    <nav class="nav" aria-label="Main navigation">
       ${item("home", H("feed"))}
       ${item("spaces", H("communities"))}
+      ${item("timelines", Q("pathWait"))}
+      ${item("prepare", Q("pathFolder"))}
       ${item("bot", Q("botNav"))}
     </nav>
     <div class="top-actions">
@@ -144,13 +151,29 @@ function topbar() {
   </header>`;
 }
 
+function bottomNav() {
+  const user = me(state);
+  if (!user) return "";
+  const item = (name, icon, label) => `<button data-act="tab" data-tab="${name}" class="${navOn(name)}" aria-label="${esc(label)}"><span class="icon" aria-hidden="true">${icon}</span><span>${esc(label)}</span></button>`;
+  return `<nav class="bottom-nav" aria-label="Mobile navigation">
+    ${item("home", "🏠", H("feed"))}
+    ${item("timelines", "⏱", Q("pathWait"))}
+    ${item("prepare", "📁", Q("pathFolder"))}
+    ${item("spaces", "💬", H("communities"))}
+    ${item("you", "👤", L("you"))}
+  </nav>`;
+}
+
 function navOn(name) {
   const route = state.route?.name || "home";
   if (name === "home" && (route === "home" || route === "post" || route === "search")) return "on";
   if (name === "spaces" && route === "space") return "on";
+  if (name === "spaces" && route === "spaces") return "on";
   if (name === "prepare" && route === "prepare") return "on";
+  if (name === "timelines" && route === "timelines") return "on";
   if (name === "questions" && route === "questions") return "on";
   if (name === "bot" && route === "bot") return "on";
+  if (name === "you" && route === "you") return "on";
   return route === name ? "on" : "";
 }
 
@@ -162,20 +185,20 @@ function siteFoot() {
       <strong>${esc(L("appName"))}</strong>
       <p>${esc(H("footBlurb"))}</p>
     </div>
-    <nav>
+    <nav aria-label="Site links">
       <h2>${esc(H("footSite"))}</h2>
       ${jump("what", H("homeNavWhat"))}
       ${jump("how", H("homeNavHow"))}
       ${signed ? `<button class="foot-link" data-act="tab" data-tab="home">${esc(H("feed"))}</button>` : `<button class="foot-link" data-act="show-email">${esc(H("again"))}</button>`}
     </nav>
-    <nav>
+    <nav aria-label="Information">
       <h2>${esc(H("footRead"))}</h2>
       <button class="foot-link" data-act="page" data-page="about">${esc(L("about"))}</button>
       <button class="foot-link" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
       <button class="foot-link" data-act="page" data-page="rules">${esc(L("rules"))}</button>
       <a href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
     </nav>
-    <nav>
+    <nav aria-label="Official resources">
       <h2>${esc(H("footOfficial"))}</h2>
       <a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noreferrer">${esc(H("footTimes"))}</a>
       <a href="https://egov.uscis.gov/e-request/Intro.do" target="_blank" rel="noreferrer">${esc(H("footInquiry"))}</a>
@@ -205,6 +228,7 @@ function screen() {
   if (route.name === "timelines") return timelinesScreen();
   if (route.name === "bot") return botScreen();
   if (route.name === "you") return youScreen();
+  if (route.name === "interview") return interviewScreen(route.spaceId);
   return homeScreen();
 }
 
@@ -214,69 +238,44 @@ function welcome() {
   const jump = (id, label) => `<button data-act="home-section" data-id="${id}">${esc(label)}</button>`;
   return `<div class="site">
     <header class="topbar">
-      <button class="brand" data-act="public-home"><div class="mark"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
-      ${home ? `<nav class="nav">${jump("what", H("homeNavWhat"))}${jump("how", H("homeNavHow"))}</nav>` : `<div class="nav"></div>`}
+      <button class="brand" data-act="public-home" aria-label="CaseCircle Home"><div class="mark" aria-hidden="true"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
+      ${home ? `<nav class="nav" aria-label="Navigation">${jump("painpoints", H("homeNavPain"))}${jump("what", H("homeNavWhat"))}${jump("how", H("homeNavHow"))}</nav>` : `<div class="nav"></div>`}
       <div class="top-actions lang">
-        <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en">${esc(L("english"))}</button>
-        <button class="btn inline ${lang() === "es" ? "on" : "off"}" data-act="lang" data-lang="es">${esc(L("spanish"))}</button>
+        <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en" aria-label="Switch to English">${esc(L("english"))}</button>
+        <button class="btn inline ${lang() === "es" ? "on" : "off"}" data-act="lang" data-lang="es" aria-label="Switch to Spanish">${esc(L("spanish"))}</button>
       </div>
     </header>
-    <main class="page">${step === 0 ? (publicView === "home" ? landing() : publicView === "bot" ? botScreen() : publicPage(publicView)) : `<div class="narrow stack"><p class="step">${step + 1}/5</p>${step === 1 ? usernameStep() : ""}${step === 2 ? spacesStep() : ""}${step === 3 ? rulesStep() : ""}${step === 4 ? profileStep() : ""}${onboardFooter()}</div>`}</main>
+    <main class="page" id="main">${step === 0 ? (publicView === "home" ? landing() : publicView === "bot" ? botScreen() : publicPage(publicView)) : onboardingScreen()}</main>
     ${siteFoot()}
   </div>`;
 }
 
-function redditStatsBlock() {
-  const themes = redditThemes(lang());
-  const months = redditMonths(lang());
-  const peak = Math.max(...months.map((item) => item.count));
-  return `<div class="stat-grid">
-      <article><strong>${esc(formatCount(redditStats.posts))}</strong><span>${esc(Q("dataPosts"))}</span></article>
-      <article><strong>${esc(formatCount(redditStats.bySub.USCIS))}</strong><span>r/USCIS</span></article>
-      <article><strong>${esc(formatCount(redditStats.bySub.USCIS_FORUM))}</strong><span>r/USCIS_FORUM</span></article>
-      <article><strong>${esc(formatCount(redditStats.questions))}</strong><span>${esc(Q("dataQuestions"))}</span></article>
+function onboardingScreen() {
+  const step = onboard.step;
+  return `<div class="narrow stack">
+    <div class="spread">
+      <p class="step">${esc(lang() === "es" ? "Paso" : "Step")} ${step}/4</p>
+      <button class="ghost" data-act="skip-onboard">${esc(lang() === "es" ? "Saltar configuración" : "Skip setup")}</button>
     </div>
-    <h3>${esc(Q("dataByMonth"))}</h3>
-    <div class="month-list">${months.map((item) => `<div class="month-row"><span>${esc(item.label)}</span><span>${esc(formatCount(item.count))}</span><span class="month-bar"><span style="width:${Math.round((item.count / peak) * 100)}%"></span></span></div>`).join("")}</div>
-    <h3>${esc(Q("dataByTopic"))}</h3>
-    <div class="data-table">
-      <div class="data-head"><span></span><span>${esc(Q("dataPosts"))}</span><span>r/USCIS</span><span>r/USCIS_FORUM</span></div>
-      ${themes.map((item) => `<div class="data-row"><span>${esc(item.label)}</span><span>${esc(formatCount(item.total))}</span><span>${esc(formatCount(item.uscis))}</span><span>${esc(formatCount(item.forum))}</span></div>`).join("")}
-    </div>
-    <h3>${esc(Q("dataWords"))}</h3>
-    <div class="word-list">${redditStats.words.map(([word, count]) => `<span>${esc(word)} <strong>${esc(formatCount(count))}</strong></span>`).join("")}</div>`;
-}
-
-function botScreen() {
-  const signed = Boolean(me(state));
-  const answer = botAnswer;
-  return `<div class="bot">
-    ${signed ? "" : `<button class="ghost" data-act="public-home">${esc(L("back"))}</button>`}
-    <h1>${esc(Q("botTitle"))}</h1>
-    <p class="lede">${esc(Q("botLead"))}</p>
-    <label class="field">${esc(Q("botAsk"))}<textarea id="bot-q">${esc(botQuestion)}</textarea></label>
-    <button class="btn" data-act="bot-ask">${esc(Q("botAsk"))}</button>
-    ${answer ? `<article class="bot-answer">${answer.paragraphs.map((paragraph) => `<p>${esc(paragraph)}</p>`).join("")}${answer.note ? `<p class="read-note">${esc(answer.note)}</p>` : ""}${answer.posts.length ? `<h2>${esc(Q("botSources"))}</h2><div class="feed">${answer.posts.map((item) => webCard(item, signed)).join("")}</div>` : ""}</article>` : ""}
-    <h2>${esc(Q("botTry"))}</h2>
-    <div class="post-types">${botPrompts(lang()).map((prompt) => `<button class="post-type" data-act="bot-prompt" data-q="${esc(prompt)}"><strong>${esc(prompt)}</strong></button>`).join("")}</div>
+    ${step === 1 ? usernameStep() : ""}
+    ${step === 2 ? spacesStep() : ""}
+    ${step === 3 ? rulesStep() : ""}
+    ${step === 4 ? profileStep() : ""}
+    ${onboardFooter()}
   </div>`;
-}
-
-function webCard(item, signed) {
-  const flair = item.flair ? ` · ${item.flair}` : "";
-  return `<article class="web-post">
-    <p class="web-meta">r/${esc(item.sub)} · ${esc(formatRedditDate(lang(), item.date))}${esc(flair)}</p>
-    <h2>${esc(item.title)}</h2>
-    <p class="web-stats">${esc(formatCount(item.score))} ${esc(Q("dataPoints"))} · ${esc(formatCount(item.comments))} ${esc(Q("dataComments"))}</p>
-    <div class="row">
-      <a class="ghost" href="${esc(item.href)}" target="_blank" rel="noopener noreferrer">${esc(Q("openPost"))}</a>
-      ${signed ? `<button class="ghost" data-act="ask-web" data-space="${esc(item.space || "i-485")}" data-title="${esc(item.title)}">${esc(Q("askThis"))}</button>` : ""}
-    </div>
-  </article>`;
 }
 
 function landing({ signed = false } = {}) {
   const steps = homeSteps(lang());
+  const painPoints = [
+    { id: "waiting", icon: "⏳", title: lang() === "es" ? "¿Mi espera es normal?" : "Is my wait normal?", body: lang() === "es" ? "Compara tu tiempo con personas en la misma situación" : "Compare your timeline with people like you" },
+    { id: "interview", icon: "🎤", title: lang() === "es" ? "Preparación para entrevista" : "Interview preparation", body: lang() === "es" ? "Consejos y experiencias de campo" : "Tips and field office experiences" },
+    { id: "ead", icon: "💼", title: lang() === "es" ? "Permiso de trabajo (EAD)" : "Work permit (EAD)", body: lang() === "es" ? "Tiempos de I-765 y expedite" : "I-765 timelines and expedite" },
+    { id: "rfe", icon: "📋", title: lang() === "es" ? "RFE / Evidencia" : "RFE / Evidence", body: lang() === "es" ? "Ayuda para responder pedidos de evidencia" : "Help responding to evidence requests" },
+    { id: "evidence", icon: "💍", title: lang() === "es" ? "Pruebas de matrimonio" : "Marriage evidence", body: lang() === "es" ? "Lista de verificación y puntaje de fortaleza" : "Checklist and strength score" },
+    { id: "folder", icon: "📁", title: lang() === "es" ? "Carpeta de documentos" : "Document folder", body: lang() === "es" ? "Prepara tu paquete con puntaje de completitud" : "Build your packet with completeness score" }
+  ];
+
   return `<section class="home-hero" id="start">
       <div>
         <p class="kicker">${esc(L("notAffiliated"))}</p>
@@ -284,11 +283,18 @@ function landing({ signed = false } = {}) {
         <p class="lede">${esc(H("homeLede"))}</p>
         <div class="cta">
           ${signed ? `<button class="btn" data-act="tab" data-tab="home">${esc(H("feed"))}</button>` : onboard.showEmail ? `<div class="narrow">${emailBox()}</div>` : `<button class="btn" data-act="show-email">${esc(H("again"))}</button>`}
+          ${!signed ? `<button class="btn-secondary" data-act="demo">${esc(L("reviewerDemo"))}</button>` : ""}
         </div>
-        ${signed ? "" : `<button class="ghost" data-act="demo">${esc(L("reviewerDemo"))}</button>`}
         <p class="note">${esc(H("homeTrust"))}</p>
       </div>
     </section>
+    
+    <section class="home-section" id="painpoints">
+      <h2>${esc(lang() === "es" ? "¿Qué te preocupa?" : "What concerns you?")}</h2>
+      <p class="lede">${esc(lang() === "es" ? "Herramientas diseñadas para las preguntas más comunes" : "Tools designed for the most common questions")}</p>
+      <div class="pain-grid">${painPoints.map(p => `<button class="pain" data-act="pain-point" data-id="${p.id}"><div class="icon" aria-hidden="true">${p.icon}</div><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p></button>`).join("")}</div>
+    </section>
+
     <section class="home-section" id="talk">
       <h2>${esc(Q("sayingTitle"))}</h2>
       <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalog().length))} ${esc(Q("dataListed"))}</p>
@@ -298,6 +304,7 @@ function landing({ signed = false } = {}) {
       <div class="feed">${redditCatalog().slice(0, webShown.home).map((item) => webCard(item, signed)).join("")}</div>
       ${redditCatalog().length > webShown.home ? `<button class="ghost" data-act="more-web" data-list="home">${esc(Q("dataMore"))}</button>` : ""}
     </section>
+    
     <section class="home-section" id="what">
       <h2>${esc(H("whatTitle"))}</h2>
       <div class="features">
@@ -306,10 +313,23 @@ function landing({ signed = false } = {}) {
         <article><h2>${esc(H("whatClockTitle"))}</h2><p>${esc(H("whatClockBody"))}</p></article>
       </div>
     </section>
+    
     <section class="home-section" id="how">
       <h2>${esc(H("howTitle"))}</h2>
       <div class="how-grid">${steps.map((item, index) => `<article><span>${index + 1}</span><h3>${esc(item.title)}</h3><p>${esc(item.body)}</p></article>`).join("")}</div>
-    </section>`;
+    </section>
+    
+    ${legalDisclaimer()}`;
+}
+
+function legalDisclaimer() {
+  return `<div class="disclaimer">
+    <strong>${esc(lang() === "es" ? "Aviso legal importante" : "Important legal notice")}</strong>
+    ${esc(lang() === "es" 
+      ? "CaseCircle es solo para organización. No es asesoría legal. No garantiza aprobación, no reemplaza a un abogado, y no representa los requisitos de USCIS que pueden cambiar. Siempre verifica con las instrucciones oficiales vigentes."
+      : "CaseCircle is for organization only. It is not legal advice. It does not guarantee approval, does not replace an attorney, and does not represent USCIS requirements, which may change. Always verify with current official instructions."
+    )}
+  </div>`;
 }
 
 function publicPage(page) {
@@ -320,7 +340,7 @@ function publicPage(page) {
 
 function emailBox() {
   return `<label class="field">${esc(L("continueEmail"))}
-    <input id="email" type="email" value="${esc(onboard.emailDraft)}" placeholder="you@email.com">
+    <input id="email" type="email" value="${esc(onboard.emailDraft)}" placeholder="you@email.com" autocomplete="email">
     <span class="muted">${esc(L("emailHelp"))}</span></label>
     <button class="btn" data-act="use-email">${esc(L("useEmail"))}</button>`;
 }
@@ -328,7 +348,7 @@ function emailBox() {
 function usernameStep() {
   const issue = onboard.username ? usernameIssue(onboard.username, new Set(state.members.map((person) => person.username.toLowerCase()))) : null;
   return `<h1>${esc(L("usernameTitle"))}</h1><p class="muted">${esc(L("usernameHelp"))}</p>
-    <input id="username" type="text" value="${esc(onboard.username)}" autocapitalize="off">
+    <input id="username" type="text" value="${esc(onboard.username)}" autocapitalize="off" autocomplete="username">
     ${issue ? `<p class="danger">${esc(issue === "taken" ? L("taken") : issue === "reserved" ? L("reserved") : L("invalidName"))}</p>` : ""}`;
 }
 
@@ -336,8 +356,8 @@ function spacesStep() {
   const list = showAllForms ? spaces : spaces.filter((item) => item.launch);
   const cards = list.map((item) => {
     const on = onboard.spaces.includes(item.id);
-    return `<button class="card ${on ? "on" : ""}" data-act="toggle-space" data-id="${esc(item.id)}">
-      <div class="spread"><strong>${esc(item.forms[0])}</strong><span>${on ? "✓" : ""}</span></div>
+    return `<button class="card ${on ? "on" : ""}" data-act="toggle-space" data-id="${esc(item.id)}" aria-pressed="${on}">
+      <div class="spread"><strong>${esc(item.forms[0])}</strong><span aria-hidden="true">${on ? "✓" : ""}</span></div>
       <div>${esc(lang() === "es" ? item.es : item.en)}</div>
     </button>`;
   }).join("");
@@ -354,7 +374,10 @@ function rulesStep() {
 }
 
 function profileStep() {
-  return `<h1>${esc(L("profileTitle"))}</h1><p class="muted">${esc(L("profileHelp"))}</p>${profileFields("onboard")}`;
+  return `<h1>${esc(L("profileTitle"))}</h1>
+    <p class="muted">${esc(L("profileHelp"))}</p>
+    <p class="muted">${esc(lang() === "es" ? "Puedes agregar esto después si lo prefieres." : "You can add this later if you prefer.")}</p>
+    ${profileFields("onboard")}`;
 }
 
 function profileFields(scope) {
@@ -364,8 +387,11 @@ function profileFields(scope) {
   const year = new Date().getFullYear();
   for (let value = year; value >= year - 12; value -= 1) years.push(value);
   return `<div class="stack">
-    <div><div class="kicker">${esc(space?.forms[0] || "")}</div><strong>${esc(space ? (lang() === "es" ? space.es : space.en) : "")}</strong></div>
-    <label class="field">${esc(L("form"))}<select data-act="profile" data-key="form">${(space?.forms || []).map((form) => `<option ${form === draft.form ? "selected" : ""}>${esc(form)}</option>`).join("")}</select></label>
+    <label class="field">${esc(lang() === "es" ? "Formulario" : "Form")}
+      <select data-act="profile-space" data-key="spaceId">
+        ${spaces.filter(s => s.launch).map(s => `<option value="${s.id}" ${s.id === draft.spaceId ? "selected" : ""}>${esc(s.forms[0])} - ${esc(lang() === "es" ? s.es : s.en)}</option>`).join("")}
+      </select>
+    </label>
     <label class="field">${esc(L("based"))}<select data-act="profile" data-key="basedOn">${basedOn.map((item) => `<option value="${item}" ${item === draft.basedOn ? "selected" : ""}>${esc(basedLabel(lang(), item))}</option>`).join("")}</select></label>
     <div class="row">
       <label class="field">${esc(L("month"))}<select data-act="profile" data-key="month">${Array.from({ length: 12 }, (_, index) => `<option value="${index + 1}" ${index + 1 === Number(draft.month) ? "selected" : ""}>${esc(monthName(index))}</option>`).join("")}</select></label>
@@ -390,31 +416,81 @@ function onboardFooter() {
   </div>`;
 }
 
+function redditStatsBlock() {
+  const themes = redditThemes(lang());
+  const months = redditMonths(lang());
+  const peak = Math.max(...months.map((item) => item.count));
+  return `<div class="stat-grid">
+      <article><strong>${esc(formatCount(redditStats.posts))}</strong><span>${esc(Q("dataPosts"))}</span></article>
+      <article><strong>${esc(formatCount(redditStats.bySub.USCIS))}</strong><span>r/USCIS</span></article>
+      <article><strong>${esc(formatCount(redditStats.bySub.USCIS_FORUM))}</strong><span>r/USCIS_FORUM</span></article>
+      <article><strong>${esc(formatCount(redditStats.questions))}</strong><span>${esc(Q("dataQuestions"))}</span></article>
+    </div>
+    <h3>${esc(Q("dataByMonth"))}</h3>
+    <div class="month-list">${months.map((item) => `<div class="month-row"><span>${esc(item.label)}</span><span>${esc(formatCount(item.count))}</span><span class="month-bar"><span style="width:${Math.round((item.count / peak) * 100)}%"></span></span></div>`).join("")}</div>
+    <h3>${esc(Q("dataByTopic"))}</h3>
+    <div class="data-table">
+      <div class="data-head"><span></span><span>${esc(Q("dataPosts"))}</span><span>r/USCIS</span><span>r/USCIS_FORUM</span></div>
+      ${themes.slice(0, 10).map((item) => `<div class="data-row"><span>${esc(item.label)}</span><span>${esc(formatCount(item.total))}</span><span>${esc(formatCount(item.uscis))}</span><span>${esc(formatCount(item.forum))}</span></div>`).join("")}
+    </div>`;
+}
+
+function botScreen() {
+  const signed = Boolean(me(state));
+  const answer = botAnswer;
+  return `<div class="bot">
+    ${signed ? "" : `<button class="ghost" data-act="public-home">${esc(L("back"))}</button>`}
+    <h1>${esc(Q("botTitle"))}</h1>
+    <p class="lede">${esc(Q("botLead"))}</p>
+    <label class="field">${esc(Q("botAsk"))}<textarea id="bot-q" aria-label="${esc(Q("botAsk"))}">${esc(botQuestion)}</textarea></label>
+    <button class="btn" data-act="bot-ask">${esc(Q("botAsk"))}</button>
+    ${answer ? `<article class="bot-answer">${answer.paragraphs.map((paragraph) => `<p>${esc(paragraph)}</p>`).join("")}${answer.note ? `<p class="read-note">${esc(answer.note)}</p>` : ""}${answer.posts.length ? `<h2>${esc(Q("botSources"))}</h2><div class="feed">${answer.posts.map((item) => webCard(item, signed)).join("")}</div>` : ""}</article>` : ""}
+    <h2>${esc(Q("botTry"))}</h2>
+    <div class="post-types">${botPrompts(lang()).map((prompt) => `<button class="post-type" data-act="bot-prompt" data-q="${esc(prompt)}"><strong>${esc(prompt)}</strong></button>`).join("")}</div>
+  </div>`;
+}
+
+function webCard(item, signed) {
+  const flair = item.flair ? ` · ${item.flair}` : "";
+  return `<article class="web-post">
+    <p class="web-meta">r/${esc(item.sub)} · ${esc(formatRedditDate(lang(), item.date))}${esc(flair)}</p>
+    <h2>${esc(item.title)}</h2>
+    <p class="web-stats">${esc(formatCount(item.score))} ${esc(Q("dataPoints"))} · ${esc(formatCount(item.comments))} ${esc(Q("dataComments"))}</p>
+    <div class="row">
+      <a class="ghost" href="${esc(item.href)}" target="_blank" rel="noopener noreferrer">${esc(Q("openPost"))}</a>
+      ${signed ? `<button class="ghost" data-act="ask-web" data-space="${esc(item.space || "i-485")}" data-title="${esc(item.title)}">${esc(Q("askThis"))}</button>` : ""}
+    </div>
+  </article>`;
+}
+
 function homeScreen() {
   const user = me(state);
   const posts = visiblePosts(state, filters);
   const initial = (user?.username || "?").slice(0, 1).toUpperCase();
   const sorts = [["new", L("new")], ["top", L("top")], ["unanswered", L("unanswered")]];
+  const hasProfiles = user?.profiles?.length > 0;
+  
   return `<div class="community">
     <div class="stack">
-      <button class="composer-bar" data-act="tab" data-tab="ask"><span class="avatar">${esc(initial)}</span><span>${esc(H("shareThought"))}</span></button>
-      <div class="seg">${sorts.map(([sort, label]) => `<button data-act="sort" data-sort="${sort}" class="${filters.sort === sort ? "on" : ""}">${esc(label)}</button>`).join("")}</div>
-      <div class="chips">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
-      <div class="feed">${posts.map(postCard).join("")}</div>
+      ${!hasProfiles ? emptyProfileCTA() : ""}
+      <button class="composer-bar" data-act="tab" data-tab="ask" aria-label="${esc(H("shareThought"))}"><span class="avatar" aria-hidden="true">${esc(initial)}</span><span>${esc(H("shareThought"))}</span></button>
+      <div class="seg" role="tablist">${sorts.map(([sort, label]) => `<button data-act="sort" data-sort="${sort}" class="${filters.sort === sort ? "on" : ""}" role="tab" aria-selected="${filters.sort === sort}">${esc(label)}</button>`).join("")}</div>
+      <div class="chips" role="group" aria-label="${esc(L("allPosts"))}">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
+      ${posts.length ? `<div class="feed">${posts.map(postCard).join("")}</div>` : emptyFeed()}
       <h2>${esc(Q("dataTitles"))}</h2>
       <div class="feed">${redditFeed(user?.spaces || []).slice(0, webShown.feed).map((item) => webCard(item, true)).join("")}</div>
       ${redditFeed(user?.spaces || []).length > webShown.feed ? `<button class="ghost" data-act="more-web" data-list="feed">${esc(Q("dataMore"))}</button>` : ""}
     </div>
-    <aside class="rail stack">
+    <aside class="rail" aria-label="${esc(lang() === "es" ? "Acciones rápidas" : "Quick actions")}">
       <div class="side-card">
         <h2>${esc(H("communities"))}</h2>
-        ${(user?.spaces || []).map((id) => `<button class="community-link" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("")}
+        ${(user?.spaces || []).length ? (user.spaces || []).map((id) => `<button class="community-link" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("") : `<p class="muted">${esc(lang() === "es" ? "Únete a comunidades para ver publicaciones" : "Join communities to see posts")}</p>`}
         <button class="ghost" data-act="tab" data-tab="spaces">${esc(H("allCommunities"))}</button>
       </div>
       <div class="side-card">
         <h2>${esc(H("addons"))}</h2>
-        <button class="addon" data-act="tab" data-tab="prepare"><strong>${esc(Q("pathFolder"))}</strong><span>${esc(Q("pathFolderBody"))}</span></button>
         <button class="addon" data-act="tab" data-tab="timelines"><strong>${esc(Q("pathWait"))}</strong><span>${esc(Q("pathWaitBody"))}</span></button>
+        <button class="addon" data-act="tab" data-tab="prepare"><strong>${esc(Q("pathFolder"))}</strong><span>${esc(Q("pathFolderBody"))}</span></button>
         <button class="addon" data-act="tab" data-tab="questions"><strong>${esc(Q("askAbout"))}</strong><span>${esc(Q("askAboutBody"))}</span></button>
         <button class="addon" data-act="tab" data-tab="bot"><strong>${esc(Q("botTitle"))}</strong><span>${esc(Q("botLead"))}</span></button>
       </div>
@@ -423,8 +499,29 @@ function homeScreen() {
   </div>`;
 }
 
+function emptyProfileCTA() {
+  return `<div class="next-card">
+    <p class="kicker">${esc(lang() === "es" ? "Empieza aquí" : "Start here")}</p>
+    <h2>${esc(lang() === "es" ? "Agrega tu primer caso" : "Add your first case")}</h2>
+    <p>${esc(lang() === "es" ? "Para ver tiempos de espera personalizados y comparaciones" : "To see personalized wait times and comparisons")}</p>
+    <button class="btn" data-act="add-profile">${esc(L("addCase"))}</button>
+  </div>`;
+}
+
+function emptyFeed() {
+  return `<div class="empty-state">
+    <div class="icon" aria-hidden="true">💬</div>
+    <h3>${esc(lang() === "es" ? "No hay publicaciones todavía" : "No posts yet")}</h3>
+    <p>${esc(lang() === "es" ? "Únete a comunidades o publica la primera pregunta" : "Join communities or post the first question")}</p>
+    <div class="row">
+      <button class="btn" data-act="tab" data-tab="spaces">${esc(H("allCommunities"))}</button>
+      <button class="btn-secondary" data-act="tab" data-tab="ask">${esc(H("shareThought"))}</button>
+    </div>
+  </div>`;
+}
+
 function chip(label, on, kind) {
-  return `<button class="chip ${on ? "on" : ""}" data-act="kind" data-kind="${esc(kind)}">${esc(label)}</button>`;
+  return `<button class="chip ${on ? "on" : ""}" data-act="kind" data-kind="${esc(kind)}" aria-pressed="${on}">${esc(label)}</button>`;
 }
 
 function postCard(post, options = {}) {
@@ -433,7 +530,7 @@ function postCard(post, options = {}) {
   const space = post.spaceIds?.[0];
   const body = post.body.length > 180 ? `${post.body.slice(0, 177)}…` : post.body;
   return `<article class="thread">
-    <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="↑">↑</button><span>${post.votes}</span></div>
+    <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}">↑</button><span>${post.votes}</span></div>
     <button class="thread-main" data-act="open-post" data-id="${esc(post.id)}">
       <div class="thread-meta">
         ${options.hideSpace || !space ? "" : `<span>${esc(spaceName(lang(), space))}</span>`}
@@ -460,7 +557,7 @@ function postFacts(post) {
 
 function postScreen(id) {
   const post = state.posts.find((item) => item.id === id);
-  if (!post) return `<button class="ghost" data-act="back">${esc(L("back"))}</button>`;
+  if (!post) return `<button class="ghost" data-act="back">${esc(L("back"))}</button><div class="empty-state"><h3>${esc(lang() === "es" ? "Publicación no encontrada" : "Post not found")}</h3></div>`;
   const author = member(state, post.authorId);
   const user = me(state);
   const voted = Boolean(user?.votes[post.id]);
@@ -468,6 +565,9 @@ function postScreen(id) {
   const space = post.spaceIds?.[0];
   const comments = post.comments.filter((comment) => comment.status === "live" || user?.role === "mod");
   const context = [kindLabel(lang(), post.type), space ? spaceName(lang(), space) : "", ago(lang(), post.createdAt)].filter(Boolean);
+  
+  const decoded = post.stage ? statusDecoder(lang(), post.stage) : null;
+  
   return `<article class="read">
     <button class="ghost" data-act="back">${esc(L("back"))}</button>
     ${post.status !== "live" ? `<p class="read-note">${esc(post.status === "held" ? L("held") : L("removed"))}</p>` : ""}
@@ -476,8 +576,9 @@ function postScreen(id) {
     <p class="read-by">${esc(author?.username || L("deletedMember"))}${author?.role === "verified_pro" ? ` · ${esc(levelName(lang(), author.reputation))}` : ""}</p>
     <div class="read-body"><p>${esc(post.body)}</p></div>
     ${postFacts(post)}
+    ${decoded ? statusDecoderInline(decoded) : ""}
     <div class="read-actions">
-      <button class="vote" data-act="vote" data-id="${esc(post.id)}">↑ ${post.votes}${voted ? " ✓" : ""}</button>
+      <button class="vote" data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}">↑ ${post.votes}${voted ? " ✓" : ""}</button>
       <button data-act="bookmark" data-id="${esc(post.id)}">${saved ? esc(L("saved")) : esc(L("save"))}</button>
       <button data-act="share" data-id="${esc(post.id)}">${esc(L("share"))}</button>
       <span class="read-tools">
@@ -495,11 +596,18 @@ function postScreen(id) {
     <section class="reply-box">
       <h2>${esc(L("writeReply"))}</h2>
       <div class="composer">
-        <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}"></textarea>
+        <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}" aria-label="${esc(L("writeReply"))}"></textarea>
         <button class="btn inline" data-act="reply" data-id="${esc(post.id)}">${esc(L("send"))}</button>
       </div>
     </section>
   </article>`;
+}
+
+function statusDecoderInline(decoded) {
+  return `<div class="status-decoder">
+    <strong>${esc(lang() === "es" ? "¿Qué significa esta etapa?" : "What does this stage mean?")}</strong>
+    <p>${esc(decoded.explanation)}</p>
+  </div>`;
 }
 
 function commentCard(post, comment) {
@@ -534,7 +642,7 @@ function spacesScreen() {
   }).join("");
   const launch = spaces.filter((item) => item.launch && matches(item)).map((item) => `<button class="card mini" data-act="open-space" data-id="${esc(item.id)}"><span class="kicker">${esc(item.forms[0])}</span><strong>${esc(lang() === "es" ? item.es : item.en)}</strong><span class="muted count">${countMembers(item.id)} ${esc(L("members"))}</span></button>`).join("");
   return `<div class="page-head"><h1>${esc(L("spaces"))}</h1><p class="muted">${esc(L("spacesHint"))}</p></div>
-    <input id="space-search" type="search" placeholder="${esc(L("search"))}" value="${esc(spaceQuery)}">
+    <input id="space-search" type="search" placeholder="${esc(L("search"))}" value="${esc(spaceQuery)}" aria-label="${esc(L("search"))}">
     <h2>${esc(L("startHere"))}</h2><div class="start-list">${launch}</div>${groups}`;
 }
 
@@ -569,10 +677,11 @@ function spaceScreen(id) {
       <div class="row">
         <button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(L("askHere"))}</button>
         <button class="btn-secondary" data-act="join" data-id="${esc(id)}">${esc(joined ? L("leave") : L("join"))}</button>
+        <button class="btn-secondary" data-act="open-interview" data-id="${esc(id)}">${esc(lang() === "es" ? "Preparación entrevista" : "Interview prep")}</button>
       </div>
     </header>
     <p class="space-note">${esc(L("disclaimer"))}</p>
-    <div class="feed">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>
+    ${posts.length ? `<div class="feed">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>` : `<div class="empty-state"><h3>${esc(lang() === "es" ? "No hay publicaciones en este espacio" : "No posts in this space yet")}</h3><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`}
     <h2>${esc(Q("dataOnForm"))}</h2>
     <div class="feed">${web.slice(0, webShown.space).map((entry) => webCard(entry, true)).join("") || `<p class="muted">${esc(L("noPosts"))}</p>`}</div>
     ${web.length > webShown.space ? `<button class="ghost" data-act="more-web" data-list="space">${esc(Q("dataMore"))}</button>` : ""}
@@ -585,7 +694,7 @@ function askScreen() {
   }
   if (ask.step === 1) {
     const choices = spaces.filter((item) => me(state).spaces.includes(item.id) || item.launch);
-    return `<div class="narrow stack"><h1>${esc(L("spaces"))}</h1><div class="start-list">${choices.map((item) => `<button class="card mini" data-act="ask-space" data-id="${item.id}">${ask.spaceIds.includes(item.id) ? "✓ " : ""}${esc(lang() === "es" ? item.es : item.en)}</button>`).join("")}</div>
+    return `<div class="narrow stack"><h1>${esc(L("spaces"))}</h1><div class="start-list">${choices.map((item) => `<button class="card mini" data-act="ask-space" data-id="${item.id}" aria-pressed="${ask.spaceIds.includes(item.id)}">${ask.spaceIds.includes(item.id) ? "✓ " : ""}${esc(lang() === "es" ? item.es : item.en)}</button>`).join("")}</div>
       <button class="btn" data-act="ask-next" ${ask.spaceIds.length ? "" : "disabled"}>${esc(L("next"))}</button></div>`;
   }
   const spaceId = ask.spaceIds[0];
@@ -616,7 +725,7 @@ function questionsScreen() {
   return `<div class="page-head"><h1>${esc(Q("askAbout"))}</h1><p>${esc(Q("askAboutLead"))}</p></div>
     <div class="start-list">${topics.map((item) => `<button class="card mini" data-act="ask-topic" data-id="${esc(item.id)}"><strong>${esc(item.q)}</strong><span class="muted count">${esc(Q("askThis"))}</span></button>`).join("")}</div>
     <div class="page-head"><h1>${esc(Q("questions"))}</h1><p>${esc(Q("questionsLead"))}</p><p class="footer-note muted">${esc(Q("questionsSource"))}</p></div>
-    <nav class="jumps">${groups.map((group) => `<a href="#group-${esc(group.id)}">${esc(group.title)}</a>`).join("")}<a href="#statuses">${esc(Q("statuses"))}</a><a href="#if-quiet">${esc(Q("ifQuiet"))}</a></nav>
+    <nav class="jumps" aria-label="${esc(lang() === "es" ? "Ir a sección" : "Jump to section")}">${groups.map((group) => `<a href="#group-${esc(group.id)}">${esc(group.title)}</a>`).join("")}<a href="#statuses">${esc(Q("statuses"))}</a><a href="#if-quiet">${esc(Q("ifQuiet"))}</a></nav>
     ${groups.map((group) => `<h2 id="group-${esc(group.id)}">${esc(group.title)}</h2>${group.items.map((item) => `<article class="answer" id="q-${esc(item.id)}"><h3>${esc(item.q)}</h3><p>${esc(item.a)}</p><button class="ghost" data-act="ask-topic" data-id="${esc(item.id)}">${esc(Q("askThis"))}</button></article>`).join("")}`).join("")}
     <h2 id="statuses">${esc(Q("statuses"))}</h2>
     ${statusLines(lang()).map((line) => `<p><strong>${esc(line.name)}.</strong> ${esc(line.body)}</p>`).join("")}
@@ -626,20 +735,91 @@ function questionsScreen() {
 
 function timelinesScreen() {
   const user = me(state);
-  const real = benchmarkCells(state, false).slice(0, 4);
-  const cases = [...user.profiles].sort((a, b) => new Date(b.filed) - new Date(a.filed));
+  const cases = [...(user?.profiles || [])].sort((a, b) => new Date(b.filed) - new Date(a.filed));
   const notes = [...new Set(cases.map((profile) => profile.spaceId))].map((id) => waitNote(lang(), id)).filter(Boolean);
-  return `<div class="page-head"><p class="kicker">${esc(L("notAffiliated"))}</p><h1>${esc(Q("waits"))}</h1><p class="muted">${esc(Q("waitsLead"))}</p></div>
-    ${notes.map((note) => `<h2>${esc(Q("yourWait"))}: ${esc(note.title)}</h2><p>${esc(note.body)}</p>`).join("")}
-    <h2>${esc(Q("ifQuiet"))}</h2>
-    <ol>${quietSteps(lang()).map((step) => `<li><strong>${esc(step.title)}.</strong> ${esc(step.body)} <a href="${esc(step.href)}" target="_blank" rel="noreferrer">${esc(step.link)}</a></li>`).join("")}</ol>
-    <h2>${esc(L("yourCases"))}</h2>
-    <div class="card-grid">${cases.map((profile) => `<button class="card" data-act="edit-profile" data-id="${esc(profile.spaceId)}"><strong>${esc(spaceName(lang(), profile.spaceId))}</strong><div class="kicker">${esc(badge(lang(), profile))}</div><div>${monthsSince(profile.filed)} ${esc(L("months"))} ${esc(L("sinceFiling"))}</div></button>`).join("") || `<p class="muted">${esc(L("profileHelp"))}</p>`}
-      <button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button>
+  
+  return `<div class="page-head">
+    <p class="kicker">${esc(L("notAffiliated"))}</p>
+    <h1>${esc(Q("waits"))}</h1>
+    <p class="muted">${esc(Q("waitsLead"))}</p>
+  </div>
+  
+  ${waitCalculator()}
+  
+  ${notes.map((note) => `<h2>${esc(Q("yourWait"))}: ${esc(note.title)}</h2><p>${esc(note.body)}</p>`).join("")}
+  
+  <h2>${esc(L("yourCases"))}</h2>
+  <div class="card-grid">${cases.map((profile) => `<button class="card" data-act="edit-profile" data-id="${esc(profile.spaceId)}"><strong>${esc(spaceName(lang(), profile.spaceId))}</strong><div class="kicker">${esc(badge(lang(), profile))}</div><div>${monthsSince(profile.filed)} ${esc(L("months"))} ${esc(L("sinceFiling"))}</div></button>`).join("") || emptyProfileState()}
+    <button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button>
+  </div>
+  
+  <h2>${esc(Q("ifQuiet"))}</h2>
+  <ol>${quietSteps(lang()).map((step) => `<li><strong>${esc(step.title)}.</strong> ${esc(step.body)} <a href="${esc(step.href)}" target="_blank" rel="noreferrer">${esc(step.link)}</a></li>`).join("")}</ol>
+  
+  <p><a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noreferrer">${esc(L("official"))}</a></p>
+  <p class="footer-note muted">${esc(L("officialNote"))}</p>
+  
+  ${legalDisclaimer()}`;
+}
+
+function emptyProfileState() {
+  return `<div class="empty-state" style="grid-column: 1/-1;">
+    <div class="icon" aria-hidden="true">📋</div>
+    <h3>${esc(lang() === "es" ? "Agrega tu caso" : "Add your case")}</h3>
+    <p>${esc(lang() === "es" ? "Para ver comparaciones con personas en situación similar" : "To see comparisons with people in similar situations")}</p>
+  </div>`;
+}
+
+function waitCalculator() {
+  const user = me(state);
+  const profile = waitCalcProfile || user?.profiles?.[0] || null;
+  
+  if (!profile) {
+    return `<div class="wait-calc">
+      <h3>${esc(lang() === "es" ? "¿Es normal mi espera?" : "Is my wait normal?")}</h3>
+      <p class="muted">${esc(lang() === "es" ? "Agrega un perfil de caso para comparar tu tiempo con otros" : "Add a case profile to compare your timeline with others")}</p>
+      <button class="btn" data-act="add-profile">${esc(L("addCase"))}</button>
+    </div>`;
+  }
+  
+  const comparison = waitComparison(state, profile);
+  const percentile = comparison.percentile;
+  const percentileClass = percentile == null ? "" : percentile > 75 ? "coral" : percentile > 50 ? "amber" : "green";
+  const percentileDesc = percentile == null
+    ? ""
+    : percentile > 75
+      ? (lang() === "es" ? "Tu espera es más larga que la mayoría en este grupo" : "Your wait is longer than most in this group")
+      : percentile > 50
+        ? (lang() === "es" ? "Tu espera está en el rango medio de este grupo" : "Your wait is in the middle of this group")
+        : (lang() === "es" ? "Tu espera es más corta que la mayoría en este grupo" : "Your wait is shorter than most in this group");
+  
+  return `<div class="wait-calc">
+    <h3>${esc(lang() === "es" ? "¿Es normal mi espera?" : "Is my wait normal?")}</h3>
+    
+    ${user?.profiles?.length > 1 ? `<label class="field">${esc(lang() === "es" ? "Seleccionar caso" : "Select case")}
+      <select data-act="wait-calc-profile">
+        ${user.profiles.map(p => `<option value="${p.spaceId}" ${p.spaceId === profile.spaceId ? "selected" : ""}>${esc(spaceName(lang(), p.spaceId))} - ${esc(badge(lang(), p))}</option>`).join("")}
+      </select>
+    </label>` : ""}
+    
+    <div class="wait-result">
+      ${comparison.publishable ? `<div class="wait-percentile ${percentileClass}">${percentile}%</div>` : ""}
+      <div class="wait-desc">
+        ${comparison.publishable ? `
+          <strong>${esc(percentileDesc)}</strong>
+          <span>${esc(lang() === "es" ? `De ${comparison.count} personas con perfil similar en CaseCircle` : `Of ${comparison.count} people with similar profiles on CaseCircle`)}</span>
+        ` : `
+          <strong>${esc(L("notEnough"))}</strong>
+          <span>${esc(L("notEnoughBody"))}</span>
+        `}
+      </div>
     </div>
-    ${real.length ? `<div class="bench-grid">${real.map((cell) => benchCard(cell, false)).join("")}</div>` : `<h2>${esc(L("notEnough"))}</h2><p class="muted">${esc(L("notEnoughBody"))}</p>`}
-    <p><a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noreferrer">${esc(L("official"))}</a></p>
-    <p class="footer-note muted">${esc(L("officialNote"))}</p>`;
+    
+    <div class="meta" style="margin-top:12px;">
+      <strong>${esc(spaceName(lang(), profile.spaceId))}</strong> · ${esc(badge(lang(), profile))} · ${comparison.mine} ${esc(L("months"))}
+    </div>
+    <p class="read-note">${esc(L("exampleBody"))}</p>
+  </div>`;
 }
 
 function benchCard(cell, example) {
@@ -663,72 +843,212 @@ function readFolder(spaceId) {
 
 function prepareScreen(spaceId) {
   const user = me(state);
-  const choices = [...new Set([...(user?.spaces || []), "n-400", "i-751", "i-485", "i-130", "i-765", "i-131"])];
+  const choices = [...new Set([...(user?.spaces || []), "i-485", "i-765", "n-400", "i-130", "i-751", "i-131"])];
+  
   if (!spaceId || !spaceById(spaceId)) {
-    return `<div class="page-head"><h1>${esc(P("prepare"))}</h1><p class="muted">${esc(P("folderLead"))}</p></div>
-      <h2>${esc(P("pickForm"))}</h2>
-      <div class="card-grid">${choices.map((id) => {
-        const item = spaceById(id);
-        if (!item) return "";
-        const counts = tally(packetFor(id), readFolder(id));
-        return `<button class="card" data-act="open-folder" data-id="${esc(id)}"><div class="kicker">${esc(item.forms[0])}</div><strong>${esc(lang() === "es" ? item.es : item.en)}</strong><div class="muted">${counts.need} ${esc(P("stillOpen"))}</div></button>`;
-      }).join("")}</div>
-      <div class="banner">${esc(P("noPromise"))}</div>`;
+    return `<div class="page-head">
+      <h1>${esc(P("prepare"))}</h1>
+      <p class="muted">${esc(P("folderLead"))}</p>
+    </div>
+    <h2>${esc(P("pickForm"))}</h2>
+    <div class="card-grid">${choices.map((id) => {
+      const item = spaceById(id);
+      if (!item) return "";
+      const folder = readFolder(id);
+      const packet = packetFor(id);
+      const counts = tally(packet, folder);
+      const score = calculateScore(packet, folder);
+      return `<button class="card" data-act="open-folder" data-id="${esc(id)}">
+        <div class="kicker">${esc(item.forms[0])}</div>
+        <strong>${esc(lang() === "es" ? item.es : item.en)}</strong>
+        <div class="progress" style="margin:8px 0 4px"><span style="width:${score}%"></span></div>
+        <div class="muted">${counts.ready}/${counts.total} ${esc(P("progress"))}</div>
+      </button>`;
+    }).join("")}</div>
+    
+    ${rfeHelperSection()}
+    
+    ${legalDisclaimer()}`;
   }
+  
   const packet = packetFor(spaceId);
   const folder = readFolder(spaceId);
   const counts = tally(packet, folder);
   const focus = packet.sections.find((section) => section.id === folder.focus) || packet.sections[0];
   const answer = guideAnswer || guideReply(lang(), packet, folder, "");
   const pct = Math.round((counts.ready / Math.max(counts.total, 1)) * 100);
-  return `<div class="spread"><button class="ghost" data-act="tab" data-tab="prepare">${esc(P("backToForms"))}</button><div class="muted">${counts.ready}/${counts.total} ${esc(P("progress"))}</div></div>
-    <div class="page-head"><p class="kicker">${esc(packet.form)}</p><h1>${esc(spaceName(lang(), spaceId))}</h1><p class="muted">${esc(P("folderLead"))}</p><div class="progress"><span style="width:${pct}%"></span></div></div>
-    <div class="prepare-grid">
-      <nav class="section-nav">${packet.sections.map((section) => `<button class="card ${section.id === focus.id ? "on" : ""}" data-act="folder-section" data-space="${esc(spaceId)}" data-id="${esc(section.id)}"><strong>${esc(lang() === "es" ? section.es : section.en)}</strong></button>`).join("")}</nav>
-      <div class="stack">${focus.items.map((item) => {
-        const mark = folder.marks[item.id] || "need";
-        return `<article class="card"><p>${esc(lang() === "es" ? item.es : item.en)}</p><div class="mark-row">
-          ${["ready", "need", "na"].map((value) => `<button class="chip ${mark === value ? "on" : ""}" data-act="folder-mark" data-space="${esc(spaceId)}" data-id="${esc(item.id)}" data-mark="${value}">${esc(P(value))}</button>`).join("")}
-        </div></article>`;
-      }).join("")}</div>
-      <aside class="guide-card card stack">
-        <div class="kicker">${esc(P("guide"))}</div>
-        <strong>${esc(answer.title)}</strong>
-        <p>${esc(answer.body)}</p>
-        <a href="${esc(answer.href)}" target="_blank" rel="noreferrer">${esc(answer.link)}</a>
-        <p class="footer-note muted">${esc(P("guideHelp"))}</p>
-        <textarea id="guide-q" placeholder="${esc(P("guidePlaceholder"))}">${esc(guideQuestion)}</textarea>
-        <button class="btn" data-act="guide-ask" data-space="${esc(spaceId)}">${esc(P("askGuide"))}</button>
-        <p class="footer-note muted">${esc(P("noPromise"))}</p>
-      </aside>
-    </div>`;
+  
+  const scoreLevel = pct >= 80 ? "high" : pct >= 50 ? "medium" : "low";
+  const profile = user?.profiles?.find(p => p.spaceId === spaceId);
+  const riskFlags = profile ? calculateRiskFlags(lang(), profile, folder) : [];
+  
+  return `<div class="spread">
+    <button class="ghost" data-act="tab" data-tab="prepare">${esc(P("backToForms"))}</button>
+  </div>
+  <div class="page-head">
+    <p class="kicker">${esc(packet.form)}</p>
+    <h1>${esc(spaceName(lang(), spaceId))}</h1>
+    <p class="muted">${esc(P("folderLead"))}</p>
+  </div>
+  
+  <div class="score-meter" style="max-width:400px;margin-bottom:24px;">
+    <div class="score-label">
+      <span>${esc(lang() === "es" ? "Puntaje de completitud" : "Completeness score")}</span>
+      <span class="value">${pct}%</span>
+    </div>
+    <div class="score-bar ${scoreLevel}"><span style="width:${pct}%"></span></div>
+  </div>
+  
+  ${riskFlags.length ? `<div class="risk-flags">${riskFlags.map(flag => `<div class="risk-flag ${flag.type}"><span class="icon" aria-hidden="true">${flag.type === "error" ? "⚠️" : flag.type === "warning" ? "⏰" : "✓"}</span><span class="text">${esc(flag.message)}</span></div>`).join("")}</div>` : ""}
+  
+  <div class="prepare-grid">
+    <nav class="section-nav" aria-label="${esc(lang() === "es" ? "Secciones" : "Sections")}">
+      ${packet.sections.map((section) => `<button class="card ${section.id === focus.id ? "on" : ""}" data-act="folder-section" data-space="${esc(spaceId)}" data-id="${esc(section.id)}"><strong>${esc(lang() === "es" ? section.es : section.en)}</strong></button>`).join("")}
+    </nav>
+    <div class="stack">${focus.items.map((item) => {
+      const mark = folder.marks[item.id] || "need";
+      return `<article class="card ${mark === "ready" ? "complete" : ""}">
+        <p>${esc(lang() === "es" ? item.es : item.en)}</p>
+        <div class="mark-row" role="group" aria-label="${esc(lang() === "es" ? "Estado" : "Status")}">
+          ${["ready", "need", "na"].map((value) => `<button class="chip ${mark === value ? "on" : ""}" data-act="folder-mark" data-space="${esc(spaceId)}" data-id="${esc(item.id)}" data-mark="${value}" aria-pressed="${mark === value}">${esc(P(value))}</button>`).join("")}
+        </div>
+      </article>`;
+    }).join("")}</div>
+    <aside class="guide-card card stack">
+      <div class="kicker">${esc(P("guide"))}</div>
+      <strong>${esc(answer.title)}</strong>
+      <p>${esc(answer.body)}</p>
+      <a href="${esc(answer.href)}" target="_blank" rel="noreferrer">${esc(answer.link)}</a>
+      <p class="footer-note muted">${esc(P("guideHelp"))}</p>
+      <textarea id="guide-q" placeholder="${esc(P("guidePlaceholder"))}" aria-label="${esc(P("guide"))}">${esc(guideQuestion)}</textarea>
+      <button class="btn" data-act="guide-ask" data-space="${esc(spaceId)}">${esc(P("askGuide"))}</button>
+      <p class="footer-note muted">${esc(P("noPromise"))}</p>
+    </aside>
+  </div>
+  
+  ${legalDisclaimer()}`;
+}
+
+function rfeHelperSection() {
+  return `<section class="rfe-helper">
+    <h2>${esc(lang() === "es" ? "Ayuda para RFE" : "RFE Helper")}</h2>
+    <p class="muted">${esc(lang() === "es" ? "Pega el texto de tu RFE para generar una lista de verificación" : "Paste your RFE text to generate a response checklist")}</p>
+    <label class="field">
+      ${esc(lang() === "es" ? "Texto del RFE (sin números de recibo ni identificadores)" : "RFE text (no receipt numbers or identifiers)")}
+      <textarea id="rfe-text" placeholder="${esc(lang() === "es" ? "Pega aquí el texto de tu RFE..." : "Paste your RFE text here...")}">${esc(rfeText)}</textarea>
+    </label>
+    <button class="btn" data-act="parse-rfe">${esc(lang() === "es" ? "Generar lista" : "Generate checklist")}</button>
+    
+    ${rfeParsed ? `<div class="rfe-checklist">
+      <h3>${esc(lang() === "es" ? "Items solicitados" : "Requested items")}</h3>
+      <div class="checklist">${rfeParsed.items.map((item, i) => `<div class="check-item">
+        <input type="checkbox" id="rfe-${i}" aria-label="${esc(item.text)}">
+        <div class="text">
+          <div class="label">${esc(item.text)}</div>
+          ${item.hint ? `<div class="hint">${esc(item.hint)}</div>` : ""}
+          ${item.required ? `<span class="pill coral">${esc(lang() === "es" ? "Requerido" : "Required")}</span>` : `<span class="pill plain">${esc(lang() === "es" ? "Si aplica" : "If applicable")}</span>`}
+        </div>
+      </div>`).join("")}</div>
+      <p class="read-note">${esc(lang() === "es" ? "Responde dentro del plazo indicado en el RFE. Guarda copia de todo." : "Respond within the deadline in your RFE. Keep copies of everything.")}</p>
+    </div>` : ""}
+  </section>`;
+}
+
+function interviewScreen(spaceId) {
+  const space = spaceById(spaceId || "i-485");
+  const tips = interviewTips(lang(), spaceId || "i-485");
+  const interviewPosts = redditForSpace(spaceId || "i-485").filter(p => 
+    /interview|entrevista/i.test(p.title)
+  ).slice(0, 10);
+  
+  return `<div class="interview-hub">
+    <button class="ghost" data-act="back">${esc(L("back"))}</button>
+    <div class="page-head">
+      <h1>${esc(lang() === "es" ? "Preparación para entrevista" : "Interview Preparation")}</h1>
+      <p class="muted">${esc(space ? (lang() === "es" ? space.es : space.en) : "")}</p>
+    </div>
+    
+    <h2>${esc(lang() === "es" ? "Consejos generales" : "General tips")}</h2>
+    <div class="stack">${tips.map(tip => `<div class="card"><strong>${esc(tip.title)}</strong><p>${esc(tip.body)}</p></div>`).join("")}</div>
+    
+    ${spaceId === "i-485" || spaceId === "i-130" ? marriageEvidenceChecklist() : ""}
+    
+    <h2>${esc(lang() === "es" ? "Experiencias de entrevistas" : "Interview experiences")}</h2>
+    <p class="muted">${esc(lang() === "es" ? "De r/USCIS - experiencias reales de personas" : "From r/USCIS - real experiences from people")}</p>
+    <div class="feed">${interviewPosts.map(p => webCard(p, true)).join("") || `<p class="muted">${esc(lang() === "es" ? "No hay experiencias de entrevistas aún" : "No interview experiences yet")}</p>`}</div>
+    
+    ${legalDisclaimer()}
+  </div>`;
+}
+
+function marriageEvidenceChecklist() {
+  const items = [
+    { id: "marriage-cert", text: lang() === "es" ? "Acta de matrimonio" : "Marriage certificate", required: true },
+    { id: "joint-taxes", text: lang() === "es" ? "Declaración de impuestos conjunta" : "Joint tax returns", required: false },
+    { id: "joint-bank", text: lang() === "es" ? "Cuentas bancarias conjuntas" : "Joint bank accounts", required: false },
+    { id: "lease-deed", text: lang() === "es" ? "Contrato de arrendamiento o escritura conjunta" : "Joint lease or deed", required: false },
+    { id: "insurance", text: lang() === "es" ? "Pólizas de seguro con beneficiario" : "Insurance policies listing spouse", required: false },
+    { id: "photos", text: lang() === "es" ? "Fotos juntos a través del tiempo" : "Photos together over time", required: false },
+    { id: "affidavits", text: lang() === "es" ? "Declaraciones juradas de familia/amigos" : "Affidavits from family/friends", required: false },
+    { id: "birth-cert-kids", text: lang() === "es" ? "Actas de nacimiento de hijos (si aplica)" : "Birth certificates of children (if applicable)", required: false },
+    { id: "correspondence", text: lang() === "es" ? "Correspondencia con ambos nombres" : "Mail addressed to both", required: false }
+  ];
+  
+  const checkedCount = items.filter((item) => evidenceMarks[item.id]).length;
+  const score = Math.round((checkedCount / items.length) * 100);
+  const scoreLevel = score >= 70 ? "high" : score >= 40 ? "medium" : "low";
+  
+  return `<section style="margin-top:32px;">
+    <h2>${esc(lang() === "es" ? "Lista de pruebas de matrimonio" : "Marriage evidence checklist")}</h2>
+    <p class="muted">${esc(lang() === "es" ? "Marca lo que tienes para ver tu puntaje de fortaleza" : "Check what you have to see your strength score")}</p>
+    
+    <div class="score-meter" style="max-width:300px;margin:16px 0;">
+      <div class="score-label">
+        <span>${esc(lang() === "es" ? "Fortaleza de evidencia" : "Evidence strength")}</span>
+        <span class="value">${score}%</span>
+      </div>
+      <div class="score-bar ${scoreLevel}"><span style="width:${score}%"></span></div>
+    </div>
+    
+    <div class="checklist">${items.map(item => `<label class="check-item">
+      <input type="checkbox" id="ev-${item.id}" data-act="evidence-check" data-id="${esc(item.id)}" ${evidenceMarks[item.id] ? "checked" : ""}>
+      <div class="text">
+        <div class="label">${esc(item.text)}</div>
+        ${item.required ? `<span class="pill coral">${esc(lang() === "es" ? "Requerido" : "Required")}</span>` : ""}
+      </div>
+    </label>`).join("")}</div>
+    
+    <p class="read-note" style="margin-top:12px;">${esc(lang() === "es" ? "Más evidencia = caso más fuerte, pero solo incluye documentos genuinos" : "More evidence = stronger case, but only include genuine documents")}</p>
+  </section>`;
 }
 
 function youScreen() {
   const user = me(state);
   const mine = state.posts.filter((post) => post.authorId === user.id);
   const saved = state.posts.filter((post) => user.bookmarks.includes(post.id));
-  return `<div class="brand"><div class="mark"></div><div><h1 style="margin:0">${esc(user.username)}</h1><div class="kicker">${esc(levelName(lang(), user.reputation))}</div><div class="muted">${esc(L("reputation"))} ${user.reputation}</div></div></div>
+  return `<div class="brand"><div class="mark" aria-hidden="true"></div><div><h1 style="margin:0">${esc(user.username)}</h1><div class="kicker">${esc(levelName(lang(), user.reputation))}</div><div class="muted">${esc(L("reputation"))} ${user.reputation}</div></div></div>
     ${user.username === "app_review" ? `<div class="banner"><strong>${esc(L("reviewerNotes"))}</strong><p>${esc(L("reviewerBody"))}</p><button class="btn inline" data-act="mod">${esc(L("modQueue"))}</button></div>` : ""}
     <h2>${esc(L("caseProfiles"))}</h2>
-    <div class="stack">${user.profiles.map((profile) => `<div class="card">${esc(badge(lang(), profile))}</div>`).join("")}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
+    <div class="stack">${user.profiles.length ? user.profiles.map((profile) => `<div class="card">${esc(badge(lang(), profile))}</div>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
     <h2>${esc(L("yourPosts"))}</h2>
-    ${mine.length ? `<div class="stack">${mine.map(postCard).join("")}</div>` : `<p class="muted">${esc(L("noPosts"))}</p>`}
+    ${mine.length ? `<div class="stack">${mine.map(postCard).join("")}</div>` : `<div class="empty-state"><p>${esc(L("noPosts"))}</p><button class="btn-secondary" data-act="tab" data-tab="ask">${esc(H("shareThought"))}</button></div>`}
     <h2>${esc(L("bookmarks"))}</h2>
     ${saved.length ? `<div class="stack">${saved.map(postCard).join("")}</div>` : `<p class="muted">${esc(L("emptySaved"))}</p>`}
     <h2>${esc(L("yourSpaces"))}</h2>
-    <div class="card-grid">${user.spaces.map((id) => `<button class="card" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("")}</div>
+    <div class="card-grid">${user.spaces.length ? user.spaces.map((id) => `<button class="card" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No te has unido a ningún espacio" : "You haven't joined any spaces")}</p>`}</div>
     <h2>${esc(L("settings"))}</h2>
     <div class="lang">
       <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en">${esc(L("english"))}</button>
       <button class="btn inline ${lang() === "es" ? "on" : "off"}" data-act="lang" data-lang="es">${esc(L("spanish"))}</button>
     </div>
-    <button class="ghost" data-act="page" data-page="rules">${esc(L("rules"))}</button>
-    <button class="ghost" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
-    <button class="ghost" data-act="page" data-page="about">${esc(L("about"))}</button>
-    <a href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
-    <p class="muted">${esc(L("deleteHelp"))}</p>
-    <button class="btn" data-act="delete">${esc(L("deleteAccount"))}</button>`;
+    <div class="stack" style="margin-top:16px;">
+      <button class="ghost" data-act="page" data-page="rules">${esc(L("rules"))}</button>
+      <button class="ghost" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
+      <button class="ghost" data-act="page" data-page="about">${esc(L("about"))}</button>
+      <a href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
+    </div>
+    <p class="muted" style="margin-top:24px;">${esc(L("deleteHelp"))}</p>
+    <button class="btn" style="background:var(--coral);" data-act="delete">${esc(L("deleteAccount"))}</button>`;
 }
 
 function pageScreen(page) {
@@ -744,13 +1064,13 @@ function modScreen() {
   return `<button class="ghost" data-act="back">${esc(L("back"))}</button>
     <h1>${esc(L("modQueue"))}</h1>
     <div class="banner">${esc(L("reviewerBody"))}</div>
-    <div class="stack">${posts.map((post) => {
+    <div class="stack">${posts.length ? posts.map((post) => {
       const open = state.reports.filter((item) => item.targetId === post.id && item.state === "open").length;
       return `<div class="card"><strong>${esc(post.title)}</strong><p>${esc(post.body)}</p><div class="meta">${esc(post.status)} · ${open} ${esc(L("openReports"))}</div>
         <div class="row"><button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="restore">${esc(L("restore"))}</button>
         <button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="remove">${esc(L("remove"))}</button>
         <button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="dismiss">${esc(L("dismissReports"))}</button></div></div>`;
-    }).join("")}</div>`;
+    }).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay publicaciones en cola" : "No posts in queue")}</p>`}</div>`;
 }
 
 function profileEditor(spaceId) {
@@ -769,8 +1089,8 @@ function profileEditor(spaceId) {
 function searchScreen() {
   const posts = filters.query ? visiblePosts(state, { query: filters.query, sort: "new" }) : [];
   return `<button class="ghost" data-act="back">${esc(L("back"))}</button>
-    <input id="search" type="search" placeholder="${esc(L("searchPrompt"))}" value="${esc(filters.query)}">
-    <div class="stack">${posts.map(postCard).join("")}</div>`;
+    <input id="search" type="search" placeholder="${esc(L("searchPrompt"))}" value="${esc(filters.query)}" aria-label="${esc(L("search"))}">
+    <div class="stack">${posts.length ? posts.map(postCard).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay resultados" : "No results")}</p>`}</div>`;
 }
 
 function readProfile(scope) {
@@ -788,7 +1108,7 @@ function readProfile(scope) {
 
 function apply(result, success) {
   if (!result.ok) {
-    const key = result.error === "short" ? "tooShort" : result.error === "stage" ? "stageRequired" : result.error === "already" ? "alreadyReported" : result.error === "taken" ? "taken" : result.error === "reserved" ? "reserved" : result.error === "invalid" ? "invalidName" : result.error === "email" ? "emailInvalid" : ["receipt", "a-number", "ssn", "passport", "abuse"].includes(result.error) ? "blockedText" : "couldNot";
+    const key = result.error === "short" ? "tooShort" : result.error === "stage" ? "stageRequired" : result.error === "already" ? "alreadyReported" : result.error === "taken" ? "taken" : result.error === "reserved" ? "reserved" : result.error === "invalid" ? "invalidName" : result.error === "email" ? "emailInvalid" : result.error === "rate" ? "slowDown" : ["receipt", "a-number", "ssn", "passport", "abuse"].includes(result.error) ? "blockedText" : "couldNot";
     toast = L(key);
     render();
     return;
@@ -811,6 +1131,7 @@ document.addEventListener("click", (event) => {
   const node = event.target.closest("[data-act]");
   if (!node) return;
   const act = node.dataset.act;
+  
   if (act === "lang") {
     state.lang = node.dataset.lang;
     const user = me(state);
@@ -849,6 +1170,24 @@ document.addEventListener("click", (event) => {
     document.getElementById(id)?.scrollIntoView({ block: "start" });
     return;
   }
+  if (act === "pain-point") {
+    const id = node.dataset.id;
+    if (id === "waiting" || id === "ead") {
+      if (state.meId) { state.route = { name: "timelines" }; save(); }
+      else { onboard.showEmail = true; onboard.step = 0; }
+    } else if (id === "interview") {
+      if (state.meId) { state.route = { name: "interview", spaceId: "i-485" }; save(); }
+      else { onboard.showEmail = true; onboard.step = 0; }
+    } else if (id === "rfe" || id === "folder") {
+      if (state.meId) { state.route = { name: "prepare" }; save(); }
+      else { onboard.showEmail = true; onboard.step = 0; }
+    } else if (id === "evidence") {
+      if (state.meId) { state.route = { name: "interview", spaceId: "i-485" }; save(); }
+      else { onboard.showEmail = true; onboard.step = 0; }
+    }
+    render();
+    return;
+  }
   if (act === "use-email") {
     onboard.emailDraft = document.querySelector("#email")?.value || "";
     if (!emailOk(onboard.emailDraft)) { toast = L("emailInvalid"); render(); return; }
@@ -864,15 +1203,33 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
+  if (act === "skip-onboard") {
+    const taken = new Set(state.members.map((person) => person.username.toLowerCase()));
+    const name = onboard.username.trim();
+    if (!name) {
+      let guest = `member_${Math.random().toString(36).slice(2, 8)}`;
+      while (usernameIssue(guest, taken)) guest = `member_${Math.random().toString(36).slice(2, 8)}`;
+      onboard.username = guest;
+    } else if (usernameIssue(name, taken)) {
+      toast = usernameIssue(name, taken) === "taken" ? L("taken") : usernameIssue(name, taken) === "reserved" ? L("reserved") : L("invalidName");
+      render();
+      return;
+    }
+    onboard.spaces = onboard.spaces.length ? onboard.spaces : ["i-485"];
+    finishOnboard(false);
+    return;
+  }
   if (act === "onboard-back") { onboard.step = Math.max(0, onboard.step - 1); render(); return; }
   if (act === "onboard-skip") { finishOnboard(false); return; }
   if (act === "onboard-next") { advanceOnboard(); return; }
   if (act === "tab") {
     const name = node.dataset.tab;
-    const profile = me(state)?.profiles?.[0];
-    state.route = name === "prepare" && profile ? { name: "prepare", spaceId: profile.spaceId } : { name };
+    state.route = { name };
     if (name === "ask") ask = blankAsk();
-    if (name === "prepare") guideAnswer = null;
+    if (name === "prepare") {
+      guideAnswer = null;
+      rfeParsed = null;
+    }
     save();
     render();
     return;
@@ -914,6 +1271,12 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
+  if (act === "parse-rfe") {
+    rfeText = document.querySelector("#rfe-text")?.value || "";
+    rfeParsed = parseRFE(lang(), rfeText);
+    render();
+    return;
+  }
   if (act === "sort") { filters.sort = node.dataset.sort; render(); return; }
   if (act === "kind") { filters.kind = filters.kind === node.dataset.kind ? "" : node.dataset.kind; render(); return; }
   if (act === "open-bot") {
@@ -950,6 +1313,7 @@ document.addEventListener("click", (event) => {
   }
   if (act === "open-post") { state.route = { name: "post", id: node.dataset.id }; save(); render(); return; }
   if (act === "open-space") { state.route = { name: "space", id: node.dataset.id }; save(); render(); return; }
+  if (act === "open-interview") { state.route = { name: "interview", spaceId: node.dataset.id }; save(); render(); return; }
   if (act === "back") { state.route = { name: "home" }; save(); render(); return; }
   if (act === "vote") { apply(toggleVote(state, node.dataset.id)); return; }
   if (act === "bookmark") { apply(toggleBookmark(state, node.dataset.id), () => { toast = L("saved"); }); return; }
@@ -1013,7 +1377,7 @@ document.addEventListener("click", (event) => {
   if (act === "ask-back") { ask.step = Math.max(0, ask.step - 1); render(); return; }
   if (act === "publish") { publishAsk(); return; }
   if (act === "add-profile") {
-    const first = me(state).spaces[0] || "i-751";
+    const first = me(state)?.spaces[0] || "i-485";
     profileDraft = blankProfile(first);
     state.route = { name: "profile-edit", spaceId: first };
     render();
@@ -1060,19 +1424,37 @@ document.addEventListener("change", (event) => {
     if (node.dataset.key === "month" || node.dataset.key === "year") draft[node.dataset.key] = Number(node.value);
     return;
   }
+  if (node.dataset.act === "profile-space") {
+    const draft = state.meId && state.route?.name === "profile-edit" ? profileDraft : onboard.profile;
+    draft.spaceId = node.value;
+    draft.form = spaceById(node.value)?.forms[0] || "";
+    render();
+    return;
+  }
+  if (node.dataset.act === "wait-calc-profile") {
+    const user = me(state);
+    waitCalcProfile = user?.profiles?.find(p => p.spaceId === node.value) || null;
+    render();
+    return;
+  }
   if (node.dataset.act === "filter-stage") { filters.stage = node.value; render(); }
   if (node.dataset.act === "filter-office") { filters.officeId = node.value; render(); }
+  if (node.dataset.act === "evidence-check") {
+    evidenceMarks[node.dataset.id] = node.checked;
+    render();
+  }
 });
 
 document.addEventListener("input", (event) => {
   if (event.target.id === "username") onboard.username = event.target.value;
   if (event.target.id === "email") onboard.emailDraft = event.target.value;
-  if (event.target.id === "rules") onboard.rules = event.target.checked;
-  if (event.target.id === "advice") onboard.advice = event.target.checked;
+  if (event.target.id === "rules") { onboard.rules = event.target.checked; restoreFocus = "rules"; render(); }
+  if (event.target.id === "advice") { onboard.advice = event.target.checked; restoreFocus = "advice"; render(); }
   if (event.target.id === "ask-title") ask.title = event.target.value;
   if (event.target.id === "ask-body") ask.body = event.target.value;
   if (event.target.id === "ask-stage") ask.stage = event.target.value;
   if (event.target.id === "guide-q") guideQuestion = event.target.value;
+  if (event.target.id === "rfe-text") rfeText = event.target.value;
   if (event.target.id === "search") { filters.query = event.target.value; restoreFocus = "search"; render(); }
   if (event.target.id === "space-search") { spaceQuery = event.target.value; restoreFocus = "space-search"; render(); }
 });
@@ -1103,7 +1485,7 @@ function finishOnboard(includeProfile) {
     username: onboard.username,
     email: onboard.email,
     locale: lang(),
-    spaceIds: onboard.spaces,
+    spaceIds: onboard.spaces.length ? onboard.spaces : ["i-485"],
     profile: includeProfile ? readProfile("onboard") : null
   });
   apply(result, () => { onboard = blankOnboard(); toast = L("saved"); });

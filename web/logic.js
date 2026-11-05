@@ -186,6 +186,7 @@ const strings = {
   pinned: ["Pinned", "Fijada"],
   openReports: ["open reports", "reportes abiertos"],
   couldNot: ["That could not be saved.", "No se pudo guardar."],
+  slowDown: ["Wait a moment before doing that again.", "Espera un momento antes de volver a hacerlo."],
   taken: ["That name is taken.", "Ese nombre ya existe."],
   reserved: ["Choose a different name.", "Elige otro nombre."],
   invalidName: ["Use 3 to 20 letters, numbers, or underscores.", "Usa de 3 a 20 letras, números o guiones bajos."],
@@ -323,6 +324,40 @@ export function evaluate(text) {
   }
   if (scamPhrases.some((phrase) => folded.includes(phrase))) return { verdict: "hold", reason: "scam" };
   return { verdict: "allow" };
+}
+
+export const RATE_WINDOWS = { post: 30_000, comment: 8_000, vote: 800 };
+
+export function rateLimited(user, kind, now = Date.now()) {
+  if (!user) return true;
+  const windowMs = RATE_WINDOWS[kind];
+  if (!windowMs) return false;
+  const last = user.rate?.[kind] || 0;
+  return now - last < windowMs;
+}
+
+export function markRate(user, kind, now = Date.now()) {
+  if (!user) return;
+  user.rate = user.rate || {};
+  user.rate[kind] = now;
+}
+
+export function waitComparison(state, profile) {
+  const mine = monthsSince(profile?.filed);
+  const waits = (state.members || [])
+    .filter((person) => !person.sample)
+    .flatMap((person) => person.profiles || [])
+    .filter((item) => item.spaceId === profile.spaceId && item.filed && (profile.officeId === "unsure" || !profile.officeId || item.officeId === profile.officeId))
+    .map((item) => monthsSince(item.filed))
+    .sort((a, b) => a - b);
+  const publishable = waits.length >= 20;
+  const below = waits.filter((value) => value < mine).length;
+  return {
+    count: waits.length,
+    mine,
+    percentile: publishable ? Math.round((below / waits.length) * 100) : null,
+    publishable
+  };
 }
 
 const reserved = new Set(["uscis", "dhs", "ice", "cbp", "official", "admin", "moderator", "notario", "casecircle", "support", "deleted", "apple", "google"]);
@@ -630,6 +665,7 @@ export function publish(state, draft) {
   const nextState = clone(state);
   const user = me(nextState);
   if (!user) return { ok: false, error: "auth", state };
+  if (rateLimited(user, "post")) return { ok: false, error: "rate", state };
   const title = String(draft.title || "").trim();
   const body = String(draft.body || "").trim();
   const spaceIds = [...new Set(draft.spaceIds || [])].slice(0, 3);
@@ -658,6 +694,7 @@ export function publish(state, draft) {
     comments: []
   };
   nextState.posts.unshift(post);
+  markRate(user, "post");
   for (const spaceId of spaceIds) {
     if (!user.spaces.includes(spaceId)) user.spaces.push(spaceId);
   }
@@ -684,6 +721,7 @@ export function addComment(state, postId, body) {
   const post = nextState.posts.find((item) => item.id === postId);
   const text = String(body || "").trim();
   if (!user || !post) return { ok: false, error: "auth", state };
+  if (rateLimited(user, "comment")) return { ok: false, error: "rate", state };
   if (text.length < 8) return { ok: false, error: "short", state };
   const verdict = evaluate(text);
   if (verdict.verdict === "block") return { ok: false, error: verdict.reason, state };
@@ -695,6 +733,7 @@ export function addComment(state, postId, body) {
     votes: 0,
     status: verdict.verdict === "hold" ? "held" : "live"
   });
+  markRate(user, "comment");
   return { ok: true, state: nextState, held: verdict.verdict === "hold" };
 }
 
@@ -708,9 +747,11 @@ export function toggleVote(state, targetId) {
     }
     return { ok: true, state: nextState };
   }
+  if (rateLimited(user, "vote")) return { ok: false, error: "rate", state };
   const targetAuthor = authorOf(nextState, targetId);
   if (targetAuthor === user.id) return { ok: false, error: "self", state };
   user.votes[targetId] = 1;
+  markRate(user, "vote");
   adjustVotes(nextState, targetId, 1);
   return { ok: true, state: nextState };
 }

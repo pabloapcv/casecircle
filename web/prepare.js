@@ -223,3 +223,197 @@ export function guideReply(lang, packet, folder, question) {
     : `Next in ${sectionName}. When the document is in your paper folder, mark it.`;
   return { title: itemName, body: intro, href: packet.url, link: prepareText(lang, "officialForm") };
 }
+
+export function calculateScore(packet, folder) {
+  const counts = tally(packet, folder);
+  return Math.round((counts.ready / Math.max(counts.total, 1)) * 100);
+}
+
+export function calculateRiskFlags(lang, profile, folder) {
+  const flags = [];
+  const now = new Date();
+  
+  if (profile.filed) {
+    const filed = new Date(profile.filed);
+    const monthsSinceFiling = Math.round((now - filed) / (30 * 24 * 60 * 60 * 1000));
+    
+    if (profile.spaceId === "i-485" && monthsSinceFiling > 6 && profile.stage === "filed") {
+      const i693ExpiryMonths = 24 - monthsSinceFiling;
+      if (i693ExpiryMonths <= 6 && i693ExpiryMonths > 0) {
+        flags.push({
+          type: "warning",
+          message: lang === "es" 
+            ? `Tu I-693 médico puede expirar en ~${i693ExpiryMonths} meses si fue hecho al presentar`
+            : `Your I-693 medical may expire in ~${i693ExpiryMonths} months if done at filing`
+        });
+      } else if (i693ExpiryMonths <= 0) {
+        flags.push({
+          type: "error",
+          message: lang === "es"
+            ? "Tu I-693 médico puede haber expirado. Puede necesitar otro examen."
+            : "Your I-693 medical may have expired. May need another exam."
+        });
+      }
+    }
+    
+    if (monthsSinceFiling > 18 && profile.stage !== "approved" && profile.stage !== "oath") {
+      flags.push({
+        type: "warning",
+        message: lang === "es"
+          ? "Considera contactar a USCIS o a tu congresista sobre el tiempo de espera"
+          : "Consider contacting USCIS or your congressperson about wait time"
+      });
+    }
+  }
+  
+  const marks = folder?.marks || {};
+  const needCount = Object.values(marks).filter(m => m === "need").length;
+  const readyCount = Object.values(marks).filter(m => m === "ready").length;
+  
+  if (readyCount > 0 && needCount === 0) {
+    flags.push({
+      type: "success",
+      message: lang === "es"
+        ? "Lista completa. Revisa las instrucciones oficiales antes de enviar."
+        : "Checklist complete. Review official instructions before sending."
+    });
+  }
+  
+  return flags;
+}
+
+export function parseRFE(lang, text) {
+  if (!text || text.length < 20) {
+    return null;
+  }
+  
+  const safety = evaluate(text);
+  if (safety.verdict === "block") {
+    return { items: [{ text: lang === "es" ? "Por favor remueve identificadores del texto" : "Please remove identifiers from the text", required: true, hint: "" }] };
+  }
+  
+  const items = [];
+  
+  const evidencePatterns = [
+    { pattern: /birth certificate/i, text: { en: "Birth certificate", es: "Acta de nacimiento" }, required: true },
+    { pattern: /marriage certificate/i, text: { en: "Marriage certificate", es: "Acta de matrimonio" }, required: true },
+    { pattern: /divorce (decree|certificate)/i, text: { en: "Divorce decree/certificate", es: "Decreto/certificado de divorcio" }, required: true },
+    { pattern: /passport/i, text: { en: "Passport copy", es: "Copia de pasaporte" }, required: true },
+    { pattern: /photo(graph)?s?/i, text: { en: "Photographs", es: "Fotografías" }, required: false },
+    { pattern: /tax (return|transcript)/i, text: { en: "Tax returns/transcripts", es: "Declaraciones/transcripciones de impuestos" }, required: true },
+    { pattern: /employment (letter|verification)/i, text: { en: "Employment letter", es: "Carta de empleo" }, required: true },
+    { pattern: /i-?864/i, text: { en: "Affidavit of Support (I-864)", es: "Declaración de apoyo (I-864)" }, required: true },
+    { pattern: /i-?693|medical exam/i, text: { en: "Medical exam (I-693)", es: "Examen médico (I-693)" }, required: true },
+    { pattern: /translat/i, text: { en: "Certified translation", es: "Traducción certificada" }, required: true },
+    { pattern: /evidence of.*relationship|bona fide/i, text: { en: "Evidence of bona fide relationship", es: "Evidencia de relación genuina" }, required: true },
+    { pattern: /joint (bank|account)/i, text: { en: "Joint bank account statements", es: "Estados de cuenta bancaria conjunta" }, required: false },
+    { pattern: /lease|mortgage/i, text: { en: "Joint lease or mortgage", es: "Contrato de arrendamiento o hipoteca conjunta" }, required: false },
+    { pattern: /insurance/i, text: { en: "Insurance documents", es: "Documentos de seguro" }, required: false },
+    { pattern: /affidavit/i, text: { en: "Affidavits from friends/family", es: "Declaraciones juradas de amigos/familia" }, required: false },
+    { pattern: /police (clearance|certificate)/i, text: { en: "Police clearance certificate", es: "Certificado de antecedentes policiales" }, required: true },
+    { pattern: /court (record|document)/i, text: { en: "Court records/documents", es: "Registros/documentos judiciales" }, required: true },
+    { pattern: /vaccination/i, text: { en: "Vaccination records", es: "Registros de vacunación" }, required: false }
+  ];
+  
+  for (const pattern of evidencePatterns) {
+    if (pattern.pattern.test(text)) {
+      items.push({
+        text: lang === "es" ? pattern.text.es : pattern.text.en,
+        required: pattern.required,
+        hint: ""
+      });
+    }
+  }
+  
+  if (items.length === 0) {
+    items.push({
+      text: lang === "es" ? "Revisa el RFE cuidadosamente para identificar los documentos específicos solicitados" : "Review the RFE carefully to identify specific documents requested",
+      required: true,
+      hint: lang === "es" ? "Consulta con un abogado si no estás seguro" : "Consult with an attorney if unsure"
+    });
+  }
+  
+  items.push({
+    text: lang === "es" ? "Carta de respuesta explicando los documentos incluidos" : "Cover letter explaining enclosed documents",
+    required: true,
+    hint: lang === "es" ? "Lista cada documento adjunto" : "List each enclosed document"
+  });
+  
+  items.push({
+    text: lang === "es" ? "Copia del aviso de RFE" : "Copy of RFE notice",
+    required: true,
+    hint: lang === "es" ? "Incluir como página superior del paquete" : "Include as top page of packet"
+  });
+  
+  return { items };
+}
+
+export const formChecklists = {
+  "i-485": {
+    required: [
+      { id: "i485-form", en: "Form I-485 completed and signed", es: "Formulario I-485 completado y firmado" },
+      { id: "i485-fee", en: "Filing fee or fee waiver", es: "Tarifa de presentación o exención" },
+      { id: "i485-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" },
+      { id: "i485-passport", en: "Passport copy (bio page)", es: "Copia de pasaporte (página biográfica)" },
+      { id: "i485-birth", en: "Birth certificate + translation", es: "Acta de nacimiento + traducción" },
+      { id: "i485-i94", en: "I-94 arrival record", es: "Registro de llegada I-94" },
+      { id: "i485-i693", en: "I-693 medical (sealed)", es: "I-693 médico (sellado)" }
+    ],
+    conditional: [
+      { id: "i485-i130", en: "I-130 approval or receipt (family-based)", es: "Aprobación o recibo de I-130 (basado en familia)", condition: "family" },
+      { id: "i485-i140", en: "I-140 approval (employment-based)", es: "Aprobación de I-140 (basado en empleo)", condition: "employment" },
+      { id: "i485-marriage", en: "Marriage certificate + translation", es: "Acta de matrimonio + traducción", condition: "marriage" },
+      { id: "i485-i864", en: "I-864 Affidavit of Support", es: "Declaración de apoyo I-864", condition: "family" },
+      { id: "i485-divorce", en: "Divorce decrees for prior marriages", es: "Decretos de divorcio de matrimonios previos", condition: "marriage" }
+    ],
+    optional: [
+      { id: "i485-evidence", en: "Additional bona fide evidence", es: "Evidencia adicional de buena fe" },
+      { id: "i485-travel", en: "Travel history", es: "Historial de viajes" }
+    ]
+  },
+  "i-765": {
+    required: [
+      { id: "i765-form", en: "Form I-765 completed and signed", es: "Formulario I-765 completado y firmado" },
+      { id: "i765-fee", en: "Filing fee or included with I-485", es: "Tarifa o incluido con I-485" },
+      { id: "i765-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" },
+      { id: "i765-id", en: "Copy of ID document", es: "Copia de documento de identidad" }
+    ],
+    conditional: [
+      { id: "i765-i94", en: "I-94 (if applying based on status)", es: "I-94 (si aplica basado en estatus)", condition: "status" },
+      { id: "i765-pending", en: "Receipt of pending application", es: "Recibo de solicitud pendiente", condition: "pending" }
+    ],
+    optional: []
+  },
+  "n-400": {
+    required: [
+      { id: "n400-form", en: "Form N-400 completed and signed", es: "Formulario N-400 completado y firmado" },
+      { id: "n400-fee", en: "Filing fee", es: "Tarifa de presentación" },
+      { id: "n400-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" },
+      { id: "n400-gc", en: "Copy of green card (front and back)", es: "Copia de tarjeta verde (frente y dorso)" }
+    ],
+    conditional: [
+      { id: "n400-trips", en: "List of trips outside US", es: "Lista de viajes fuera de EEUU", condition: "travel" },
+      { id: "n400-taxes", en: "Tax transcripts for required years", es: "Transcripciones de impuestos de años requeridos", condition: "taxes" },
+      { id: "n400-arrest", en: "Court records if any arrests", es: "Registros judiciales si hay arrestos", condition: "arrests" }
+    ],
+    optional: [
+      { id: "n400-civics", en: "Civics study materials", es: "Materiales de estudio de civismo" }
+    ]
+  },
+  "i-130": {
+    required: [
+      { id: "i130-form", en: "Form I-130 completed and signed", es: "Formulario I-130 completado y firmado" },
+      { id: "i130-fee", en: "Filing fee", es: "Tarifa de presentación" },
+      { id: "i130-petitioner", en: "Proof of petitioner's status (passport/certificate)", es: "Prueba de estatus del peticionario" },
+      { id: "i130-relationship", en: "Proof of relationship", es: "Prueba de la relación" }
+    ],
+    conditional: [
+      { id: "i130-marriage", en: "Marriage certificate + translation", es: "Acta de matrimonio + traducción", condition: "spouse" },
+      { id: "i130-birth", en: "Birth certificate of beneficiary", es: "Acta de nacimiento del beneficiario", condition: "family" },
+      { id: "i130-evidence", en: "Bona fide marriage evidence", es: "Evidencia de matrimonio genuino", condition: "spouse" }
+    ],
+    optional: [
+      { id: "i130-photos", en: "Photos together over time", es: "Fotos juntos a través del tiempo" }
+    ]
+  }
+};

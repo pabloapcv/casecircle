@@ -27,7 +27,10 @@ struct ProfileView: View {
                         }
                         sectionTitle(L10n.s(.caseProfiles, lang))
                         if me.profiles.isEmpty {
-                            Text(L10n.s(.noCaseYet, lang)).font(.subheadline).foregroundStyle(Theme.secondary)
+                            EmptyState(
+                                title: L10n.s(.noCaseYet, lang),
+                                message: L10n.s(.addFirstCaseBody, lang)
+                            )
                         }
                         ForEach(me.profiles, id: \.id) { profile in
                             NavigationLink {
@@ -44,6 +47,19 @@ struct ProfileView: View {
                             ProfileEditorScreen(existing: nil, preferredSpaceID: me.memberships.first?.spaceID)
                         } label: {
                             Text(L10n.s(.addCaseProfile, lang)).font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44)
+                        }
+                        NavigationLink {
+                            PrepareView()
+                        } label: {
+                            Text(L10n.s(.prepareTitle, lang)).font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44)
+                        }
+                        NavigationLink {
+                            InterviewPrepView(spaceID: me.profiles.first?.spaceID ?? "i-485")
+                        } label: {
+                            Text(L10n.s(.interviewPrep, lang)).font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44)
                         }
                         sectionTitle(L10n.s(.yourPosts, lang))
                         postLinks(posts.filter { $0.author?.id == me.id })

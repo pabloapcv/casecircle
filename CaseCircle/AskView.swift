@@ -361,6 +361,7 @@ struct AskView: View {
         case .editExpired: return L10n.s(.editWindow, lang)
         case .alreadyReported: return L10n.s(.alreadyReported, lang)
         case .notAllowed: return L10n.s(.couldNotSignIn, lang)
+        case .rateLimited: return L10n.s(.slowDown, lang)
         }
     }
 

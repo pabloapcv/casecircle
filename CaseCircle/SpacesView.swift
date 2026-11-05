@@ -148,6 +148,19 @@ struct SpaceDetailView: View {
                             .buttonStyle(.borderedProminent)
                         }
                     }
+                    HStack {
+                        NavigationLink {
+                            PrepareView(initialSpaceID: spaceID)
+                        } label: {
+                            Text(L10n.s(.openFolder, lang)).font(.subheadline.weight(.semibold))
+                        }
+                        NavigationLink {
+                            InterviewPrepView(spaceID: spaceID)
+                        } label: {
+                            Text(L10n.s(.interviewPrep, lang)).font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .frame(minHeight: 44)
                     Picker("", selection: $section) {
                         Text(L10n.s(.feedTab, lang)).tag(0)
                         Text(L10n.s(.statsTab, lang)).tag(1)
@@ -159,7 +172,12 @@ struct SpaceDetailView: View {
                     } else if feed.isEmpty {
                         EmptyState(
                             title: section == 2 ? L10n.s(.faqTab, lang) : L10n.s(.emptySpaceTitle, lang),
-                            message: L10n.s(.emptySpaceBody, lang)
+                            message: L10n.s(.emptySpaceBody, lang),
+                            actionTitle: L10n.s(.askInSpace, lang),
+                            action: {
+                                model.askSpaceID = spaceID
+                                model.selectedTab = .ask
+                            }
                         )
                     } else {
                         ForEach(feed, id: \.id) { post in

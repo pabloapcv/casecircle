@@ -863,6 +863,31 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
   .foot-base { flex-direction: column; }
 }
 
+/* ───────── Pricing / compare / help ───────── */
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+.compare-grid h3 { margin: 0 0 8px; font-size: 1rem; }
+.compare-grid p { margin: 0 0 8px; color: var(--secondary); font-size: 0.875rem; }
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 16px; }
+.pricing-card h3 { margin: 4px 0 12px; font-size: 1.75rem; letter-spacing: -0.02em; }
+.pricing-card.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+.pricing-card .btn { margin-top: 12px; }
+.waitlist-box { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.waitlist-box[hidden] { display: none !important; }
+.scam-warn { border-color: var(--amber); background: var(--amber-soft); margin: 16px 0; }
+.scam-warn h3 { margin: 0 0 8px; color: var(--amber); font-size: 1rem; }
+.scam-warn p { margin: 0; color: var(--ink); }
+.help-links { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.help-links a { font-weight: 600; color: var(--accent-deep); text-decoration: none; }
+.help-links a:hover { text-decoration: underline; }
+.form-seo-card { text-align: left; }
+.form-seo .features { margin: 16px 0 24px; }
+.public-bar .nav { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.public-bar .nav button { font-size: 0.8125rem; color: var(--secondary); font-weight: 600; }
+.public-bar .nav button:hover { color: var(--accent); }
+@media (max-width: 699px) {
+  .public-bar .nav { display: none; }
+}
+
 /* Toast */
 .toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%); z-index: 100;

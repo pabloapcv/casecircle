@@ -259,52 +259,76 @@ export function leadQuestions(lang) {
 }
 
 const home = {
-  homeTitle: ["A community to share and discuss USCIS cases and processes.", "Una comunidad para compartir y hablar de casos y procesos de USCIS."],
+  homeTitle: ["The calm, bilingual companion for the USCIS wait.", "El acompañante bilingüe y tranquilo para la espera de USCIS."],
   homeLede: [
-    "Post a question or an experience. Read what people on the same form posted.",
-    "Publica una pregunta o una experiencia. Lee lo que publicaron personas del mismo formulario."
+    "Compare your USCIS wait with people like you, get your papers in order, and learn from people who have been there, in English or Spanish, without handing over your documents.",
+    "Compara tu espera de USCIS con personas como tú, organiza tus papeles y aprende de quienes ya pasaron por esto, en español o inglés, sin entregar tus documentos."
   ],
   homeTrust: [
-    "Not USCIS. Not legal advice. Your posts stay in this browser. The post lists are public titles from Reddit.",
-    "No es USCIS. No es asesoría legal. Tus publicaciones se quedan en este navegador. Las listas son títulos públicos de Reddit."
+    "Not USCIS. Not legal advice. Community experiences, checklists, and plain-language explanations. Your papers stay on this device.",
+    "No es USCIS. No es asesoría legal. Experiencias de la comunidad, listas y explicaciones claras. Tus papeles se quedan en este dispositivo."
+  ],
+  metaTitle: ["CaseCircle — calm, bilingual companion for the USCIS wait", "CaseCircle — acompañante bilingüe y tranquilo para la espera de USCIS"],
+  metaDesc: [
+    "Free bilingual community and case companion for the USCIS wait. Check the wait, gather papers on your device, prepare for interviews, and avoid scams. Not affiliated with USCIS.",
+    "Comunidad bilingüe gratuita y compañero de caso para la espera de USCIS. Revisa la espera, reúne papeles en tu dispositivo, prepárate para entrevistas y evita estafas. Sin afiliación con USCIS."
   ],
   homePreviewKicker: ["In Adjustment of status", "En Ajuste de estatus"],
   homePreviewStatus: ["Nothing has changed since biometrics. Is the case in trouble?", "No cambia nada desde la biometría. ¿El caso está en problemas?"],
   homePreview1: ["Biometrics checks identity. A quiet page after that is not a decision.", "La biometría comprueba la identidad. Una página quieta después no es una decisión."],
   homePreview2: ["A public post title from r/USCIS. The rest of the post stays on Reddit.", "Un título público de r/USCIS. El resto de la publicación se queda en Reddit."],
   homePreview3: ["Leave receipt numbers out of the conversation.", "Deja los números de recibo fuera de la conversación."],
-  whatTitle: ["Also included", "También incluido"],
-  whatLead: ["", ""],
-  whatFolderTitle: ["Filing folder", "Carpeta de presentación"],
+  whatTitle: ["What CaseCircle helps with", "En qué te ayuda CaseCircle"],
+  whatLead: [
+    "Built around the waits people actually ask about — not a filing service and not the government.",
+    "Hecho alrededor de las esperas que la gente realmente pregunta — no es un servicio de presentación ni el gobierno."
+  ],
+  whatFolderTitle: ["Gather papers + private case folder", "Reunir papeles + carpeta privada"],
   whatFolderBody: [
-    "A checklist for the papers on one form. It does not fill out or file the form.",
-    "Una lista de los papeles de un formulario. No llena ni presenta el formulario."
+    "Know what goes in your folder, form by form. Your papers never leave your phone.",
+    "Sabe qué va en tu carpeta, formulario por formulario. Tus papeles nunca salen de tu teléfono."
   ],
   whatAnswersTitle: ["Common questions", "Preguntas comunes"],
   whatAnswersBody: [
-    "Short answers about statuses, interviews, work permits, and evidence requests.",
-    "Respuestas cortas sobre estatus, entrevistas, permisos de trabajo y pedidos de evidencia."
+    "Plain answers for every status line, with sources when we use public posts.",
+    "Respuestas claras para cada línea de estatus, con fuentes cuando usamos publicaciones públicas."
   ],
-  whatClockTitle: ["Your wait", "Tu espera"],
+  whatClockTitle: ["Check the wait", "Ver la espera"],
   whatClockBody: [
-    "Months since you filed, next to the official processing time.",
-    "Los meses desde que presentaste, junto al tiempo oficial de procesamiento."
+    "See if your wait is normal for people like you.",
+    "Mira si tu espera es normal para personas como tú."
   ],
-  painsTitle: ["What people are stuck on", "En qué se queda la gente"],
+  whatInterviewTitle: ["Interview prep", "Preparar la entrevista"],
+  whatInterviewBody: [
+    "Walk in knowing what people were asked at field offices like yours.",
+    "Llega sabiendo qué les preguntaron a otros en oficinas como la tuya."
+  ],
+  whatCommunityTitle: ["Moderated community", "Comunidad moderada"],
+  whatCommunityBody: [
+    "No one here sells shortcuts. Learn the red flags for notarios and scams.",
+    "Aquí nadie vende atajos. Aprende las señales de alerta de notarios y estafas."
+  ],
+  painsTitle: ["What the wait feels like", "Cómo se siente la espera"],
   painsLead: [
-    "These are the worries that kept returning in 1,600 public posts on r/USCIS and r/USCIS_FORUM between October 2 and November 3, 2026. The wording is ours. The posts are not copied.",
-    "Estas son las preocupaciones que volvían en 1,600 publicaciones públicas de r/USCIS y r/USCIS_FORUM entre el 2 de octubre y el 3 de noviembre de 2026. El texto es nuestro. Las publicaciones no están copiadas."
+    "For people with family-based and naturalization cases who feel alone and confused while they wait.",
+    "Para personas con casos familiares y de naturalización que se sienten solas y confundidas mientras esperan."
   ],
   howTitle: ["How it works", "Cómo funciona"],
-  howLead: ["", ""],
+  howLead: [
+    "Start free. Keep documents on the device. Never acts as a lawyer or as the government.",
+    "Empieza gratis. Los documentos se quedan en el dispositivo. Nunca actúa como abogado ni como el gobierno."
+  ],
   willNotTitle: ["What this site will not do", "Lo que este sitio no hace"],
-  homeNavWhat: ["Add-ons", "Complementos"],
-  homeNavPain: ["Pain points", "Puntos de dolor"],
+  homeNavWhat: ["Features", "Funciones"],
+  homeNavPain: ["The wait", "La espera"],
   homeNavPains: ["The waits", "Las esperas"],
   homeNavHow: ["How it works", "Cómo funciona"],
+  homeNavCompare: ["Compare", "Comparar"],
+  homeNavPricing: ["Pricing", "Precios"],
+  homeNavHelp: ["Find real help", "Ayuda real"],
   footBlurb: [
-    "A community to share and discuss USCIS cases and processes. Not affiliated with USCIS.",
-    "Una comunidad para compartir y hablar de casos y procesos de USCIS. No afiliado a USCIS."
+    "The calm, bilingual companion for the USCIS wait. Not affiliated with USCIS.",
+    "El acompañante bilingüe y tranquilo para la espera de USCIS. Sin afiliación con USCIS."
   ],
   footSite: ["On this site", "En este sitio"],
   footRead: ["Read", "Leer"],
@@ -363,18 +387,18 @@ const home = {
 };
 
 const painRows = [
-  ["Nothing since biometrics", "This is the question people ask most. Biometrics checks identity. A quiet page afterward is not a decision, and it does not mean the file was lost.", "Nada desde la biometría", "Es la pregunta que más se repite. La biometría comprueba la identidad. Una página quieta después no es una decisión, y no significa que el expediente se perdió."],
-  ["“Actively being reviewed”", "People report that same sentence for months. It means the case is in the review system. It does not mean an officer opened the file today.", "“En revisión activa”", "La gente reporta esa misma frase durante meses. Significa que el caso está en el sistema de revisión. No significa que un oficial abrió el expediente hoy."],
-  ["The interview was weeks ago", "An interview is not the approval, and the approval is not the card in the mail. A still status after the interview is a wait people describe often.", "La entrevista fue hace semanas", "Una entrevista no es la aprobación, y la aprobación no es la tarjeta en el correo. Un estatus quieto después de la entrevista es una espera que la gente describe a menudo."],
-  ["The job is waiting on a card", "The work permit, the travel document, and the green card are different forms. An interview on the adjustment does not approve the work card.", "El trabajo espera una tarjeta", "El permiso de trabajo, el documento de viaje y la residencia son formularios distintos. Una entrevista del ajuste no aprueba la tarjeta de trabajo."],
-  ["A request for evidence", "It is a deadline and a list of documents. It is not a denial. Keep the notice in your paper folder. Do not upload it here.", "Un pedido de evidencia", "Es un plazo y una lista de documentos. No es una negación. Guarda el aviso en tu carpeta de papel. No lo subas aquí."],
-  ["It still says “case was received”", "That long line is the common complaint on a petition for a relative. Approval of the petition is not a visa and not a green card.", "Sigue diciendo “caso recibido”", "Esa línea larga es la queja común en una petición de familiar. La aprobación de la petición no es una visa ni la residencia."]
+  ["Processing-time anxiety", "See if your wait is normal for people like you — Check the wait.", "Ansiedad por el tiempo de procesamiento", "Mira si tu espera es normal para personas como tú — Ver la espera.", "waiting"],
+  ["Document confusion", "Know what goes in your folder, form by form — Gather papers and a private case folder.", "Confusión con documentos", "Sabe qué va en tu carpeta, formulario por formulario — Reunir papeles y carpeta privada.", "folder"],
+  ["Interview nerves", "Walk in knowing what people were asked — Interview prep.", "Nervios por la entrevista", "Llega sabiendo qué les preguntaron a otros — Preparar la entrevista.", "interview"],
+  ["Notarios and scams", "No one here sells shortcuts. Learn the red flags — Moderated community and rules.", "Notarios y estafas", "Aquí nadie vende atajos. Aprende las señales de alerta — Comunidad moderada y reglas.", "scams"],
+  ["Opaque status lines", "Plain answers for every status line — Common questions.", "Líneas de estatus opacas", "Respuestas claras para cada línea de estatus — Preguntas comunes.", "status"],
+  ["Language barriers", "Your case, in your language — Full English/Spanish app.", "Barreras de idioma", "Tu caso, en tu idioma — App completa en inglés y español.", "language"]
 ];
 
 const howRows = [
-  ["Join a case group", "Each case group is one form, such as adjustment, a work permit, or naturalization.", "Únete a un grupo de caso", "Cada grupo de caso es un formulario, como el ajuste, un permiso de trabajo o la naturalización."],
-  ["Post or read", "Ask a question or share what happened. Do not include receipt numbers or other ID numbers.", "Publica o lee", "Haz una pregunta o cuenta lo que pasó. No incluyas números de recibo ni otros identificadores."],
-  ["Use a tool if you need it", "Open a filing folder, the common questions, or your wait.", "Usa una herramienta si la necesitas", "Abre una carpeta, las preguntas comunes o tu espera."]
+  ["Join free", "Pick your form group. Read people on the same path. Start without paying.", "Únete gratis", "Elige tu grupo de formulario. Lee a personas en el mismo camino. Empieza sin pagar."],
+  ["Check the wait and gather papers", "Compare months with similar cases. Mark your private checklist. Papers stay on this device.", "Revisa la espera y reúne papeles", "Compara meses con casos parecidos. Marca tu lista privada. Los papeles se quedan en este dispositivo."],
+  ["Prep and stay safe", "Interview tips from field-office stories. Moderated rules. No notario shortcuts.", "Prepárate y cuídate", "Consejos de entrevista de historias de oficinas. Reglas moderadas. Sin atajos de notarios."]
 ];
 
 const limitRows = [
@@ -395,7 +419,7 @@ export function homeText(lang, key) {
 
 export function homePains(lang) {
   const es = lang === "es";
-  return painRows.map((row) => ({ title: es ? row[2] : row[0], body: es ? row[3] : row[1] }));
+  return painRows.map((row) => ({ id: row[4] || "", title: es ? row[2] : row[0], body: es ? row[3] : row[1] }));
 }
 
 export function homeSteps(lang) {
@@ -407,6 +431,67 @@ export function homeLimits(lang) {
   const es = lang === "es";
   return limitRows.map((row) => (es ? row[1] : row[0]));
 }
+
+
+const compareRows = [
+  ["Case trackers", "Status updates only. They tell you what changed, not what to gather next or what is normal for people like you.", "Rastreadores de caso", "Solo actualizaciones de estatus. Te dicen qué cambió, no qué reunir después ni qué es normal para personas como tú."],
+  ["Paid prep services", "Guided forms and filings for a fee. Useful for some people, but they stop at filing and are not a free place to wait.", "Servicios de preparación de pago", "Formularios guiados y presentaciones por una tarifa. Útiles para algunos, pero terminan al presentar y no son un lugar gratuito para esperar."],
+  ["Public chat groups", "Free forums and social groups. Hard to search, often English-only or mixed with unverified advice and scam offers.", "Grupos de chat públicos", "Foros y grupos sociales gratis. Difíciles de buscar, a menudo solo en inglés o mezclados con consejos no verificados y ofertas de estafa."]
+];
+
+const pricingCopy = {
+  pricingTitle: ["Pricing", "Precios"],
+  pricingLead: [
+    "The free core stays free. Case Pass is a one-time purchase for one case, for twelve months.",
+    "El núcleo gratis sigue gratis. Case Pass es una compra única por un caso, por doce meses."
+  ],
+  freeTitle: ["Free", "Gratis"],
+  freePrice: ["$0", "$0"],
+  freeBody: [
+    "Feed, Check the wait, checklists, common questions, and a small monthly allowance of Ask-the-posts questions.",
+    "Inicio, Ver la espera, listas, preguntas comunes y un cupo mensual pequeño de Pregunta a las publicaciones."
+  ],
+  passTitle: ["Case Pass", "Case Pass"],
+  passBody: [
+    "One-time, per case, for 12 months: unlimited folder chat, printable bilingual checklist, interview prep pack, and wait alerts.",
+    "Una sola vez, por caso, por 12 meses: chat de carpeta ilimitado, lista bilingüe imprimible, paquete de entrevista y alertas de espera."
+  ],
+  passComing: ["Coming soon — Join the waitlist", "Próximamente — Únete a la lista de espera"],
+  waitlistHelp: [
+    "No checkout yet. We save your email only in this browser, or you can email us.",
+    "Aún no hay pago. Guardamos tu correo solo en este navegador, o puedes escribirnos."
+  ],
+  waitlistSaved: ["Saved on this device. We will not charge you from this page.", "Guardado en este dispositivo. No te cobramos desde esta página."],
+  waitlistMailto: ["Or email support@casecircle.app to join the waitlist", "O escribe a support@casecircle.app para unirte a la lista"],
+  abNote: ["Price shown is the A/B test amount configured for this build.", "El precio mostrado es el monto de la prueba A/B configurado en esta versión."]
+};
+
+const helpCopy = {
+  findHelpTitle: ["Find real help", "Encuentra ayuda real"],
+  findHelpLead: [
+    "CaseCircle is not a lawyer and does not sell attorney leads. If you need advice on your facts, use free or low-cost legal help.",
+    "CaseCircle no es un abogado y no vende leads de abogados. Si necesitas consejo sobre tus hechos, usa ayuda legal gratuita o de bajo costo."
+  ],
+  notarioTitle: ["Notarios are not immigration lawyers", "Los notarios no son abogados de inmigración"],
+  notarioBody: [
+    "In the United States, a notario or notary public cannot give immigration advice. Do not pay for expedites in WhatsApp chats, gift cards, or anyone who guarantees an approval.",
+    "En Estados Unidos, un notario no puede dar asesoría de inmigración. No pagues por aceleraciones en chats de WhatsApp, tarjetas de regalo, ni a quien garantice una aprobación."
+  ],
+  dojLabel: ["DOJ Recognition & Accreditation program", "Programa de Reconocimiento y Acreditación del DOJ"],
+  ailaLabel: ["AILA immigration lawyer search", "Búsqueda de abogados de inmigración de AILA"],
+  ianLabel: ["Immigration Advocates Network legal directory", "Directorio legal de Immigration Advocates Network"],
+  uscisLegalLabel: ["USCIS: find legal services", "USCIS: encontrar servicios legales"],
+  ftcLabel: ["FTC: how to avoid immigration scams", "FTC: cómo evitar estafas de inmigración"],
+  uscisScamLabel: ["USCIS: avoid scams", "USCIS: evita estafas"]
+};
+
+const formSeo = {
+  formsTitle: ["Forms people wait on", "Formularios en los que la gente espera"],
+  formsLead: [
+    "Shareable pages for the forms CaseCircle focuses on. Plain language in English and Spanish.",
+    "Páginas para compartir de los formularios en los que se centra CaseCircle. Lenguaje claro en inglés y español."
+  ]
+};
 
 const stageExplanations = {
   filed: {
@@ -442,6 +527,29 @@ const stageExplanations = {
     es: "Estás programado para la ceremonia de juramento para completar la naturalización. Lleva el aviso del juramento y los documentos requeridos. Después de la ceremonia, eres ciudadano estadounidense."
   }
 };
+
+export function homeCompare(lang) {
+  const es = lang === "es";
+  return compareRows.map((row) => ({ title: es ? row[2] : row[0], body: es ? row[3] : row[1] }));
+}
+
+export function pricingText(lang, key) {
+  const row = pricingCopy[key];
+  if (!row) return key;
+  return lang === "es" ? row[1] : row[0];
+}
+
+export function helpText(lang, key) {
+  const row = helpCopy[key];
+  if (!row) return key;
+  return lang === "es" ? row[1] : row[0];
+}
+
+export function formSeoText(lang, key) {
+  const row = formSeo[key];
+  if (!row) return key;
+  return lang === "es" ? row[1] : row[0];
+}
 
 export function statusDecoder(lang, stage) {
   const explanation = stageExplanations[stage];

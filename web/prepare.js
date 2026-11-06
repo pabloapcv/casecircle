@@ -1,14 +1,14 @@
 import { evaluate, spaceById } from "./logic.js";
 
 const feesUrl = "https://www.uscis.gov/forms/filing-fees";
-const legalUrl = "https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/find-legal-services";
+const legalUrl = "https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/legal-services";
 
 const text = {
   prepare: ["Prepare", "Preparar"],
   newPost: ["New post", "Nueva publicación"],
   folderKicker: ["Filing folder", "Carpeta de presentación"],
   folderLead: ["Build the paper folder for one form. The guide walks the packet in order and tells you what is still missing. It does not fill out the form, does not file it, and does not decide the case.", "Arma la carpeta de un formulario. La guía recorre el paquete en orden y dice qué falta. No llena el formulario, no lo presenta y no decide el caso."],
-  noPromise: ["A complete, consistent, truthful packet is easier to review. Completeness is not an approval. CaseCircle is not a law firm, not a paralegal you hired, and not part of USCIS.", "Un paquete completo, consistente y veraz es más fácil de revisar. Estar completo no es una aprobación. CaseCircle no es un bufete, no es un paralegal contratado y no es parte de USCIS."],
+  noPromise: ["A complete, consistent, truthful packet is easier to review. Checklist progress is not an approval and not a judgment of your case. CaseCircle is not a law firm, not a paralegal you hired, and not part of USCIS.", "Un paquete completo, consistente y veraz es más fácil de revisar. El avance de la lista no es una aprobación ni un juicio de tu caso. CaseCircle no es un bufete, no es un paralegal contratado y no es parte de USCIS."],
   pickForm: ["Which folder are you building?", "¿Qué carpeta estás armando?"],
   openFolder: ["Open folder", "Abrir carpeta"],
   ready: ["In the folder", "En la carpeta"],
@@ -40,8 +40,8 @@ const text = {
   backToForms: ["All folders", "Todas las carpetas"],
   chatTitle: ["Folder chat", "Chat de la carpeta"],
   chatLead: [
-    "Ask about what to gather for this form. The language model only receives this form’s checklist labels and status, plus your question. Papers stay on this device.",
-    "Pregunta qué reunir para este formulario. El modelo de lenguaje solo recibe las etiquetas y el estado de esta lista, más tu pregunta. Los papeles se quedan en este dispositivo."
+    "Ask about what to gather for this form. The chat organizes and explains checklist labels — it does not judge your case or predict an approval. Papers stay on this device.",
+    "Pregunta qué reunir para este formulario. El chat organiza y explica las etiquetas de la lista — no juzga tu caso ni predice una aprobación. Los papeles se quedan en este dispositivo."
   ],
   chatLocal: ["On-device next item (not an AI answer)", "Siguiente dato en este dispositivo (no es una respuesta de IA)"],
   chatConsent: [
@@ -58,14 +58,16 @@ const text = {
     "El servidor local no tiene clave de modelo de lenguaje. Esto no es una respuesta generada. Las marcas de la carpeta se quedan en este dispositivo. Configura CASECIRCLE_LLM_API_KEY en el servidor y vuelve a iniciar python3 serve.py."
   ],
   chatLoading: ["Waiting for the language model…", "Esperando al modelo de lenguaje…"],
-  chatEmpty: ["Ask a follow-up about this packet. Completeness is not an approval.", "Haz una pregunta sobre este paquete. Estar completo no es una aprobación."],
+  chatEmpty: ["Ask a follow-up about this packet. Checklist progress is not an approval or a judgment.", "Haz una pregunta sobre este paquete. El avance de la lista no es una aprobación ni un juicio."],
   chatError: ["The language model did not respond. You can retry. Nothing was filed.", "El modelo de lenguaje no respondió. Puedes reintentar. No se presentó nada."],
   chatBlocked: ["That question cannot be sent. Leave identifiers out.", "Esa pregunta no se puede enviar. Deja los identificadores fuera."],
   chatMockNote: ["Test-only mock reply. This is not a language-model answer.", "Respuesta de prueba solamente. No es una respuesta de un modelo de lenguaje."],
   chatLegal: [
-    "This chat helps you organize papers. It does not decide eligibility, file a form, or predict an approval. Verify current instructions on uscis.gov. For denials, notices of intent to deny, or legal eligibility, talk to a lawyer or accredited representative.",
-    "Este chat ayuda a organizar papeles. No decide elegibilidad, no presenta un formulario y no predice una aprobación. Verifica las instrucciones vigentes en uscis.gov. Para negaciones, avisos de intención de negar o elegibilidad legal, habla con un abogado o representante acreditado."
+    "This chat organizes and explains checklist labels. It does not judge your case, decide eligibility, file a form, or predict an approval. Verify current instructions on uscis.gov. For denials, notices of intent to deny, or legal eligibility, talk to a lawyer or accredited representative.",
+    "Este chat organiza y explica las etiquetas de la lista. No juzga tu caso, no decide elegibilidad, no presenta un formulario y no predice una aprobación. Verifica las instrucciones vigentes en uscis.gov. Para negaciones, avisos de intención de negar o elegibilidad legal, habla con un abogado o representante acreditado."
   ],
+  checklistProgress: ["Checklist progress", "Avance de la lista"],
+  checklistProgressHint: ["Marked items on this form’s list. Progress is organization only — not a score of your case.", "Ítems marcados en la lista de este formulario. El avance es solo organización — no es un puntaje de tu caso."],
   chatYou: ["You", "Tú"],
   chatAssistant: ["Language model", "Modelo de lenguaje"]
 };

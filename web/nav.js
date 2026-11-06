@@ -20,15 +20,17 @@ export const ROUTE_ALIASES = {
   faq: "questions", questions: "questions", "common-questions": "questions",
   account: "you", you: "you", profile: "you",
   new: "ask", ask: "ask", "new-post": "ask",
-  interview: "interview", search: "search"
+  interview: "interview", search: "search",
+  pricing: "pricing", price: "pricing", "case-pass": "pricing",
+  form: "form"
 };
-export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", ask: "new", interview: "interview", search: "search" };
+export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", ask: "new", interview: "interview", search: "search", pricing: "pricing" };
 export const SECTION_OF = {
-  home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", interview: "feed",
+  home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", interview: "feed", form: "feed",
   timelines: "wait", "profile-edit": "wait",
   prepare: "papers",
   bot: "answers", questions: "answers",
-  you: "account", mod: "account"
+  you: "account", mod: "account", pricing: "account"
 };
 
 export function resolveRouteName(name) {
@@ -46,6 +48,7 @@ export function routeFromHash(hash) {
   if (k === "papers" || k === "prepare") return value && spaceById(value) ? { name: "prepare", spaceId: value } : { name: "prepare" };
   if (k === "interview") return { name: "interview", spaceId: value && spaceById(value) ? value : "i-485" };
   if ((k === "faq" || k === "questions") && value) return { name: "questions", id: value };
+  if ((k === "form" || k === "forms") && value && spaceById(value)) return { name: "form", id: value };
   if (value) return null;
   const name = resolveRouteName(k);
   return name ? { name } : null;
@@ -58,6 +61,7 @@ export function hashForRoute(route) {
   if (name === "prepare" && route.spaceId) return `#papers=${encodeURIComponent(route.spaceId)}`;
   if (name === "interview") return `#interview=${encodeURIComponent(route.spaceId || "i-485")}`;
   if (name === "questions" && route.id) return `#faq=${encodeURIComponent(route.id)}`;
+  if (name === "form" && route.id) return `#form=${encodeURIComponent(route.id)}`;
   return ROUTE_SLUG[name] ? `#${ROUTE_SLUG[name]}` : "";
 }
 

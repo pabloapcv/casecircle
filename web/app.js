@@ -8,13 +8,16 @@ import {
 } from "./logic.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { buildFolderChatPayload, scanFolderChatPayload } from "./folder-chat.js";
-import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
+import { homeSteps, homeText, homePains, homeCompare, pricingText, helpText, formSeoText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
 import { SECTION_OF, hashForRoute, initialFor, resolveRouteName, routeFromHash } from "./nav.js";
 import { caseSummary, savedPosts } from "./sidebar.js";
 
 const KEY = "casecircle.web.v3";
+/** A/B test Case Pass price: set to 19 or 29. Documented in README. */
+const CASE_PASS_PRICE_USD = 19;
+const WAITLIST_KEY = "casecircle.waitlist.v1";
 let state = load();
 let toast = "";
 let onboard = blankOnboard();
@@ -89,6 +92,33 @@ function L(key) { return t(lang(), key); }
 function P(key) { return prepareText(lang(), key); }
 function Q(key) { return questionText(lang(), key); }
 function H(key) { return homeText(lang(), key); }
+function Pr(key) { return pricingText(lang(), key); }
+function Help(key) { return helpText(lang(), key); }
+function FormSeo(key) { return formSeoText(lang(), key); }
+function casePassPriceLabel() {
+  return lang() === "es" ? `US$${CASE_PASS_PRICE_USD} (una vez)` : `$${CASE_PASS_PRICE_USD} one-time`;
+}
+function readWaitlist() {
+  try { return JSON.parse(localStorage.getItem(WAITLIST_KEY) || "[]"); } catch { return []; }
+}
+function saveWaitlistEmail(email) {
+  const list = readWaitlist().filter((item) => item !== email);
+  list.push(email);
+  localStorage.setItem(WAITLIST_KEY, JSON.stringify(list));
+}
+function syncDocumentMeta() {
+  const title = H("metaTitle");
+  const desc = H("metaDesc");
+  document.title = title;
+  document.documentElement.lang = lang() === "es" ? "es" : "en";
+  let meta = document.querySelector('meta[name="description"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "description");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", desc);
+}
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 }
@@ -119,6 +149,7 @@ function render() {
     html = `<pre class="page">${esc(error && (error.stack || error.message) || error)}</pre>`;
   }
   root.innerHTML = html;
+  syncDocumentMeta();
   syncHash();
   const activeScope = root.querySelector(".scope-scroll .scope.on");
   if (activeScope) {
@@ -377,7 +408,8 @@ function siteFoot() {
     <nav aria-label="Site links">
       <h2>${esc(H("footSite"))}</h2>
       ${jump("what", H("homeNavWhat"))}
-      ${jump("how", H("homeNavHow"))}
+      ${jump("pricing", H("homeNavPricing"))}
+      ${jump("find-help", H("homeNavHelp"))}
       ${signed ? `<button class="foot-link" data-act="tab" data-tab="home">${esc(H("navFeed"))}</button>` : `<button class="foot-link" data-act="show-email">${esc(H("again"))}</button>`}
     </nav>
     <nav aria-label="Information">
@@ -385,13 +417,15 @@ function siteFoot() {
       <button class="foot-link" data-act="page" data-page="about">${esc(L("about"))}</button>
       <button class="foot-link" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
       <button class="foot-link" data-act="page" data-page="rules">${esc(L("rules"))}</button>
+      <button class="foot-link" data-act="open-pricing">${esc(H("homeNavPricing"))}</button>
       <a href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
     </nav>
     <nav aria-label="Official resources">
       <h2>${esc(H("footOfficial"))}</h2>
       <a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noreferrer">${esc(H("footTimes"))}</a>
       <a href="https://egov.uscis.gov/e-request/Intro.do" target="_blank" rel="noreferrer">${esc(H("footInquiry"))}</a>
-      <a href="https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/find-legal-services" target="_blank" rel="noreferrer">${esc(P("legalHelp"))}</a>
+      <a href="https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/legal-services" target="_blank" rel="noreferrer">${esc(P("legalHelp"))}</a>
+      <button class="foot-link" data-act="home-section" data-id="find-help">${esc(H("homeNavHelp"))}</button>
       <a href="https://www.uscis.gov/contactcenter" target="_blank" rel="noreferrer">${esc(H("footContact"))}</a>
     </nav>
     <div class="foot-base">
@@ -418,6 +452,8 @@ function screen() {
   if (route.name === "bot") return botScreen();
   if (route.name === "you") return youScreen();
   if (route.name === "interview") return interviewScreen(route.spaceId);
+  if (route.name === "pricing") return pricingScreen();
+  if (route.name === "form") return formSeoScreen(route.id);
   return homeScreen();
 }
 
@@ -425,13 +461,20 @@ function welcome() {
   const step = onboard.step;
   const home = step === 0 && publicView === "home";
   const jump = (id, label) => `<button data-act="home-section" data-id="${id}">${esc(label)}</button>`;
+  const publicMain = () => {
+    if (publicView === "home") return landing();
+    if (publicView === "bot") return botScreen();
+    if (publicView === "pricing") return pricingScreen({ public: true });
+    if (publicView.startsWith("form:")) return formSeoScreen(publicView.slice(5), { public: true });
+    return publicPage(publicView);
+  };
   return `<div class="site">
     <header class="topbar public-bar">
       <button class="brand" data-act="public-home" aria-label="CaseCircle Home">${logoMark(28)}<span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span></button>
-      ${home ? `<nav class="nav" aria-label="Navigation">${jump("painpoints", H("homeNavPain"))}${jump("what", H("homeNavWhat"))}${jump("how", H("homeNavHow"))}</nav>` : `<div class="nav"></div>`}
+      ${home ? `<nav class="nav" aria-label="Navigation">${jump("painpoints", H("homeNavPain"))}${jump("compare", H("homeNavCompare"))}${jump("pricing", H("homeNavPricing"))}${jump("find-help", H("homeNavHelp"))}</nav>` : `<div class="nav"></div>`}
       <div class="top-actions">${langToggle()}</div>
     </header>
-    <main class="page" id="main">${step === 0 ? (publicView === "home" ? landing() : publicView === "bot" ? botScreen() : publicPage(publicView)) : onboardingScreen()}</main>
+    <main class="page" id="main">${step === 0 ? publicMain() : onboardingScreen()}</main>
     ${siteFoot()}
   </div>`;
 }
@@ -439,6 +482,8 @@ function welcome() {
 function onboardingScreen() {
   const step = onboard.step;
   return `<div class="narrow stack">
+    <p class="kicker">${esc(L("notAffiliated"))}</p>
+    <p class="muted">${esc(L("pitch"))}</p>
     <div class="spread">
       <p class="step">${esc(lang() === "es" ? "Paso" : "Step")} ${step}/4</p>
       <button class="ghost" data-act="skip-onboard">${esc(lang() === "es" ? "Saltar configuración" : "Skip setup")}</button>
@@ -453,14 +498,17 @@ function onboardingScreen() {
 
 function landing({ signed = false } = {}) {
   const steps = homeSteps(lang());
-  const painPoints = [
-    { id: "waiting", icon: "⏳", title: lang() === "es" ? "¿Mi espera es normal?" : "Is my wait normal?", body: lang() === "es" ? "Compara tu tiempo con personas en la misma situación" : "Compare your timeline with people like you" },
-    { id: "interview", icon: "🎤", title: lang() === "es" ? "Preparación para entrevista" : "Interview preparation", body: lang() === "es" ? "Consejos y experiencias de campo" : "Tips and field office experiences" },
-    { id: "ead", icon: "💼", title: lang() === "es" ? "Permiso de trabajo (EAD)" : "Work permit (EAD)", body: lang() === "es" ? "Tiempos de I-765 y expedite" : "I-765 timelines and expedite" },
-    { id: "rfe", icon: "📋", title: lang() === "es" ? "RFE / Evidencia" : "RFE / Evidence", body: lang() === "es" ? "Ayuda para responder pedidos de evidencia" : "Help responding to evidence requests" },
-    { id: "evidence", icon: "💍", title: lang() === "es" ? "Pruebas de matrimonio" : "Marriage evidence", body: lang() === "es" ? "Lista de verificación y puntaje de fortaleza" : "Checklist and strength score" },
-    { id: "folder", icon: "📁", title: lang() === "es" ? "Carpeta de documentos" : "Document folder", body: lang() === "es" ? "Prepara tu paquete con puntaje de completitud" : "Build your packet with completeness score" }
-  ];
+  const pains = homePains(lang());
+  const compare = homeCompare(lang());
+  const formCards = ["i-485", "n-400", "i-130", "i-751"].map((id) => {
+    const item = spaceById(id);
+    if (!item) return "";
+    return `<button class="card form-seo-card" data-act="open-form-seo" data-id="${esc(id)}">
+      <div class="kicker">${esc(item.forms[0])}</div>
+      <strong>${esc(lang() === "es" ? item.es : item.en)}</strong>
+      <p class="muted">${esc(waitNote(lang(), id)?.title || "")}</p>
+    </button>`;
+  }).join("");
 
   return `<section class="home-hero" id="start">
       <div>
@@ -470,15 +518,40 @@ function landing({ signed = false } = {}) {
         <div class="cta">
           ${signed ? `<button class="btn" data-act="tab" data-tab="home">${esc(H("openFeed"))}</button>` : onboard.showEmail ? `<div class="narrow">${emailBox()}</div>` : `<button class="btn" data-act="show-email">${esc(H("again"))}</button>`}
           ${!signed ? `<button class="btn-secondary" data-act="demo">${esc(L("reviewerDemo"))}</button>` : ""}
+          <button class="btn-secondary" data-act="home-section" data-id="pricing">${esc(H("homeNavPricing"))}</button>
         </div>
         <p class="note">${esc(H("homeTrust"))}</p>
       </div>
     </section>
-    
+
     <section class="home-section" id="painpoints">
-      <h2>${esc(lang() === "es" ? "¿Qué te preocupa?" : "What concerns you?")}</h2>
-      <p class="lede">${esc(lang() === "es" ? "Herramientas diseñadas para las preguntas más comunes" : "Tools designed for the most common questions")}</p>
-      <div class="pain-grid">${painPoints.map(p => `<button class="pain" data-act="pain-point" data-id="${p.id}"><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p></button>`).join("")}</div>
+      <h2>${esc(H("painsTitle"))}</h2>
+      <p class="lede">${esc(H("painsLead"))}</p>
+      <div class="pain-grid">${pains.map((p) => `<button class="pain" data-act="pain-point" data-id="${esc(p.id)}"><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p></button>`).join("")}</div>
+    </section>
+
+    <section class="home-section" id="what">
+      <h2>${esc(H("whatTitle"))}</h2>
+      <p class="lede">${esc(H("whatLead"))}</p>
+      <div class="features">
+        <article><h2>${esc(H("whatClockTitle"))}</h2><p>${esc(H("whatClockBody"))}</p></article>
+        <article><h2>${esc(H("whatFolderTitle"))}</h2><p>${esc(H("whatFolderBody"))}</p></article>
+        <article><h2>${esc(H("whatInterviewTitle"))}</h2><p>${esc(H("whatInterviewBody"))}</p></article>
+        <article><h2>${esc(H("whatCommunityTitle"))}</h2><p>${esc(H("whatCommunityBody"))}</p></article>
+        <article><h2>${esc(H("whatAnswersTitle"))}</h2><p>${esc(H("whatAnswersBody"))}</p></article>
+      </div>
+    </section>
+
+    <section class="home-section" id="compare">
+      <h2>${esc(lang() === "es" ? "Cómo se diferencia CaseCircle" : "How CaseCircle is different")}</h2>
+      <p class="lede">${esc(lang() === "es" ? "Categorías de alternativas, sin nombres de competidores." : "Categories of alternatives — no competitor names.")}</p>
+      <div class="compare-grid">${compare.map((row) => `<article class="card"><h3>${esc(row.title)}</h3><p>${esc(row.body)}</p><p class="muted">${esc(lang() === "es" ? "CaseCircle: comunidad bilingüe, listas en el dispositivo, gratis para empezar." : "CaseCircle: bilingual community, on-device checklists, free to start.")}</p></article>`).join("")}</div>
+    </section>
+
+    <section class="home-section" id="forms">
+      <h2>${esc(FormSeo("formsTitle"))}</h2>
+      <p class="lede">${esc(FormSeo("formsLead"))}</p>
+      <div class="card-grid">${formCards}</div>
     </section>
 
     <section class="home-section" id="talk">
@@ -490,21 +563,99 @@ function landing({ signed = false } = {}) {
       <div class="feed">${redditCatalog().slice(0, webShown.home).map((item) => webCard(item, signed)).join("")}</div>
       ${redditCatalog().length > webShown.home ? `<button class="ghost" data-act="more-web" data-list="home">${esc(Q("dataMore"))}</button>` : ""}
     </section>
-    
-    <section class="home-section" id="what">
-      <h2>${esc(H("whatTitle"))}</h2>
-      <div class="features">
-        <article><h2>${esc(H("whatFolderTitle"))}</h2><p>${esc(H("whatFolderBody"))}</p></article>
-        <article><h2>${esc(H("whatAnswersTitle"))}</h2><p>${esc(H("whatAnswersBody"))}</p></article>
-        <article><h2>${esc(H("whatClockTitle"))}</h2><p>${esc(H("whatClockBody"))}</p></article>
-      </div>
-    </section>
-    
+
     <section class="home-section" id="how">
       <h2>${esc(H("howTitle"))}</h2>
+      <p class="lede">${esc(H("howLead"))}</p>
       <div class="how-grid">${steps.map((item, index) => `<article><span>${index + 1}</span><h3>${esc(item.title)}</h3><p>${esc(item.body)}</p></article>`).join("")}</div>
     </section>
-    
+
+    ${pricingSection()}
+    ${findHelpSection()}
+    ${legalDisclaimer()}`;
+}
+
+function pricingSection() {
+  const onList = readWaitlist().length > 0;
+  return `<section class="home-section" id="pricing">
+    <h2>${esc(Pr("pricingTitle"))}</h2>
+    <p class="lede">${esc(Pr("pricingLead"))}</p>
+    <div class="pricing-grid">
+      <article class="card pricing-card">
+        <p class="kicker">${esc(Pr("freeTitle"))}</p>
+        <h3>${esc(Pr("freePrice"))}</h3>
+        <p>${esc(Pr("freeBody"))}</p>
+      </article>
+      <article class="card pricing-card featured">
+        <p class="kicker">${esc(Pr("passTitle"))}</p>
+        <h3>${esc(casePassPriceLabel())}</h3>
+        <p>${esc(Pr("passBody"))}</p>
+        <p class="muted">${esc(Pr("abNote"))}</p>
+        <button class="btn" data-act="waitlist-open" aria-describedby="waitlist-note">${esc(Pr("passComing"))}</button>
+        <p id="waitlist-note" class="muted">${esc(Pr("waitlistHelp"))}</p>
+        ${onList ? `<p class="note">${esc(Pr("waitlistSaved"))}</p>` : ""}
+        <div id="waitlist-box" class="waitlist-box" hidden>
+          <label class="field">${esc(L("continueEmail"))}
+            <input id="waitlist-email" type="email" autocomplete="email" placeholder="you@email.com">
+          </label>
+          <button class="btn" data-act="waitlist-save">${esc(lang() === "es" ? "Guardar en este navegador" : "Save in this browser")}</button>
+          <a class="text-link" href="mailto:support@casecircle.app?subject=${encodeURIComponent("Case Pass waitlist")}">${esc(Pr("waitlistMailto"))}</a>
+        </div>
+      </article>
+    </div>
+  </section>`;
+}
+
+function pricingScreen({ public: isPublic = false } = {}) {
+  return `${isPublic || !me(state) ? "" : backButton()}
+    <div class="page-head"><p class="kicker">${esc(L("notAffiliated"))}</p></div>
+    ${pricingSection()}
+    ${findHelpSection()}
+    ${legalDisclaimer()}`;
+}
+
+function findHelpSection() {
+  const links = [
+    ["https://www.justice.gov/eoir/recognition-and-accreditation-program", Help("dojLabel")],
+    ["https://www.ailalawyer.com/", Help("ailaLabel")],
+    ["https://www.immigrationadvocates.org/legaldirectory/", Help("ianLabel")],
+    ["https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/legal-services", Help("uscisLegalLabel")],
+    ["https://consumer.ftc.gov/articles/how-avoid-immigration-scams-and-get-real-help", Help("ftcLabel")],
+    ["https://www.uscis.gov/avoid-scams", Help("uscisScamLabel")]
+  ];
+  return `<section class="home-section" id="find-help">
+    <h2>${esc(Help("findHelpTitle"))}</h2>
+    <p class="lede">${esc(Help("findHelpLead"))}</p>
+    <div class="card scam-warn">
+      <h3>${esc(Help("notarioTitle"))}</h3>
+      <p>${esc(Help("notarioBody"))}</p>
+    </div>
+    <ul class="help-links">${links.map(([href, label]) => `<li><a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a></li>`).join("")}</ul>
+  </section>`;
+}
+
+function formSeoScreen(spaceId, { public: isPublic = false } = {}) {
+  const item = spaceById(spaceId) || spaceById("i-485");
+  const id = item?.id || "i-485";
+  const note = waitNote(lang(), id);
+  const title = `${item.forms[0]} — ${lang() === "es" ? item.es : item.en}`;
+  const tips = interviewTips(lang(), id).slice(0, 3);
+  return `${isPublic || !me(state) ? backButton(L("back"), 'data-act="public-home"') : backButton()}
+    <article class="narrow form-seo">
+      <p class="kicker">${esc(L("notAffiliated"))}</p>
+      <h1>${esc(title)}</h1>
+      <p class="lede">${esc(note?.body || H("homeLede"))}</p>
+      <div class="features">
+        <article><h2>${esc(H("whatClockTitle"))}</h2><p>${esc(H("whatClockBody"))}</p></article>
+        <article><h2>${esc(H("whatFolderTitle"))}</h2><p>${esc(H("whatFolderBody"))}</p></article>
+        <article><h2>${esc(H("whatInterviewTitle"))}</h2><p>${esc(H("whatInterviewBody"))}</p></article>
+      </div>
+      <h2>${esc(H("whatInterviewTitle"))}</h2>
+      <div class="stack">${tips.map((tip) => `<div class="card"><strong>${esc(tip.title)}</strong><p>${esc(tip.body)}</p></div>`).join("")}</div>
+      <p class="muted">${esc(H("homeTrust"))}</p>
+      ${!me(state) ? `<button class="btn" data-act="show-email">${esc(H("again"))}</button>` : `<button class="btn" data-act="open-folder" data-id="${esc(id)}">${esc(Q("pathFolder"))}</button>`}
+    </article>
+    ${findHelpSection()}
     ${legalDisclaimer()}`;
 }
 
@@ -1315,10 +1466,11 @@ function prepareScreen(spaceId) {
   
   <div class="score-meter" style="max-width:400px;margin-bottom:24px;">
     <div class="score-label">
-      <span>${esc(lang() === "es" ? "Puntaje de completitud" : "Completeness score")}</span>
-      <span class="value">${pct}%</span>
+      <span>${esc(P("checklistProgress"))}</span>
+      <span class="value">${counts.ready}/${counts.total}</span>
     </div>
     <div class="score-bar ${scoreLevel}"><span style="width:${pct}%"></span></div>
+    <p class="muted" style="margin:0">${esc(P("checklistProgressHint"))}</p>
   </div>
   
   ${riskFlags.length ? `<div class="risk-flags">${riskFlags.map(flag => `<div class="risk-flag ${flag.type}"><span class="icon" aria-hidden="true">${flag.type === "error" ? "⚠️" : flag.type === "warning" ? "⏰" : "✓"}</span><span class="text">${esc(flag.message)}</span></div>`).join("")}</div>` : ""}
@@ -1413,12 +1565,12 @@ function marriageEvidenceChecklist() {
   
   return `<section style="margin-top:32px;">
     <h2>${esc(lang() === "es" ? "Lista de pruebas de matrimonio" : "Marriage evidence checklist")}</h2>
-    <p class="muted">${esc(lang() === "es" ? "Marca lo que tienes para ver tu puntaje de fortaleza" : "Check what you have to see your strength score")}</p>
+    <p class="muted">${esc(lang() === "es" ? "Marca lo que tienes. Esto es avance de la lista, no un juicio del caso." : "Check what you have. This is checklist progress, not a judgment of the case.")}</p>
     
     <div class="score-meter" style="max-width:300px;margin:16px 0;">
       <div class="score-label">
-        <span>${esc(lang() === "es" ? "Fortaleza de evidencia" : "Evidence strength")}</span>
-        <span class="value">${score}%</span>
+        <span>${esc(P("checklistProgress"))}</span>
+        <span class="value">${checkedCount}/${items.length}</span>
       </div>
       <div class="score-bar ${scoreLevel}"><span style="width:${score}%"></span></div>
     </div>
@@ -1431,7 +1583,7 @@ function marriageEvidenceChecklist() {
       </div>
     </label>`).join("")}</div>
     
-    <p class="read-note" style="margin-top:12px;">${esc(lang() === "es" ? "Más evidencia = caso más fuerte, pero solo incluye documentos genuinos" : "More evidence = stronger case, but only include genuine documents")}</p>
+    <p class="read-note" style="margin-top:12px;">${esc(lang() === "es" ? "Marca solo documentos genuinos. Una lista más marcada no es un juicio de tu caso." : "Mark only genuine documents. A fuller checklist is not a judgment of your case.")}</p>
   </section>`;
 }
 
@@ -1597,20 +1749,53 @@ document.addEventListener("click", (event) => {
   }
   if (act === "pain-point") {
     const id = node.dataset.id;
-    if (id === "waiting" || id === "ead") {
+    if (id === "waiting" || id === "status") {
       if (state.meId) { state.route = { name: "timelines" }; save(); }
       else { onboard.showEmail = true; onboard.step = 0; }
     } else if (id === "interview") {
       if (state.meId) { state.route = { name: "interview", spaceId: "i-485" }; save(); }
       else { onboard.showEmail = true; onboard.step = 0; }
-    } else if (id === "rfe" || id === "folder") {
+    } else if (id === "folder") {
       if (state.meId) { state.route = { name: "prepare" }; save(); }
       else { onboard.showEmail = true; onboard.step = 0; }
-    } else if (id === "evidence") {
-      if (state.meId) { state.route = { name: "interview", spaceId: "i-485" }; save(); }
-      else { onboard.showEmail = true; onboard.step = 0; }
+    } else if (id === "scams") {
+      if (state.meId) { state.route = { name: "explain" }; save(); render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
+      else { publicView = "home"; onboard.step = 0; render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
+    } else if (id === "language") {
+      /* stay; language toggle is in the header */
+    } else {
+      if (!state.meId) { onboard.showEmail = true; onboard.step = 0; }
     }
     render();
+    return;
+  }
+  if (act === "waitlist-open") {
+    const box = document.getElementById("waitlist-box");
+    if (box) box.hidden = !box.hidden;
+    document.getElementById("waitlist-email")?.focus();
+    return;
+  }
+  if (act === "waitlist-save") {
+    const email = (document.getElementById("waitlist-email")?.value || "").trim().toLowerCase();
+    if (!emailOk(email)) { toast = L("emailInvalid"); render(); return; }
+    saveWaitlistEmail(email);
+    toast = Pr("waitlistSaved");
+    render();
+    return;
+  }
+  if (act === "open-form-seo") {
+    const id = node.dataset.id;
+    if (state.meId) { state.route = { name: "form", id }; save(); render(); window.scrollTo(0, 0); return; }
+    publicView = `form:${id}`;
+    render();
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (act === "open-pricing") {
+    if (state.meId) { state.route = { name: "pricing" }; save(); render(); window.scrollTo(0, 0); return; }
+    publicView = "pricing";
+    render();
+    window.scrollTo(0, 0);
     return;
   }
   if (act === "use-email") {

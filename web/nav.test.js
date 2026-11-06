@@ -18,10 +18,12 @@ test("old view ids still resolve to the same screens", () => {
 });
 
 test("new slugs resolve and round-trip through the hash", () => {
-  for (const [slug, name] of [["feed", "home"], ["groups", "spaces"], ["wait", "timelines"], ["papers", "prepare"], ["answers", "bot"], ["faq", "questions"], ["account", "you"], ["new", "ask"]]) {
+  for (const [slug, name] of [["feed", "home"], ["groups", "spaces"], ["wait", "timelines"], ["papers", "prepare"], ["answers", "bot"], ["faq", "questions"], ["account", "you"], ["new", "ask"], ["pricing", "pricing"]]) {
     assert.deepEqual(routeFromHash(`#${slug}`), { name });
     assert.equal(hashForRoute({ name }), `#${slug}`);
   }
+  assert.deepEqual(routeFromHash("#form=i-485"), { name: "form", id: "i-485" });
+  assert.equal(hashForRoute({ name: "form", id: "i-485" }), "#form=i-485");
 });
 
 test("legacy hashes keep working", () => {

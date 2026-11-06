@@ -61,7 +61,7 @@ const copy = {
   pathWaitBody: ["Your months, and what to do if it is quiet.", "Tus meses, y qué hacer si está quieto."],
   pathQuestions: ["Read a question", "Leer una pregunta"],
   pathQuestionsBody: ["Plain answers for the status line.", "Respuestas claras para la línea de estatus."],
-  botNav: ["Ask posts", "Preguntar"],
+  botNav: ["Answers", "Respuestas"],
   botTitle: ["Ask the posts", "Pregunta a las publicaciones"],
   botLead: ["Ask about a form, a status, or a wait. The reply uses the public posts counted here, from November 3, 2025 to November 3, 2026. It stays in this browser. It is not a decision on your case.", "Pregunta por un formulario, un estatus o una espera. La respuesta usa las publicaciones públicas contadas aquí, del 3 de noviembre de 2025 al 3 de noviembre de 2026. Se queda en este navegador. No es una decisión sobre tu caso."],
   botAsk: ["Ask", "Preguntar"],
@@ -313,12 +313,35 @@ const home = {
   footInquiry: ["USCIS e-Request", "e-Request de USCIS"],
   footContact: ["USCIS contact center", "Centro de contacto de USCIS"],
   again: ["Join the community", "Únete a la comunidad"],
-  feed: ["Community", "Comunidad"],
-  communities: ["Communities", "Comunidades"],
-  allCommunities: ["All communities", "Todas las comunidades"],
-  shareThought: ["Share a thought", "Comparte lo que piensas"],
-  addons: ["Add-ons", "Complementos"],
-  joinSpaces: ["Pick the communities you want on your home feed. You can add more later.", "Elige las comunidades que quieres en tu inicio. Puedes agregar más después."]
+  // Kept for old callers; the signed-in nav now uses the nav* keys below.
+  feed: ["Feed", "Inicio"],
+  communities: ["Case groups", "Grupos de caso"],
+  allCommunities: ["Browse all groups", "Ver todos los grupos"],
+  shareThought: ["Ask a question or share an update…", "Haz una pregunta o cuenta una novedad…"],
+  addons: ["Tools", "Herramientas"],
+  joinSpaces: ["Pick the case groups you want in your feed. You can add more later.", "Elige los grupos de caso que quieres en tu inicio. Puedes agregar más después."],
+  navMain: ["Main", "Principal"],
+  navFeed: ["Feed", "Inicio"],
+  navAnswers: ["Answers", "Respuestas"],
+  navWaitShort: ["Wait", "Espera"],
+  navPapersShort: ["Papers", "Papeles"],
+  openFeed: ["Go to your feed", "Ir a tu inicio"],
+  newPost: ["New post", "Publicar"],
+  skipToContent: ["Skip to content", "Saltar al contenido"],
+  accountMenu: ["Account menu", "Menú de cuenta"],
+  menuProfile: ["Profile, cases & saved", "Perfil, casos y guardados"],
+  menuGroups: ["Your case groups", "Tus grupos de caso"],
+  groupsLabel: ["Case groups", "Grupos de caso"],
+  allMyGroups: ["All my groups", "Todos mis grupos"],
+  browseGroups: ["Browse groups", "Ver grupos"],
+  sortLabel: ["Sort posts", "Ordenar publicaciones"],
+  postTypeLabel: ["Post type", "Tipo de publicación"],
+  answersAsk: ["Ask the posts", "Pregunta a las publicaciones"],
+  answersFaq: ["Common questions", "Preguntas comunes"],
+  answersBody: ["Ask the public posts, or read the common questions.", "Pregunta a las publicaciones públicas o lee las preguntas comunes."],
+  interviewPrep: ["Interview prep", "Preparar la entrevista"],
+  interviewPrepBody: ["Tips and what people saw at their field office.", "Consejos y lo que la gente vio en su oficina."],
+  emptyFeedBody: ["Post the first question, or join another case group.", "Publica la primera pregunta o únete a otro grupo de caso."]
 };
 
 const painRows = [
@@ -331,7 +354,7 @@ const painRows = [
 ];
 
 const howRows = [
-  ["Join a community", "Each community is one form, such as adjustment, a work permit, or naturalization.", "Únete a una comunidad", "Cada comunidad es un formulario, como el ajuste, un permiso de trabajo o la naturalización."],
+  ["Join a case group", "Each case group is one form, such as adjustment, a work permit, or naturalization.", "Únete a un grupo de caso", "Cada grupo de caso es un formulario, como el ajuste, un permiso de trabajo o la naturalización."],
   ["Post or read", "Ask a question or share what happened. Do not include receipt numbers or other ID numbers.", "Publica o lee", "Haz una pregunta o cuenta lo que pasó. No incluyas números de recibo ni otros identificadores."],
   ["Use a tool if you need it", "Open a filing folder, the common questions, or your wait.", "Usa una herramienta si la necesitas", "Abre una carpeta, las preguntas comunes o tu espera."]
 ];

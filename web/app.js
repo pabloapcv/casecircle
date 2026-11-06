@@ -11,6 +11,7 @@ import { buildFolderChatPayload, scanFolderChatPayload } from "./folder-chat.js"
 import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
+import { SECTION_OF, hashForRoute, initialFor, resolveRouteName, routeFromHash } from "./nav.js";
 
 const KEY = "casecircle.web.v3";
 let state = load();
@@ -96,8 +97,13 @@ function boot() {
     state = enterDemo(state).state;
     save();
   }
-  const hash = location.hash.replace("#", "");
-  if (hash.startsWith("post=") && state.meId) state.route = { name: "post", id: hash.slice(5) };
+  if (state.meId) {
+    // Old saved routes and old/new deep links (#post=…, #spaces, #communities, #bot, #groups, #answers…) all resolve here.
+    const saved = state.route?.name ? resolveRouteName(state.route.name) : null;
+    if (saved && saved !== state.route.name) state.route = { ...state.route, name: saved };
+    const fromHash = routeFromHash(location.hash);
+    if (fromHash) state.route = fromHash;
+  }
   render();
 }
 
@@ -112,6 +118,12 @@ function render() {
     html = `<pre class="page">${esc(error && (error.stack || error.message) || error)}</pre>`;
   }
   root.innerHTML = html;
+  syncHash();
+  const activeScope = root.querySelector(".scope-scroll .scope.on");
+  if (activeScope) {
+    const strip = activeScope.parentElement;
+    strip.scrollLeft = Math.max(0, activeScope.offsetLeft - strip.offsetLeft - 24);
+  }
   if (restoreFocus) {
     const field = document.getElementById(restoreFocus);
     if (field) {
@@ -136,24 +148,109 @@ function render() {
 }
 
 function shell() {
-  return `<div class="site">${topbar()}<main class="page" id="main">${screen()}</main>${bottomNav()}${siteFoot()}</div>`;
+  return `<div class="site">${topbar()}<main class="page" id="main" tabindex="-1">${screen()}</main>${bottomNav()}${siteFoot()}</div>`;
+}
+
+let hashSynced = false;
+function syncHash() {
+  if (!state.meId || typeof history === "undefined") return;
+  const next = hashForRoute(state.route || { name: "home" });
+  if (!next || location.hash === next) { hashSynced = true; return; }
+  const url = `${location.pathname}${location.search}${next}`;
+  try {
+    if (hashSynced) history.pushState(null, "", url);
+    else history.replaceState(null, "", url);
+  } catch { /* file:// or sandboxed frames */ }
+  hashSynced = true;
+}
+
+function section() {
+  return SECTION_OF[state.route?.name || "home"] || "";
+}
+
+const ICONS = {
+  feed: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/>',
+  wait: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  papers: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M9 13l2 2 4-4"/>',
+  answers: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.2 1-1.2 1.8v.4"/><path d="M12 17h.01"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  caret: '<path d="m7 10 5 5 5-5"/>',
+  user: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5a7 7 0 0 1 14 0"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/>',
+  shield: '<path d="M12 3.5 5 6.5v5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9v-5z"/>',
+  book: '<path d="M5 4.5h10a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2z"/><path d="M5 17.5a2 2 0 0 1 2-2h10"/>',
+  groups: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 15.2A4.5 4.5 0 0 1 20.5 19"/>'
+};
+function icon(name, size = 20) {
+  return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name] || ""}</svg>`;
+}
+
+function navItems() {
+  return [
+    { id: "feed", route: "home", label: H("navFeed"), short: H("navFeed") },
+    { id: "wait", route: "timelines", label: Q("pathWait"), short: H("navWaitShort") },
+    { id: "papers", route: "prepare", label: Q("pathFolder"), short: H("navPapersShort") },
+    { id: "answers", route: "bot", label: H("navAnswers"), short: H("navAnswers") }
+  ];
+}
+
+function hueFor(name) {
+  let hash = 0;
+  for (const char of String(name || "")) hash = (hash * 31 + char.codePointAt(0)) >>> 0;
+  return 150 + (hash % 120); // teal→blue→violet family, stays on-brand
+}
+
+function avatar(user, size = "") {
+  const name = user?.username || "";
+  return `<span class="avatar ${size}" style="--hue:${hueFor(name)}" aria-hidden="true">${esc(initialFor(name))}</span>`;
 }
 
 function topbar() {
-  const item = (name, label) => `<button data-act="tab" data-tab="${name}" class="${navOn(name)}">${esc(label)}</button>`;
-  return `<a href="#main" class="skip-link">Skip to content</a>
-  <header class="topbar">
-    <button class="brand" data-act="tab" data-tab="home" aria-label="CaseCircle Home"><div class="mark" aria-hidden="true"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
-    <nav class="nav" aria-label="Main navigation">
-      ${item("home", H("feed"))}
-      ${item("spaces", H("communities"))}
-      ${item("timelines", Q("pathWait"))}
-      ${item("prepare", Q("pathFolder"))}
-      ${item("bot", Q("botNav"))}
-    </nav>
-    <div class="top-actions">
-      <button class="btn inline share-btn" data-act="tab" data-tab="ask">${esc(H("shareThought"))}</button>
-      <button class="ghost" data-act="tab" data-tab="you">${esc(me(state)?.username || L("you"))}</button>
+  const user = me(state);
+  const current = section();
+  const item = (entry) => {
+    const on = current === entry.id;
+    return `<a href="#${entry.id}" data-act="tab" data-tab="${entry.route}" class="nav-link${on ? " on" : ""}"${on ? ' aria-current="page"' : ""}>${esc(entry.label)}</a>`;
+  };
+  const name = user?.username || L("you");
+  const mod = user?.role === "mod";
+  return `<a href="#main" class="skip-link">${esc(H("skipToContent"))}</a>
+  <header class="topbar app-bar">
+    <div class="bar-inner">
+      <a href="#feed" class="brand" data-act="tab" data-tab="home" aria-label="${esc(`${L("appName")} — ${H("navFeed")}`)}">
+        <span class="mark" aria-hidden="true"></span>
+        <span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span>
+      </a>
+      <nav class="nav app-nav" aria-label="${esc(H("navMain"))}">
+        ${navItems().map(item).join("")}
+      </nav>
+      <div class="top-actions">
+        <a href="#new" class="btn new-post" data-act="tab" data-tab="ask" aria-label="${esc(H("newPost"))}"${state.route?.name === "ask" ? ' aria-current="page"' : ""}>${icon("plus", 18)}<span class="new-post-label">${esc(H("newPost"))}</span></a>
+        <div class="account">
+          <button type="button" id="account-btn" class="account-btn${current === "account" ? " on" : ""}" data-act="account-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="${esc(`${H("accountMenu")}: ${name}`)}" title="${esc(name)}">
+            ${avatar(user)}
+            <span class="account-name">${esc(name)}</span>
+            ${icon("caret", 16)}
+          </button>
+          <div id="account-menu" class="account-menu" role="menu" aria-labelledby="account-btn" hidden>
+            <div class="menu-head" role="presentation">
+              ${avatar(user, "lg")}
+              <div class="menu-who"><strong class="menu-name">${esc(name)}</strong><span class="muted">${esc(levelName(lang(), user?.reputation || 0))}</span></div>
+            </div>
+            <button type="button" role="menuitem" data-act="tab" data-tab="you">${icon("user", 18)}<span>${esc(H("menuProfile"))}</span></button>
+            <button type="button" role="menuitem" data-act="tab" data-tab="spaces">${icon("groups", 18)}<span>${esc(H("menuGroups"))}</span></button>
+            ${mod ? `<button type="button" role="menuitem" data-act="mod">${icon("shield", 18)}<span>${esc(L("modQueue"))}</span></button>` : ""}
+            <div class="menu-sep" role="separator"></div>
+            <div class="menu-label" role="presentation">${icon("globe", 16)}<span>${esc(L("language"))}</span></div>
+            <div class="menu-lang" role="group" aria-label="${esc(L("language"))}">
+              <button type="button" role="menuitemradio" aria-checked="${lang() === "en"}" data-act="lang" data-lang="en" lang="en">English</button>
+              <button type="button" role="menuitemradio" aria-checked="${lang() === "es"}" data-act="lang" data-lang="es" lang="es">Español</button>
+            </div>
+            <div class="menu-sep" role="separator"></div>
+            <button type="button" role="menuitem" data-act="page" data-page="rules">${icon("book", 18)}<span>${esc(L("rules"))}</span></button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>`;
 }
@@ -161,28 +258,91 @@ function topbar() {
 function bottomNav() {
   const user = me(state);
   if (!user) return "";
-  const item = (name, icon, label) => `<button data-act="tab" data-tab="${name}" class="${navOn(name)}" aria-label="${esc(label)}"><span class="icon" aria-hidden="true">${icon}</span><span>${esc(label)}</span></button>`;
-  return `<nav class="bottom-nav" aria-label="Mobile navigation">
-    ${item("home", "🏠", H("feed"))}
-    ${item("timelines", "⏱", Q("pathWait"))}
-    ${item("prepare", "📁", Q("pathFolder"))}
-    ${item("spaces", "💬", H("communities"))}
-    ${item("you", "👤", L("you"))}
+  const current = section();
+  const item = (entry) => {
+    const on = current === entry.id;
+    return `<a href="#${entry.id}" data-act="tab" data-tab="${entry.route}" class="${on ? "on" : ""}"${on ? ' aria-current="page"' : ""}>${icon(entry.id, 22)}<span>${esc(entry.short)}</span></a>`;
+  };
+  return `<nav class="bottom-nav" aria-label="${esc(H("navMain"))}">${navItems().map(item).join("")}</nav>`;
+}
+
+function groupSwitcher(activeId) {
+  const user = me(state);
+  const joined = user?.spaces || [];
+  const ids = activeId && activeId !== "all" && activeId !== "browse" && !joined.includes(activeId) ? [...joined, activeId] : joined;
+  const link = (href, attrs, label, on, extra = "") => `<a href="${href}" ${attrs} class="scope${on ? " on" : ""}${extra}"${on ? ' aria-current="page"' : ""}>${label}</a>`;
+  return `<nav class="scope-bar" aria-label="${esc(H("groupsLabel"))}">
+    <div class="scope-scroll">
+      ${link("#feed", 'data-act="tab" data-tab="home"', esc(H("allMyGroups")), activeId === "all")}
+      ${ids.map((id) => link(`#group=${esc(id)}`, `data-act="open-space" data-id="${esc(id)}"`, esc(spaceName(lang(), id)), activeId === id)).join("")}
+    </div>
+    ${link("#groups", 'data-act="tab" data-tab="spaces"', `${icon("plus", 14)}<span>${esc(H("browseGroups"))}</span>`, activeId === "browse", " browse")}
   </nav>`;
 }
 
-function navOn(name) {
-  const route = state.route?.name || "home";
-  if (name === "home" && (route === "home" || route === "post" || route === "search")) return "on";
-  if (name === "spaces" && route === "space") return "on";
-  if (name === "spaces" && route === "spaces") return "on";
-  if (name === "prepare" && route === "prepare") return "on";
-  if (name === "timelines" && route === "timelines") return "on";
-  if (name === "questions" && route === "questions") return "on";
-  if (name === "bot" && route === "bot") return "on";
-  if (name === "you" && route === "you") return "on";
-  return route === name ? "on" : "";
+function answersTabs(active) {
+  const tab = (route, slug, label) => `<a href="#${slug}" data-act="tab" data-tab="${route}" class="${active === route ? "on" : ""}"${active === route ? ' aria-current="page"' : ""}>${esc(label)}</a>`;
+  return `<nav class="sub-tabs" aria-label="${esc(H("navAnswers"))}">${tab("bot", "answers", H("answersAsk"))}${tab("questions", "faq", H("answersFaq"))}</nav>`;
 }
+
+let accountMenuReturn = null;
+function menuItems(menu) {
+  return [...menu.querySelectorAll('[role="menuitem"], [role="menuitemradio"]')];
+}
+function openAccountMenu(focusFirst = true) {
+  const button = document.getElementById("account-btn");
+  const menu = document.getElementById("account-menu");
+  if (!button || !menu) return;
+  menu.hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  accountMenuReturn = button;
+  if (focusFirst) menuItems(menu)[0]?.focus();
+}
+function closeAccountMenu(returnFocus = false) {
+  const button = document.getElementById("account-btn");
+  const menu = document.getElementById("account-menu");
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  button?.setAttribute("aria-expanded", "false");
+  if (returnFocus) (accountMenuReturn || button)?.focus();
+}
+
+document.addEventListener("keydown", (event) => {
+  const menu = document.getElementById("account-menu");
+  const button = document.getElementById("account-btn");
+  if (!menu || !button) return;
+  if (event.target === button && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+    event.preventDefault();
+    openAccountMenu(false);
+    const items = menuItems(menu);
+    (event.key === "ArrowUp" ? items[items.length - 1] : items[0])?.focus();
+    return;
+  }
+  if (menu.hidden) return;
+  if (event.key === "Escape") { event.preventDefault(); closeAccountMenu(true); return; }
+  if (!menu.contains(event.target)) return;
+  const items = menuItems(menu);
+  const index = items.indexOf(document.activeElement);
+  if (event.key === "Tab") { closeAccountMenu(false); return; }
+  if (event.key === "ArrowDown") { event.preventDefault(); items[(index + 1) % items.length]?.focus(); return; }
+  if (event.key === "ArrowUp") { event.preventDefault(); items[(index - 1 + items.length) % items.length]?.focus(); return; }
+  if (event.key === "Home") { event.preventDefault(); items[0]?.focus(); return; }
+  if (event.key === "End") { event.preventDefault(); items[items.length - 1]?.focus(); }
+});
+
+function applyHashRoute() {
+  if (!state.meId) return;
+  const route = routeFromHash(location.hash);
+  if (!route) return;
+  if (hashForRoute(route) === hashForRoute(state.route)) return;
+  state.route = route;
+  if (route.name === "ask") ask = blankAsk();
+  save();
+  render();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("popstate", applyHashRoute);
+window.addEventListener("hashchange", applyHashRoute);
 
 function siteFoot() {
   const signed = Boolean(me(state));
@@ -196,7 +356,7 @@ function siteFoot() {
       <h2>${esc(H("footSite"))}</h2>
       ${jump("what", H("homeNavWhat"))}
       ${jump("how", H("homeNavHow"))}
-      ${signed ? `<button class="foot-link" data-act="tab" data-tab="home">${esc(H("feed"))}</button>` : `<button class="foot-link" data-act="show-email">${esc(H("again"))}</button>`}
+      ${signed ? `<button class="foot-link" data-act="tab" data-tab="home">${esc(H("navFeed"))}</button>` : `<button class="foot-link" data-act="show-email">${esc(H("again"))}</button>`}
     </nav>
     <nav aria-label="Information">
       <h2>${esc(H("footRead"))}</h2>
@@ -289,7 +449,7 @@ function landing({ signed = false } = {}) {
         <h1>${esc(H("homeTitle"))}</h1>
         <p class="lede">${esc(H("homeLede"))}</p>
         <div class="cta">
-          ${signed ? `<button class="btn" data-act="tab" data-tab="home">${esc(H("feed"))}</button>` : onboard.showEmail ? `<div class="narrow">${emailBox()}</div>` : `<button class="btn" data-act="show-email">${esc(H("again"))}</button>`}
+          ${signed ? `<button class="btn" data-act="tab" data-tab="home">${esc(H("openFeed"))}</button>` : onboard.showEmail ? `<div class="narrow">${emailBox()}</div>` : `<button class="btn" data-act="show-email">${esc(H("again"))}</button>`}
           ${!signed ? `<button class="btn-secondary" data-act="demo">${esc(L("reviewerDemo"))}</button>` : ""}
         </div>
         <p class="note">${esc(H("homeTrust"))}</p>
@@ -446,7 +606,7 @@ function botScreen() {
   const signed = Boolean(me(state));
   const answer = botAnswer;
   return `<div class="bot">
-    ${signed ? "" : `<button class="ghost" data-act="public-home">${esc(L("back"))}</button>`}
+    ${signed ? answersTabs("bot") : `<button class="ghost" data-act="public-home">${esc(L("back"))}</button>`}
     <h1>${esc(Q("botTitle"))}</h1>
     <p class="lede">${esc(Q("botLead"))}</p>
     <label class="field">${esc(Q("botAsk"))}<textarea id="bot-q" aria-label="${esc(Q("botAsk"))}">${esc(botQuestion)}</textarea></label>
@@ -473,33 +633,31 @@ function webCard(item, signed) {
 function homeScreen() {
   const user = me(state);
   const posts = visiblePosts(state, filters);
-  const initial = (user?.username || "?").slice(0, 1).toUpperCase();
   const sorts = [["new", L("new")], ["top", L("top")], ["unanswered", L("unanswered")]];
   const hasProfiles = user?.profiles?.length > 0;
   
-  return `<div class="community">
+  return `<h1 class="sr-only">${esc(H("navFeed"))}</h1>
+  ${groupSwitcher("all")}
+  <div class="community">
     <div class="stack">
       ${!hasProfiles ? emptyProfileCTA() : ""}
-      <button class="composer-bar" data-act="tab" data-tab="ask" aria-label="${esc(H("shareThought"))}"><span class="avatar" aria-hidden="true">${esc(initial)}</span><span>${esc(H("shareThought"))}</span></button>
-      <div class="seg" role="tablist">${sorts.map(([sort, label]) => `<button data-act="sort" data-sort="${sort}" class="${filters.sort === sort ? "on" : ""}" role="tab" aria-selected="${filters.sort === sort}">${esc(label)}</button>`).join("")}</div>
-      <div class="chips" role="group" aria-label="${esc(L("allPosts"))}">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
+      <button class="composer-bar" data-act="tab" data-tab="ask">${avatar(user)}<span>${esc(H("shareThought"))}</span></button>
+      <div class="feed-controls">
+        <div class="seg" role="group" aria-label="${esc(H("sortLabel"))}">${sorts.map(([sort, label]) => `<button data-act="sort" data-sort="${sort}" class="${filters.sort === sort ? "on" : ""}" aria-pressed="${filters.sort === sort}">${esc(label)}</button>`).join("")}</div>
+      </div>
+      <div class="chips" role="group" aria-label="${esc(H("postTypeLabel"))}">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
       ${posts.length ? `<div class="feed">${posts.map(postCard).join("")}</div>` : emptyFeed()}
       <h2>${esc(Q("dataTitles"))}</h2>
       <div class="feed">${redditFeed(user?.spaces || []).slice(0, webShown.feed).map((item) => webCard(item, true)).join("")}</div>
       ${redditFeed(user?.spaces || []).length > webShown.feed ? `<button class="ghost" data-act="more-web" data-list="feed">${esc(Q("dataMore"))}</button>` : ""}
     </div>
-    <aside class="rail" aria-label="${esc(lang() === "es" ? "Acciones rápidas" : "Quick actions")}">
-      <div class="side-card">
-        <h2>${esc(H("communities"))}</h2>
-        ${(user?.spaces || []).length ? (user.spaces || []).map((id) => `<button class="community-link" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("") : `<p class="muted">${esc(lang() === "es" ? "Únete a comunidades para ver publicaciones" : "Join communities to see posts")}</p>`}
-        <button class="ghost" data-act="tab" data-tab="spaces">${esc(H("allCommunities"))}</button>
-      </div>
+    <aside class="rail" aria-label="${esc(H("addons"))}">
       <div class="side-card">
         <h2>${esc(H("addons"))}</h2>
         <button class="addon" data-act="tab" data-tab="timelines"><strong>${esc(Q("pathWait"))}</strong><span>${esc(Q("pathWaitBody"))}</span></button>
         <button class="addon" data-act="tab" data-tab="prepare"><strong>${esc(Q("pathFolder"))}</strong><span>${esc(Q("pathFolderBody"))}</span></button>
-        <button class="addon" data-act="tab" data-tab="questions"><strong>${esc(Q("askAbout"))}</strong><span>${esc(Q("askAboutBody"))}</span></button>
-        <button class="addon" data-act="tab" data-tab="bot"><strong>${esc(Q("botTitle"))}</strong><span>${esc(Q("botLead"))}</span></button>
+        <button class="addon" data-act="tab" data-tab="bot"><strong>${esc(H("navAnswers"))}</strong><span>${esc(H("answersBody"))}</span></button>
+        <button class="addon" data-act="open-interview" data-id="${esc(user?.profiles?.[0]?.spaceId || "i-485")}"><strong>${esc(H("interviewPrep"))}</strong><span>${esc(H("interviewPrepBody"))}</span></button>
       </div>
       <p class="muted">${esc(L("disclaimer"))}</p>
     </aside>
@@ -519,10 +677,10 @@ function emptyFeed() {
   return `<div class="empty-state">
     <div class="icon" aria-hidden="true">💬</div>
     <h3>${esc(lang() === "es" ? "No hay publicaciones todavía" : "No posts yet")}</h3>
-    <p>${esc(lang() === "es" ? "Únete a comunidades o publica la primera pregunta" : "Join communities or post the first question")}</p>
+    <p>${esc(H("emptyFeedBody"))}</p>
     <div class="row">
-      <button class="btn" data-act="tab" data-tab="spaces">${esc(H("allCommunities"))}</button>
-      <button class="btn-secondary" data-act="tab" data-tab="ask">${esc(H("shareThought"))}</button>
+      <button class="btn" data-act="tab" data-tab="ask">${esc(H("newPost"))}</button>
+      <button class="btn-secondary" data-act="tab" data-tab="spaces">${esc(H("browseGroups"))}</button>
     </div>
   </div>`;
 }
@@ -648,7 +806,7 @@ function spacesScreen() {
     return `<h2>${esc(lang() === "es" ? category.es : category.en)}</h2><div class="start-list">${list.map(spaceRow).join("")}</div>`;
   }).join("");
   const launch = spaces.filter((item) => item.launch && matches(item)).map((item) => `<button class="card mini" data-act="open-space" data-id="${esc(item.id)}"><span class="kicker">${esc(item.forms[0])}</span><strong>${esc(lang() === "es" ? item.es : item.en)}</strong><span class="muted count">${countMembers(item.id)} ${esc(L("members"))}</span></button>`).join("");
-  return `<div class="page-head"><h1>${esc(L("spaces"))}</h1><p class="muted">${esc(L("spacesHint"))}</p></div>
+  return `${groupSwitcher("browse")}<div class="page-head"><h1>${esc(L("spaces"))}</h1><p class="muted">${esc(L("spacesHint"))}</p></div>
     <input id="space-search" type="search" placeholder="${esc(L("search"))}" value="${esc(spaceQuery)}" aria-label="${esc(L("search"))}">
     <h2>${esc(L("startHere"))}</h2><div class="start-list">${launch}</div>${groups}`;
 }
@@ -674,8 +832,7 @@ function spaceScreen(id) {
   const posts = visiblePosts(state, { ...filters, spaceId: id, sort: "new" });
   const web = redditForSpace(id);
   const theme = themeForSpace(id);
-  return `<div class="space-page">
-    <button class="ghost" data-act="back">${esc(L("back"))}</button>
+  return `${groupSwitcher(id)}<div class="space-page">
     <header class="space-head">
       <h1>${esc(lang() === "es" ? item.es : item.en)}</h1>
       <p>${esc(lang() === "es" ? item.blurbEs : item.blurbEn)}</p>
@@ -688,7 +845,7 @@ function spaceScreen(id) {
       </div>
     </header>
     <p class="space-note">${esc(L("disclaimer"))}</p>
-    ${posts.length ? `<div class="feed">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>` : `<div class="empty-state"><h3>${esc(lang() === "es" ? "No hay publicaciones en este espacio" : "No posts in this space yet")}</h3><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`}
+    ${posts.length ? `<div class="feed">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>` : `<div class="empty-state"><h3>${esc(lang() === "es" ? "No hay publicaciones en este grupo" : "No posts in this group yet")}</h3><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`}
     <h2>${esc(Q("dataOnForm"))}</h2>
     <div class="feed">${web.slice(0, webShown.space).map((entry) => webCard(entry, true)).join("") || `<p class="muted">${esc(L("noPosts"))}</p>`}</div>
     ${web.length > webShown.space ? `<button class="ghost" data-act="more-web" data-list="space">${esc(Q("dataMore"))}</button>` : ""}
@@ -729,7 +886,7 @@ function topicSpace(id) {
 function questionsScreen() {
   const groups = questionGroups(lang());
   const topics = groups.flatMap((group) => group.items);
-  return `<div class="page-head"><h1>${esc(Q("askAbout"))}</h1><p>${esc(Q("askAboutLead"))}</p></div>
+  return `${answersTabs("questions")}<div class="page-head"><h1>${esc(Q("askAbout"))}</h1><p>${esc(Q("askAboutLead"))}</p></div>
     <div class="start-list">${topics.map((item) => `<button class="card mini" data-act="ask-topic" data-id="${esc(item.id)}"><strong>${esc(item.q)}</strong><span class="muted count">${esc(Q("askThis"))}</span></button>`).join("")}</div>
     <div class="page-head"><h1>${esc(Q("questions"))}</h1><p>${esc(Q("questionsLead"))}</p><p class="footer-note muted">${esc(Q("questionsSource"))}</p></div>
     <nav class="jumps" aria-label="${esc(lang() === "es" ? "Ir a sección" : "Jump to section")}">${groups.map((group) => `<a href="#group-${esc(group.id)}">${esc(group.title)}</a>`).join("")}<a href="#statuses">${esc(Q("statuses"))}</a><a href="#if-quiet">${esc(Q("ifQuiet"))}</a></nav>
@@ -1045,7 +1202,7 @@ function prepareScreen(spaceId) {
   
   if (!spaceId || !spaceById(spaceId)) {
     return `<div class="page-head">
-      <h1>${esc(P("prepare"))}</h1>
+      <h1>${esc(Q("pathFolder"))}</h1>
       <p class="muted">${esc(P("folderLead"))}</p>
     </div>
     <h2>${esc(P("pickForm"))}</h2>
@@ -1216,16 +1373,16 @@ function youScreen() {
   if (!user) return homeScreen();
   const mine = state.posts.filter((post) => post.authorId === user.id);
   const saved = state.posts.filter((post) => (user.bookmarks || []).includes(post.id));
-  return `<div class="brand"><div class="mark" aria-hidden="true"></div><div><h1 style="margin:0">${esc(user.username)}</h1><div class="kicker">${esc(levelName(lang(), user.reputation))}</div><div class="muted">${esc(L("reputation"))} ${user.reputation}</div></div></div>
+  return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(user.username)}</h1><div class="kicker">${esc(levelName(lang(), user.reputation))}</div><div class="muted">${esc(L("reputation"))} ${user.reputation}</div></div></div>
     ${user.username === "app_review" ? `<div class="banner"><strong>${esc(L("reviewerNotes"))}</strong><p>${esc(L("reviewerBody"))}</p><button class="btn inline" data-act="mod">${esc(L("modQueue"))}</button></div>` : ""}
     <h2>${esc(L("caseProfiles"))}</h2>
     <div class="stack">${user.profiles.length ? user.profiles.map((profile) => `<div class="card">${esc(badge(lang(), profile))}</div>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
     <h2>${esc(L("yourPosts"))}</h2>
-    ${mine.length ? `<div class="stack">${mine.map(postCard).join("")}</div>` : `<div class="empty-state"><p>${esc(L("noPosts"))}</p><button class="btn-secondary" data-act="tab" data-tab="ask">${esc(H("shareThought"))}</button></div>`}
+    ${mine.length ? `<div class="stack">${mine.map(postCard).join("")}</div>` : `<div class="empty-state"><p>${esc(L("noPosts"))}</p><button class="btn-secondary" data-act="tab" data-tab="ask">${esc(H("newPost"))}</button></div>`}
     <h2>${esc(L("bookmarks"))}</h2>
     ${saved.length ? `<div class="stack">${saved.map(postCard).join("")}</div>` : `<p class="muted">${esc(L("emptySaved"))}</p>`}
     <h2>${esc(L("yourSpaces"))}</h2>
-    <div class="card-grid">${user.spaces.length ? user.spaces.map((id) => `<button class="card" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No te has unido a ningún espacio" : "You haven't joined any spaces")}</p>`}</div>
+    <div class="card-grid">${user.spaces.length ? user.spaces.map((id) => `<button class="card" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No te has unido a ningún grupo" : "You haven't joined any case groups")}</p>`}</div>
     <h2>${esc(L("settings"))}</h2>
     <div class="lang">
       <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en">${esc(L("english"))}</button>
@@ -1318,9 +1475,20 @@ function syncDraft(scope) {
 }
 
 document.addEventListener("click", (event) => {
+  const openMenu = document.getElementById("account-menu");
+  if (openMenu && !openMenu.hidden && !event.target.closest(".account")) closeAccountMenu(false);
   const node = event.target.closest("[data-act]");
   if (!node) return;
   const act = node.dataset.act;
+  // In-app links keep a real href (#feed, #group=…) for open-in-new-tab and deep links, but navigate in place.
+  if (node.matches('a[data-act][href^="#"]') && !event.metaKey && !event.ctrlKey && !event.shiftKey) event.preventDefault();
+  else if (node.matches('a[data-act][href^="#"]')) return;
+  if (act === "account-menu") {
+    const menu = document.getElementById("account-menu");
+    if (menu?.hidden) openAccountMenu(event.detail === 0);
+    else closeAccountMenu(false);
+    return;
+  }
   
   if (act === "lang") {
     state.lang = node.dataset.lang;
@@ -1413,7 +1581,7 @@ document.addEventListener("click", (event) => {
   if (act === "onboard-skip") { finishOnboard(false); return; }
   if (act === "onboard-next") { advanceOnboard(); return; }
   if (act === "tab") {
-    const name = node.dataset.tab;
+    const name = resolveRouteName(node.dataset.tab) || "home";
     state.route = { name };
     if (name === "ask") ask = blankAsk();
     if (name === "prepare") {
@@ -1422,6 +1590,7 @@ document.addEventListener("click", (event) => {
     }
     save();
     render();
+    window.scrollTo(0, 0);
     return;
   }
   if (act === "show-forms") { showAllForms = !showAllForms; render(); return; }

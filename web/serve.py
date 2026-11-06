@@ -75,6 +75,13 @@ class Handler(SimpleHTTPRequestHandler):
             return
         self.send_error(404, "File not found")
 
+    def end_headers(self) -> None:
+        # Preview: always revalidate static assets so CSS/JS edits show up.
+        path = urlparse(self.path).path.lower()
+        if path.endswith((".css", ".js", ".mjs", ".html")) or path == "/" or path.endswith("/"):
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
+        super().end_headers()
+
     def do_PUT(self) -> None:
         self.send_error(405, "Method Not Allowed")
 

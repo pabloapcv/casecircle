@@ -12,6 +12,7 @@ import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLi
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
 import { SECTION_OF, hashForRoute, initialFor, resolveRouteName, routeFromHash } from "./nav.js";
+import { caseSummary, savedPosts } from "./sidebar.js";
 
 const KEY = "casecircle.web.v3";
 let state = load();
@@ -169,10 +170,13 @@ function section() {
 }
 
 const ICONS = {
-  feed: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.4A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/>',
+  feed: '<path d="M4 6h16M4 12h12M4 18h14"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
   wait: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-  papers: '<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M9 13l2 2 4-4"/>',
-  answers: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.2 1-1.2 1.8v.4"/><path d="M12 17h.01"/>',
+  papers: '<path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4"/><path d="M9 13h6M9 17h6"/>',
+  answers: '<circle cx="12" cy="12" r="8"/><path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="17" r="0.8" fill="currentColor" stroke="none"/>',
+  back: '<path d="M15 6l-6 6 6 6"/>',
+  chat: '<path d="M5 6h14v10H9l-4 3z"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   caret: '<path d="m7 10 5 5 5-5"/>',
   user: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5a7 7 0 0 1 14 0"/>',
@@ -183,6 +187,23 @@ const ICONS = {
 };
 function icon(name, size = 20) {
   return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name] || ""}</svg>`;
+}
+
+function logoMark(size = 28) {
+  return `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="3.5"/><circle cx="16" cy="16" r="4" fill="currentColor"/></svg>`;
+}
+
+function langToggle() {
+  const opt = (code, label, name) => `<button type="button" data-act="lang" data-lang="${code}" lang="${code}" aria-pressed="${lang() === code}" aria-label="${esc(name)}" class="${lang() === code ? "on" : ""}">${label}</button>`;
+  return `<div class="lang-toggle" role="group" aria-label="${esc(H("langSwitch"))}">${opt("en", "EN", "English")}${opt("es", "ES", "Español")}</div>`;
+}
+
+function backButton(label = L("back"), attrs = 'data-act="back"') {
+  return `<button type="button" class="back-link" ${attrs}>${icon("back", 18)}<span>${esc(label)}</span></button>`;
+}
+
+function fill(text, values) {
+  return String(text).replace(/\{(\w+)\}/g, (_, key) => (key in values ? values[key] : ""));
 }
 
 function navItems() {
@@ -218,13 +239,14 @@ function topbar() {
   <header class="topbar app-bar">
     <div class="bar-inner">
       <a href="#feed" class="brand" data-act="tab" data-tab="home" aria-label="${esc(`${L("appName")} — ${H("navFeed")}`)}">
-        <span class="mark" aria-hidden="true"></span>
+        ${logoMark(28)}
         <span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span>
       </a>
       <nav class="nav app-nav" aria-label="${esc(H("navMain"))}">
         ${navItems().map(item).join("")}
       </nav>
       <div class="top-actions">
+        ${langToggle()}
         <a href="#new" class="btn new-post" data-act="tab" data-tab="ask" aria-label="${esc(H("newPost"))}"${state.route?.name === "ask" ? ' aria-current="page"' : ""}>${icon("plus", 18)}<span class="new-post-label">${esc(H("newPost"))}</span></a>
         <div class="account">
           <button type="button" id="account-btn" class="account-btn${current === "account" ? " on" : ""}" data-act="account-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="${esc(`${H("accountMenu")}: ${name}`)}" title="${esc(name)}">
@@ -404,13 +426,10 @@ function welcome() {
   const home = step === 0 && publicView === "home";
   const jump = (id, label) => `<button data-act="home-section" data-id="${id}">${esc(label)}</button>`;
   return `<div class="site">
-    <header class="topbar">
-      <button class="brand" data-act="public-home" aria-label="CaseCircle Home"><div class="mark" aria-hidden="true"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
+    <header class="topbar public-bar">
+      <button class="brand" data-act="public-home" aria-label="CaseCircle Home">${logoMark(28)}<span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span></button>
       ${home ? `<nav class="nav" aria-label="Navigation">${jump("painpoints", H("homeNavPain"))}${jump("what", H("homeNavWhat"))}${jump("how", H("homeNavHow"))}</nav>` : `<div class="nav"></div>`}
-      <div class="top-actions lang">
-        <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en" aria-label="Switch to English">${esc(L("english"))}</button>
-        <button class="btn inline ${lang() === "es" ? "on" : "off"}" data-act="lang" data-lang="es" aria-label="Switch to Spanish">${esc(L("spanish"))}</button>
-      </div>
+      <div class="top-actions">${langToggle()}</div>
     </header>
     <main class="page" id="main">${step === 0 ? (publicView === "home" ? landing() : publicView === "bot" ? botScreen() : publicPage(publicView)) : onboardingScreen()}</main>
     ${siteFoot()}
@@ -459,7 +478,7 @@ function landing({ signed = false } = {}) {
     <section class="home-section" id="painpoints">
       <h2>${esc(lang() === "es" ? "¿Qué te preocupa?" : "What concerns you?")}</h2>
       <p class="lede">${esc(lang() === "es" ? "Herramientas diseñadas para las preguntas más comunes" : "Tools designed for the most common questions")}</p>
-      <div class="pain-grid">${painPoints.map(p => `<button class="pain" data-act="pain-point" data-id="${p.id}"><div class="icon" aria-hidden="true">${p.icon}</div><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p></button>`).join("")}</div>
+      <div class="pain-grid">${painPoints.map(p => `<button class="pain" data-act="pain-point" data-id="${p.id}"><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p></button>`).join("")}</div>
     </section>
 
     <section class="home-section" id="talk">
@@ -502,7 +521,7 @@ function legalDisclaimer() {
 function publicPage(page) {
   const body = page === "privacy" ? L("privacyBody") : page === "about" ? L("aboutBody") : L("rulesBody");
   const title = page === "privacy" ? L("privacy") : page === "about" ? L("about") : L("rules");
-  return `<button class="ghost" data-act="public-home">${esc(L("back"))}</button><article class="narrow"><h1>${esc(title)}</h1><p>${esc(body)}</p></article>`;
+  return `${backButton(L("back"), 'data-act="public-home"')}<article class="narrow"><h1>${esc(title)}</h1><p>${esc(body)}</p></article>`;
 }
 
 function emailBox() {
@@ -606,7 +625,7 @@ function botScreen() {
   const signed = Boolean(me(state));
   const answer = botAnswer;
   return `<div class="bot">
-    ${signed ? answersTabs("bot") : `<button class="ghost" data-act="public-home">${esc(L("back"))}</button>`}
+    ${signed ? answersTabs("bot") : backButton(L("back"), 'data-act="public-home"')}
     <h1>${esc(Q("botTitle"))}</h1>
     <p class="lede">${esc(Q("botLead"))}</p>
     <label class="field">${esc(Q("botAsk"))}<textarea id="bot-q" aria-label="${esc(Q("botAsk"))}">${esc(botQuestion)}</textarea></label>
@@ -624,8 +643,8 @@ function webCard(item, signed) {
     <h2>${esc(item.title)}</h2>
     <p class="web-stats">${esc(formatCount(item.score))} ${esc(Q("dataPoints"))} · ${esc(formatCount(item.comments))} ${esc(Q("dataComments"))}</p>
     <div class="row">
-      <a class="ghost" href="${esc(item.href)}" target="_blank" rel="noopener noreferrer">${esc(Q("openPost"))}</a>
-      ${signed ? `<button class="ghost" data-act="ask-web" data-space="${esc(item.space || "i-485")}" data-title="${esc(item.title)}">${esc(Q("askThis"))}</button>` : ""}
+      <a class="text-link" href="${esc(item.href)}" target="_blank" rel="noopener noreferrer">${esc(Q("openPost"))}</a>
+      ${signed ? `<button class="text-link" data-act="ask-web" data-space="${esc(item.space || "i-485")}" data-title="${esc(item.title)}">${esc(Q("askThis"))}</button>` : ""}
     </div>
   </article>`;
 }
@@ -637,31 +656,78 @@ function homeScreen() {
   const hasProfiles = user?.profiles?.length > 0;
   
   return `<h1 class="sr-only">${esc(H("navFeed"))}</h1>
-  ${groupSwitcher("all")}
-  <div class="community">
-    <div class="stack">
+  <div class="with-rail">
+    <div class="main-col">
+      ${groupSwitcher("all")}
       ${!hasProfiles ? emptyProfileCTA() : ""}
       <button class="composer-bar" data-act="tab" data-tab="ask">${avatar(user)}<span>${esc(H("shareThought"))}</span></button>
       <div class="feed-controls">
         <div class="seg" role="group" aria-label="${esc(H("sortLabel"))}">${sorts.map(([sort, label]) => `<button data-act="sort" data-sort="${sort}" class="${filters.sort === sort ? "on" : ""}" aria-pressed="${filters.sort === sort}">${esc(label)}</button>`).join("")}</div>
       </div>
       <div class="chips" role="group" aria-label="${esc(H("postTypeLabel"))}">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
-      ${posts.length ? `<div class="feed">${posts.map(postCard).join("")}</div>` : emptyFeed()}
-      <h2>${esc(Q("dataTitles"))}</h2>
+      ${posts.length ? `<div class="post-list">${posts.map(postCard).join("")}</div>` : emptyFeed()}
+      <h2 class="section-title">${esc(Q("dataTitles"))}</h2>
       <div class="feed">${redditFeed(user?.spaces || []).slice(0, webShown.feed).map((item) => webCard(item, true)).join("")}</div>
-      ${redditFeed(user?.spaces || []).length > webShown.feed ? `<button class="ghost" data-act="more-web" data-list="feed">${esc(Q("dataMore"))}</button>` : ""}
+      ${redditFeed(user?.spaces || []).length > webShown.feed ? `<button class="btn-secondary more" data-act="more-web" data-list="feed">${esc(Q("dataMore"))}</button>` : ""}
     </div>
-    <aside class="rail" aria-label="${esc(H("addons"))}">
-      <div class="side-card">
-        <h2>${esc(H("addons"))}</h2>
-        <button class="addon" data-act="tab" data-tab="timelines"><strong>${esc(Q("pathWait"))}</strong><span>${esc(Q("pathWaitBody"))}</span></button>
-        <button class="addon" data-act="tab" data-tab="prepare"><strong>${esc(Q("pathFolder"))}</strong><span>${esc(Q("pathFolderBody"))}</span></button>
-        <button class="addon" data-act="tab" data-tab="bot"><strong>${esc(H("navAnswers"))}</strong><span>${esc(H("answersBody"))}</span></button>
-        <button class="addon" data-act="open-interview" data-id="${esc(user?.profiles?.[0]?.spaceId || "i-485")}"><strong>${esc(H("interviewPrep"))}</strong><span>${esc(H("interviewPrepBody"))}</span></button>
-      </div>
-      <p class="muted">${esc(L("disclaimer"))}</p>
-    </aside>
+    ${caseRail()}
   </div>`;
+}
+
+/* Desktop right sidebar (>=1100px): your case, saved posts, tools, rules. Hidden on smaller screens. */
+function caseRail(preferSpaceId = "") {
+  const user = me(state);
+  if (!user) return "";
+  const summary = caseSummary(state, preferSpaceId);
+  const saved = savedPosts(state, 3);
+  const es = lang() === "es";
+  let caseCard;
+  if (summary) {
+    const group = spaceName(lang(), summary.spaceId);
+    const months = summary.months;
+    const monthsText = months === 0 ? H("filedThisMonth") : months === 1 ? H("monthSinceFiling") : H("monthsSinceFiling");
+    caseCard = `<section class="rail-card case-card" aria-labelledby="rail-case">
+      <h2 class="rail-label" id="rail-case">${esc(H("yourCase"))}${summary.form ? ` · ${esc(summary.form)}` : ""}</h2>
+      <p class="case-group">${esc(group)}</p>
+      ${months != null ? `<p class="case-months">${months > 0 ? `<strong>${months}</strong>` : ""}<span>${esc(monthsText)}</span></p>` : ""}
+      ${summary.stage ? `<p class="case-stage"><span>${esc(L("stage"))}</span> ${esc(stageLabel(lang(), summary.stage))}</p>` : ""}
+      ${summary.wait ? `<div class="case-bar" role="img" aria-label="${esc(fill(H("waitLonger"), { p: summary.wait.percentile, n: summary.wait.count }))}"><span style="width:${Math.max(4, Math.min(100, summary.wait.percentile))}%"></span></div>
+      <p class="case-note">${esc(fill(H("waitLonger"), { p: summary.wait.percentile, n: summary.wait.count }))}</p>` : `<p class="case-note">${esc(H("waitNoCompare"))}</p>`}
+      ${summary.others > 0 ? `<p class="case-note">${esc(fill(H("moreCases"), { n: summary.others }))}</p>` : ""}
+      <div class="case-links">
+        <a href="#wait" data-act="tab" data-tab="timelines">${esc(Q("pathWait"))} <span aria-hidden="true">→</span></a>
+        <a href="#papers=${esc(summary.spaceId)}" data-act="open-folder" data-id="${esc(summary.spaceId)}">${esc(Q("pathFolder"))} <span aria-hidden="true">→</span></a>
+      </div>
+    </section>`;
+  } else {
+    caseCard = `<section class="rail-card case-empty" aria-labelledby="rail-case">
+      <h2 class="rail-label" id="rail-case">${esc(H("yourCase"))}</h2>
+      <p class="rail-title">${esc(H("caseEmptyTitle"))}</p>
+      <p class="rail-body">${esc(H("caseEmptyBody"))}</p>
+      <button class="btn small" data-act="add-profile">${esc(L("addCase"))}</button>
+      <div class="rail-links">
+        <a href="#wait" data-act="tab" data-tab="timelines">${esc(Q("pathWait"))}</a>
+        <a href="#papers" data-act="tab" data-tab="prepare">${esc(Q("pathFolder"))}</a>
+      </div>
+    </section>`;
+  }
+  const savedCard = `<section class="rail-card" aria-labelledby="rail-saved">
+      <h2 class="rail-label" id="rail-saved">${esc(H("savedTitle"))}</h2>
+      ${saved.posts.length ? `<ul class="rail-list">${saved.posts.map((post) => `<li><a href="#post=${esc(post.id)}" data-act="open-post" data-id="${esc(post.id)}"><span class="rail-post-title">${esc(post.title)}</span>${post.spaceIds?.[0] ? `<span class="rail-post-meta">${esc(spaceName(lang(), post.spaceIds[0]))}</span>` : ""}</a></li>`).join("")}</ul>
+      ${saved.total > saved.posts.length ? `<a class="rail-more" href="#account" data-act="tab" data-tab="you">${esc(fill(H("savedSeeAll"), { n: saved.total }))}</a>` : ""}` : `<p class="rail-body">${esc(H("savedEmptyBody"))}</p>`}
+    </section>`;
+  const toolsCard = `<section class="rail-card" aria-labelledby="rail-tools">
+      <h2 class="rail-label" id="rail-tools">${esc(H("addons"))}</h2>
+      <a class="rail-tool" href="#answers" data-act="tab" data-tab="bot"><strong>${esc(H("navAnswers"))}</strong><span>${esc(H("answersBody"))}</span></a>
+      <a class="rail-tool" href="#interview=${esc(summary?.spaceId || user.profiles?.[0]?.spaceId || "i-485")}" data-act="open-interview" data-id="${esc(summary?.spaceId || user.profiles?.[0]?.spaceId || "i-485")}"><strong>${esc(H("interviewPrep"))}</strong><span>${esc(H("interviewPrepBody"))}</span></a>
+    </section>`;
+  return `<aside class="rail" aria-label="${esc(H("sidebarLabel"))}">
+    ${caseCard}
+    ${savedCard}
+    ${toolsCard}
+    <a class="rail-rules" href="#rules" data-act="page" data-page="rules">${icon("book", 18)}<span><strong>${esc(L("rules"))}</strong><span>${esc(H("rulesLinkBody"))}</span></span></a>
+    <p class="rail-note">${esc(L("disclaimer"))}</p>
+  </aside>`;
 }
 
 function emptyProfileCTA() {
@@ -675,7 +741,7 @@ function emptyProfileCTA() {
 
 function emptyFeed() {
   return `<div class="empty-state">
-    <div class="icon" aria-hidden="true">💬</div>
+    ${icon("chat", 40)}
     <h3>${esc(lang() === "es" ? "No hay publicaciones todavía" : "No posts yet")}</h3>
     <p>${esc(H("emptyFeedBody"))}</p>
     <div class="row">
@@ -695,10 +761,10 @@ function postCard(post, options = {}) {
   const space = post.spaceIds?.[0];
   const body = String(post.body || "").length > 180 ? `${post.body.slice(0, 177)}…` : post.body;
   return `<article class="thread">
-    <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}">↑</button><span>${post.votes}</span></div>
+    <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}" aria-pressed="${Boolean(me(state)?.votes?.[post.id])}">↑</button><span>${post.votes}</span></div>
     <button class="thread-main" data-act="open-post" data-id="${esc(post.id)}">
       <div class="thread-meta">
-        ${options.hideSpace || !space ? "" : `<span>${esc(spaceName(lang(), space))}</span>`}
+        ${options.hideSpace || !space ? "" : `<span class="thread-space">${esc(spaceName(lang(), space))}</span>`}
         <span class="muted">${esc(author?.username || L("deletedMember"))} · ${esc(ago(lang(), post.createdAt))}</span>
         ${post.faq ? `<span class="pill plain">${esc(L("pinned"))}</span>` : ""}
       </div>
@@ -722,7 +788,7 @@ function postFacts(post) {
 
 function postScreen(id) {
   const post = state.posts.find((item) => item.id === id);
-  if (!post) return `<button class="ghost" data-act="back">${esc(L("back"))}</button><div class="empty-state"><h3>${esc(lang() === "es" ? "Publicación no encontrada" : "Post not found")}</h3></div>`;
+  if (!post) return `<div class="with-rail"><div class="main-col">${backButton()}<div class="empty-state">${icon("chat", 40)}<h3>${esc(lang() === "es" ? "Publicación no encontrada" : "Post not found")}</h3><p>${esc(H("postMissingBody"))}</p><button class="btn" data-act="back">${esc(H("backToFeed"))}</button></div></div>${caseRail()}</div>`;
   const author = member(state, post.authorId);
   const user = me(state);
   const voted = Boolean(user?.votes?.[post.id]);
@@ -733,8 +799,8 @@ function postScreen(id) {
   
   const decoded = post.stage ? statusDecoder(lang(), post.stage) : null;
   
-  return `<article class="read">
-    <button class="ghost" data-act="back">${esc(L("back"))}</button>
+  return `<div class="with-rail"><article class="read main-col">
+    ${backButton()}
     ${post.status !== "live" ? `<p class="read-note">${esc(post.status === "held" ? L("held") : L("removed"))}</p>` : ""}
     <p class="read-kicker">${context.map((item) => esc(item)).join(" · ")}</p>
     <h1>${esc(post.title)}</h1>
@@ -743,8 +809,8 @@ function postScreen(id) {
     ${postFacts(post)}
     ${decoded ? statusDecoderInline(decoded) : ""}
     <div class="read-actions">
-      <button class="vote" data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}">↑ ${post.votes}${voted ? " ✓" : ""}</button>
-      <button data-act="bookmark" data-id="${esc(post.id)}">${saved ? esc(L("saved")) : esc(L("save"))}</button>
+      <button class="vote${voted ? " on" : ""}" data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}" aria-pressed="${voted}">↑ ${post.votes}</button>
+      <button data-act="bookmark" data-id="${esc(post.id)}" aria-pressed="${Boolean(saved)}" class="${saved ? "on" : ""}">${saved ? esc(L("saved")) : esc(L("save"))}</button>
       <button data-act="share" data-id="${esc(post.id)}">${esc(L("share"))}</button>
       <span class="read-tools">
         ${author && author.id !== user?.id ? `<button class="quiet" data-act="block" data-id="${esc(author.id)}">${esc(L("block"))}</button>` : ""}
@@ -761,11 +827,12 @@ function postScreen(id) {
     <section class="reply-box">
       <h2>${esc(L("writeReply"))}</h2>
       <div class="composer">
-        <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}" aria-label="${esc(L("writeReply"))}"></textarea>
-        <button class="btn inline" data-act="reply" data-id="${esc(post.id)}">${esc(L("send"))}</button>
+        <label class="field" for="reply">${esc(L("commentPlaceholder"))}</label>
+        <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}"></textarea>
+        <button class="btn block" data-act="reply" data-id="${esc(post.id)}">${esc(L("send"))}</button>
       </div>
     </section>
-  </article>`;
+  </article>${caseRail(space || "")}</div>`;
 }
 
 function statusDecoderInline(decoded) {
@@ -832,7 +899,7 @@ function spaceScreen(id) {
   const posts = visiblePosts(state, { ...filters, spaceId: id, sort: "new" });
   const web = redditForSpace(id);
   const theme = themeForSpace(id);
-  return `${groupSwitcher(id)}<div class="space-page">
+  return `<div class="with-rail"><div class="main-col space-page">${groupSwitcher(id)}
     <header class="space-head">
       <h1>${esc(lang() === "es" ? item.es : item.en)}</h1>
       <p>${esc(lang() === "es" ? item.blurbEs : item.blurbEn)}</p>
@@ -845,11 +912,11 @@ function spaceScreen(id) {
       </div>
     </header>
     <p class="space-note">${esc(L("disclaimer"))}</p>
-    ${posts.length ? `<div class="feed">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>` : `<div class="empty-state"><h3>${esc(lang() === "es" ? "No hay publicaciones en este grupo" : "No posts in this group yet")}</h3><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`}
-    <h2>${esc(Q("dataOnForm"))}</h2>
+    ${posts.length ? `<div class="post-list">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>` : `<div class="empty-state">${icon("chat", 40)}<h3>${esc(lang() === "es" ? "No hay publicaciones en este grupo" : "No posts in this group yet")}</h3><p>${esc(fill(H("groupEmptyBody"), { g: lang() === "es" ? item.es : item.en }))}</p><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`}
+    <h2 class="section-title">${esc(Q("dataOnForm"))}</h2>
     <div class="feed">${web.slice(0, webShown.space).map((entry) => webCard(entry, true)).join("") || `<p class="muted">${esc(L("noPosts"))}</p>`}</div>
-    ${web.length > webShown.space ? `<button class="ghost" data-act="more-web" data-list="space">${esc(Q("dataMore"))}</button>` : ""}
-  </div>`;
+    ${web.length > webShown.space ? `<button class="btn-secondary more" data-act="more-web" data-list="space">${esc(Q("dataMore"))}</button>` : ""}
+  </div>${caseRail(id)}</div>`;
 }
 
 function askScreen() {
@@ -928,7 +995,7 @@ function timelinesScreen() {
 
 function emptyProfileState() {
   return `<div class="empty-state" style="grid-column: 1/-1;">
-    <div class="icon" aria-hidden="true">📋</div>
+    ${icon("papers", 40)}
     <h3>${esc(lang() === "es" ? "Agrega tu caso" : "Add your case")}</h3>
     <p>${esc(lang() === "es" ? "Para ver comparaciones con personas en situación similar" : "To see comparisons with people in similar situations")}</p>
   </div>`;
@@ -1238,7 +1305,7 @@ function prepareScreen(spaceId) {
   const riskFlags = profile ? calculateRiskFlags(lang(), profile, folder) : [];
   
   return `<div class="spread">
-    <button class="ghost" data-act="tab" data-tab="prepare">${esc(P("backToForms"))}</button>
+    ${backButton(P("backToForms"), 'data-act="tab" data-tab="prepare"')}
   </div>
   <div class="page-head">
     <p class="kicker">${esc(packet.form)}</p>
@@ -1308,7 +1375,7 @@ function interviewScreen(spaceId) {
   ).slice(0, 10);
   
   return `<div class="interview-hub">
-    <button class="ghost" data-act="back">${esc(L("back"))}</button>
+    ${backButton()}
     <div class="page-head">
       <h1>${esc(lang() === "es" ? "Preparación para entrevista" : "Interview Preparation")}</h1>
       <p class="muted">${esc(space ? (lang() === "es" ? space.es : space.en) : "")}</p>
@@ -1384,39 +1451,39 @@ function youScreen() {
     <h2>${esc(L("yourSpaces"))}</h2>
     <div class="card-grid">${user.spaces.length ? user.spaces.map((id) => `<button class="card" data-act="open-space" data-id="${esc(id)}">${esc(spaceName(lang(), id))}</button>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No te has unido a ningún grupo" : "You haven't joined any case groups")}</p>`}</div>
     <h2>${esc(L("settings"))}</h2>
-    <div class="lang">
-      <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en">${esc(L("english"))}</button>
-      <button class="btn inline ${lang() === "es" ? "on" : "off"}" data-act="lang" data-lang="es">${esc(L("spanish"))}</button>
+    <div class="chips lang-pills" role="group" aria-label="${esc(L("language"))}">
+      <button class="chip dark ${lang() === "en" ? "on" : ""}" data-act="lang" data-lang="en" aria-pressed="${lang() === "en"}">${esc(L("english"))}</button>
+      <button class="chip dark ${lang() === "es" ? "on" : ""}" data-act="lang" data-lang="es" aria-pressed="${lang() === "es"}">${esc(L("spanish"))}</button>
     </div>
-    <div class="stack" style="margin-top:16px;">
-      <button class="ghost" data-act="page" data-page="rules">${esc(L("rules"))}</button>
-      <button class="ghost" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
-      <button class="ghost" data-act="page" data-page="about">${esc(L("about"))}</button>
-      <a href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
+    <div class="link-list">
+      <button class="text-link" data-act="page" data-page="rules">${esc(L("rules"))}</button>
+      <button class="text-link" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
+      <button class="text-link" data-act="page" data-page="about">${esc(L("about"))}</button>
+      <a class="text-link" href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
     </div>
-    <p class="muted" style="margin-top:24px;">${esc(L("deleteHelp"))}</p>
-    <button class="btn" style="background:var(--coral);" data-act="delete">${esc(L("deleteAccount"))}</button>`;
+    <p class="muted delete-help">${esc(L("deleteHelp"))}</p>
+    <button class="btn danger-btn" data-act="delete">${esc(L("deleteAccount"))}</button>`;
 }
 
 function pageScreen(page) {
   const body = page === "privacy" ? L("privacyBody") : page === "about" ? L("aboutBody") : L("rulesBody");
   const title = page === "privacy" ? L("privacy") : page === "about" ? L("about") : L("rules");
-  return `<button class="ghost" data-act="back">${esc(L("back"))}</button><h1>${esc(title)}</h1><p>${esc(body)}</p><div class="banner">${esc(L("disclaimer"))}</div>`;
+  return `${backButton()}<h1>${esc(title)}</h1><p>${esc(body)}</p><div class="banner">${esc(L("disclaimer"))}</div>`;
 }
 
 function modScreen() {
   const user = me(state);
-  if (user?.role !== "mod") return `<button class="ghost" data-act="back">${esc(L("back"))}</button>`;
+  if (user?.role !== "mod") return `${backButton()}`;
   const posts = queuedPosts(state);
-  return `<button class="ghost" data-act="back">${esc(L("back"))}</button>
+  return `${backButton()}
     <h1>${esc(L("modQueue"))}</h1>
     <div class="banner">${esc(L("reviewerBody"))}</div>
     <div class="stack">${posts.length ? posts.map((post) => {
       const open = state.reports.filter((item) => item.targetId === post.id && item.state === "open").length;
-      return `<div class="card"><strong>${esc(post.title)}</strong><p>${esc(post.body)}</p><div class="meta">${esc(post.status)} · ${open} ${esc(L("openReports"))}</div>
+      return `<div class="card mod-card"><strong>${esc(post.title)}</strong><p>${esc(post.body)}</p><div class="meta">${esc(post.status)} · ${open} ${esc(L("openReports"))}</div>
         <div class="row"><button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="restore">${esc(L("restore"))}</button>
-        <button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="remove">${esc(L("remove"))}</button>
-        <button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="dismiss">${esc(L("dismissReports"))}</button></div></div>`;
+        <button class="btn-secondary inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="remove">${esc(L("remove"))}</button>
+        <button class="btn-secondary inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="dismiss">${esc(L("dismissReports"))}</button></div></div>`;
     }).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay publicaciones en cola" : "No posts in queue")}</p>`}</div>`;
 }
 
@@ -1429,13 +1496,13 @@ function profileEditor(spaceId) {
       officeId: existing.officeId, method: existing.method, stage: existing.stage
     } : blankProfile(spaceId);
   }
-  return `<button class="ghost" data-act="back">${esc(L("back"))}</button><h1>${esc(L("profileTitle"))}</h1>${profileFields("edit")}
+  return `${backButton()}<h1>${esc(L("profileTitle"))}</h1>${profileFields("edit")}
     <button class="btn" data-act="save-profile">${esc(L("saveProfile"))}</button>`;
 }
 
 function searchScreen() {
   const posts = filters.query ? visiblePosts(state, { query: filters.query, sort: "new" }) : [];
-  return `<button class="ghost" data-act="back">${esc(L("back"))}</button>
+  return `${backButton()}
     <input id="search" type="search" placeholder="${esc(L("searchPrompt"))}" value="${esc(filters.query)}" aria-label="${esc(L("search"))}">
     <div class="stack">${posts.length ? posts.map(postCard).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay resultados" : "No results")}</p>`}</div>`;
 }

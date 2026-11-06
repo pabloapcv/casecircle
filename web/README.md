@@ -72,3 +72,9 @@ CASECIRCLE_LLM_MOCK=1 python3 serve.py 8766
 ```
 
 Then open a folder in Prepare. Mock replies start with “Test-only mock reply”.
+
+## Visual design
+
+The UI follows the Paper "mineral" design. Tokens (colors, radii, font) are CSS custom properties at the top of `styles.css`; a dark variant is under `prefers-color-scheme: dark`. The font is Inter Tight from Google Fonts with the system sans as fallback, so the browser requests the font files from Google; no case data, documents, or checklist content is part of that request.
+
+On screens 1100px and wider, Feed, a case group, and a post show a right sidebar ("Your case", saved posts, tools, community rules). Its data comes from `sidebar.js`, which only reads local state; `sidebar.test.js` covers it.

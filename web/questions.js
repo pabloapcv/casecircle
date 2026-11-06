@@ -341,7 +341,25 @@ const home = {
   answersBody: ["Ask the public posts, or read the common questions.", "Pregunta a las publicaciones públicas o lee las preguntas comunes."],
   interviewPrep: ["Interview prep", "Preparar la entrevista"],
   interviewPrepBody: ["Tips and what people saw at their field office.", "Consejos y lo que la gente vio en su oficina."],
-  emptyFeedBody: ["Post the first question, or join another case group.", "Publica la primera pregunta o únete a otro grupo de caso."]
+  emptyFeedBody: ["Post the first question, or join another case group.", "Publica la primera pregunta o únete a otro grupo de caso."],
+  sidebarLabel: ["Your case and saved posts", "Tu caso y publicaciones guardadas"],
+  yourCase: ["Your case", "Tu caso"],
+  monthsSinceFiling: ["months since filing", "meses desde la presentación"],
+  monthSinceFiling: ["month since filing", "mes desde la presentación"],
+  filedThisMonth: ["Filed this month", "Presentado este mes"],
+  waitLonger: ["Longer than {p}% of {n} similar timelines on CaseCircle.", "Más larga que el {p}% de {n} tiempos parecidos en CaseCircle."],
+  waitNoCompare: ["Not enough similar timelines to compare yet.", "Aún no hay suficientes tiempos parecidos para comparar."],
+  moreCases: ["+{n} more in Check the wait", "+{n} más en Revisa la espera"],
+  caseEmptyTitle: ["No case added yet", "Aún no agregas un caso"],
+  caseEmptyBody: ["Add your form, filing month and stage to see your months since filing here. It stays in this browser.", "Agrega tu formulario, mes de presentación y etapa para ver aquí tus meses desde la presentación. Se queda en este navegador."],
+  savedTitle: ["Saved posts", "Publicaciones guardadas"],
+  savedSeeAll: ["See all saved ({n})", "Ver todo lo guardado ({n})"],
+  savedEmptyBody: ["Tap Save on a post to keep it here.", "Toca Guardar en una publicación para tenerla aquí."],
+  rulesLinkBody: ["Be kind, and never post receipt numbers or other ID numbers.", "Sé amable y nunca publiques números de recibo ni otros identificadores."],
+  postMissingBody: ["This thread was removed or the link is out of date.", "Esta conversación se eliminó o el enlace ya no sirve."],
+  backToFeed: ["Back to Feed", "Volver al inicio"],
+  groupEmptyBody: ["Be the first to ask a question in {g}.", "Sé la primera persona en preguntar en {g}."],
+  langSwitch: ["Language", "Idioma"]
 };
 
 const painRows = [

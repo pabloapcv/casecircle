@@ -10,3 +10,5 @@ xcuserdata/
 *.store
 *.store-shm
 *.store-wal
+web/data/cache/
+__pycache__/

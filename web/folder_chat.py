@@ -19,6 +19,9 @@ MAX_HISTORY = 8
 MAX_ITEMS = 80
 MAX_LABEL = 200
 MAX_TURNS_TEXT = 1_000
+MAX_FINDINGS = 40
+MAX_FINDING_TEXT = 300
+FINDING_STATUS = {"matches", "possible_issue", "mismatch"}
 PROVIDER_TIMEOUT = 30
 MAX_OUTPUT_TOKENS = 800
 RATE_MAX = 8
@@ -153,10 +156,26 @@ def validate_payload(data: Any) -> tuple[dict[str, Any] | None, dict[str, str] |
             status = "need"
         label = str(item.get("label") or "")[:MAX_LABEL]
         items.append({"id": item_id, "label": label, "status": status})
+    findings_in = data.get("findings")
+    findings: list[dict[str, str]] = []
+    if findings_in is not None:
+        if not isinstance(findings_in, list):
+            return None, {"error": "invalid", "reason": "findings"}
+        for row in findings_in[:MAX_FINDINGS]:
+            if not isinstance(row, dict):
+                return None, {"error": "invalid", "reason": "findings"}
+            item_id = str(row.get("itemId") or "")
+            status = str(row.get("status") or "")
+            if not re.fullmatch(r"[a-z0-9-]{1,48}", item_id) or status not in FINDING_STATUS:
+                return None, {"error": "invalid", "reason": "findings"}
+            code = re.sub(r"[^a-z_]", "", str(row.get("code") or ""))[:24]
+            message = str(row.get("message") or "").strip()[:MAX_FINDING_TEXT]
+            findings.append({"itemId": item_id, "status": status, "code": code, "message": message})
     official = OFFICIAL_URLS[space_id]
     parts = [question, form, official]
     parts.extend(row["text"] for row in history)
     parts.extend(row["label"] for row in items)
+    parts.extend(row["message"] for row in findings)
     for part in parts:
         scanned = scan_text(part)
         if scanned["verdict"] == "block":
@@ -168,6 +187,7 @@ def validate_payload(data: Any) -> tuple[dict[str, Any] | None, dict[str, str] |
         "question": question,
         "history": history,
         "items": items,
+        "findings": findings,
         "officialUrl": official,
     }, None
 
@@ -200,6 +220,15 @@ def context_message(payload: dict[str, Any]) -> str:
     ]
     for item in payload["items"]:
         lines.append(f"- [{item['status']}] {item['label']}")
+    findings = payload.get("findings") or []
+    if findings:
+        labels = {item["id"]: item["label"] for item in payload["items"]}
+        lines.append("Document check findings the user chose to share (from CaseCircle's document check; documents themselves are not attached):")
+        for row in findings:
+            where = labels.get(row["itemId"], row["itemId"])
+            detail = f" {row['code']}: {row['message']}" if row["message"] else ""
+            lines.append(f"- {where} -> {row['status']}{detail}")
+        lines.append("Use these findings to suggest concrete fixes. Folder readiness is about completeness and consistency, never a prediction of a decision.")
     return "\n".join(lines)
 
 
@@ -216,6 +245,24 @@ def provider_messages(payload: dict[str, Any]) -> list[dict[str, str]]:
 
 def mock_reply(payload: dict[str, Any]) -> str:
     missing = [item["label"] for item in payload["items"] if item["status"] == "need"][:3]
+    issues = [row for row in payload.get("findings") or [] if row["status"] != "matches"][:2]
+    if issues:
+        detail = "; ".join(row["message"] or row["code"] for row in issues)
+        if payload["lang"] == "es":
+            return (
+                "Respuesta de prueba solamente (Demo AI, no es un modelo de lenguaje). "
+                f"Según los hallazgos que compartiste, empieza por: {detail}. "
+                "Corrige eso y vuelve a revisar el documento. "
+                "La preparación de la carpeta mide orden y consistencia, no predice la decisión de USCIS. "
+                f"Confirma los requisitos vigentes en {payload['officialUrl']}."
+            )
+        return (
+            "Test-only mock reply (Demo AI, not a language model). "
+            f"From the findings you shared, start with: {detail}. "
+            "Fix that and re-check the document. "
+            "Folder readiness measures completeness and consistency; it can't predict USCIS's decision. "
+            f"Confirm current requirements at {payload['officialUrl']}."
+        )
     gap = "; ".join(missing) if missing else (
         "the checklist is marked; still read the official instructions before you file"
     )

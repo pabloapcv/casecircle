@@ -1,12 +1,12 @@
 import { spaceById } from "./logic.js";
 
 /*
- * Information architecture.
- * Four destinations, each with one plain job:
- *   feed    -> posts from your case groups (case-group switcher + post-type filters live inside it)
- *   wait    -> Check the wait (timelines)
- *   papers  -> Gather papers (folder prep + folder AI chat)
- *   answers -> Ask the posts + common questions
+ * Information architecture. Tools first, community second:
+ *   papers    -> Folder Builder (guided AI chat, checklist, document checks, folder readiness)
+ *   wait      -> Check the wait (official times, public-post timelines, next steps)
+ *   interview -> Interview prep
+ *   insights  -> Insights from public posts (+ Ask the posts and common questions)
+ *   feed      -> Community: posts from your case groups
  * Plus the account menu (profile, cases, language, rules).
  * Internal route names are unchanged so saved state and old deep links keep working;
  * public slugs and legacy ids both resolve through ROUTE_ALIASES.
@@ -22,11 +22,15 @@ export const ROUTE_ALIASES = {
   new: "ask", ask: "ask", "new-post": "ask",
   interview: "interview", search: "search",
   pricing: "pricing", price: "pricing", "case-pass": "pricing",
-  form: "form"
+  form: "form",
+  insights: "insights", datos: "insights", data: "insights",
+  builder: "prepare", "folder-builder": "prepare"
 };
-export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", ask: "new", interview: "interview", search: "search", pricing: "pricing" };
+export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", ask: "new", interview: "interview", search: "search", pricing: "pricing", insights: "insights" };
 export const SECTION_OF = {
-  home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", interview: "feed", form: "feed",
+  home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", form: "feed",
+  interview: "interview",
+  insights: "insights",
   timelines: "wait", "profile-edit": "wait",
   prepare: "papers",
   bot: "answers", questions: "answers",

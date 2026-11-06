@@ -1,0 +1,23 @@
+{
+ "checkedAt": "2026-11-05T20:52:00-05:00",
+ "fetchedAt": null,
+ "status": "unavailable",
+ "officialUrl": "https://egov.uscis.gov/processing-times/",
+ "moreInfoUrl": "https://egov.uscis.gov/processing-times/more-info",
+ "faqUrl": "https://egov.uscis.gov/processing-times/processing-times-faqs",
+ "note": "No official numbers are bundled. On 2026-11-05 every request from the build machine to egov.uscis.gov (the processing-times page and /processing-times/api/forms, /api/formtypes/I-485, /api/processingtime/I-485/NBC) returned HTTP 403 with a Cloudflare challenge, from curl and from headless Chrome. Numbers were not copied from third-party mirrors. The server retries the live API at most once a day per form and office and caches what it gets.",
+ "attempts": [
+  { "url": "https://egov.uscis.gov/processing-times/", "result": "HTTP 403 (Cloudflare challenge)" },
+  { "url": "https://egov.uscis.gov/processing-times/api/forms", "result": "HTTP 403 (Cloudflare challenge)" },
+  { "url": "https://egov.uscis.gov/processing-times/api/formtypes/I-485", "result": "HTTP 403 (Cloudflare challenge)" },
+  { "url": "https://egov.uscis.gov/processing-times/api/processingtime/I-485/NBC/", "result": "HTTP 403 (Cloudflare challenge)" }
+ ],
+ "forms": {
+  "I-485": { "formUrl": "https://www.uscis.gov/i-485", "offices": {} },
+  "I-130": { "formUrl": "https://www.uscis.gov/i-130", "offices": {} },
+  "I-751": { "formUrl": "https://www.uscis.gov/i-751", "offices": {} },
+  "N-400": { "formUrl": "https://www.uscis.gov/n-400", "offices": {} },
+  "I-765": { "formUrl": "https://www.uscis.gov/i-765", "offices": {} },
+  "I-131": { "formUrl": "https://www.uscis.gov/i-131", "offices": {} }
+ }
+}

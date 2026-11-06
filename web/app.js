@@ -13,6 +13,13 @@ import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpac
 import { askPosts, botPrompts } from "./bot.js";
 import { SECTION_OF, hashForRoute, initialFor, resolveRouteName, routeFromHash } from "./nav.js";
 import { caseSummary, savedPosts } from "./sidebar.js";
+import { toolsText } from "./tools-text.js";
+import { BUILDER_FORMS, answerLabel, buildPlan, inferFromDescription, mergeAiPlan, nextQuestion, questionsFor, suggestItem } from "./builder.js";
+import { computeReadiness, crossDocFindings, readinessBand, topFixes } from "./readiness.js";
+import { maskIdentifiers } from "./redact.js";
+import { deleteText, extractFromFile, kindOf, loadText, saveText, keepFile } from "./extract.js";
+import { folderSummaryHtml } from "./summary.js";
+import { NEXT_STEPS, OFFICIAL, WAIT_FORMS, rangeBar, waitPosition } from "./insights.js";
 
 const KEY = "casecircle.web.v3";
 /** A/B test Case Pass price: set to 19 or 29. Documented in README. */
@@ -38,6 +45,11 @@ let rfeParsed = null;
 let waitCalcProfile = null;
 let evidenceMarks = {};
 const folderChats = new Map();
+// Tools state (in memory; folder data itself lives in state.folders and IndexedDB)
+let aiStatus = { loaded: false, inflight: false, available: false, mock: false, provider: "", host: "", model: "" };
+const builderUi = { desc: "", pending: null, pasteFor: "", pasteDraft: "", consentFor: "", consentDraft: "", consentCounts: 0, consentAgree: false, busy: {}, errors: {}, tailoring: "", showChat: false };
+const dataCache = { timelines: null, insights: null, loading: false, failed: false };
+const officialCache = new Map();
 let folderChatStatus = { available: null, mock: false, reason: "", loaded: false, inflight: false };
 let folderChatAbort = null;
 
@@ -95,6 +107,7 @@ function H(key) { return homeText(lang(), key); }
 function Pr(key) { return pricingText(lang(), key); }
 function Help(key) { return helpText(lang(), key); }
 function FormSeo(key) { return formSeoText(lang(), key); }
+function T(key, vars) { return toolsText(lang(), key, vars); }
 function casePassPriceLabel() {
   return lang() === "es" ? `US$${CASE_PASS_PRICE_USD} (una vez)` : `$${CASE_PASS_PRICE_USD} one-time`;
 }
@@ -135,6 +148,7 @@ function boot() {
     const fromHash = routeFromHash(location.hash);
     if (fromHash) state.route = fromHash;
   }
+  ensureData();
   render();
 }
 
@@ -161,7 +175,7 @@ function render() {
     if (field) {
       field.focus();
       const end = field.value?.length ?? 0;
-      field.setSelectionRange?.(end, end);
+      if (/^(text|search|textarea|email|url|tel|password)$/.test(field.type || "")) field.setSelectionRange?.(end, end);
     }
     restoreFocus = "";
   }
@@ -214,6 +228,13 @@ const ICONS = {
   globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/>',
   shield: '<path d="M12 3.5 5 6.5v5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9v-5z"/>',
   book: '<path d="M5 4.5h10a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2z"/><path d="M5 17.5a2 2 0 0 1 2-2h10"/>',
+  interview: '<rect x="9" y="3.5" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M9 20.5h6"/>',
+  insights: '<path d="M5 19.5V11M10 19.5V5.5M15 19.5v-6M20 19.5V8.5"/>',
+  spark: '<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/>',
+  upload: '<path d="M12 15V4.5M7.5 9 12 4.5 16.5 9"/><path d="M5 15.5v3a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-3"/>',
+  doc: '<path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4"/>',
+  lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   groups: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 15.2A4.5 4.5 0 0 1 20.5 19"/>'
 };
 function icon(name, size = 20) {
@@ -237,12 +258,14 @@ function fill(text, values) {
   return String(text).replace(/\{(\w+)\}/g, (_, key) => (key in values ? values[key] : ""));
 }
 
+/* Tools first, community last. "Insights" also owns Ask the posts and the common questions. */
 function navItems() {
   return [
-    { id: "feed", route: "home", label: H("navFeed"), short: H("navFeed") },
-    { id: "wait", route: "timelines", label: Q("pathWait"), short: H("navWaitShort") },
-    { id: "papers", route: "prepare", label: Q("pathFolder"), short: H("navPapersShort") },
-    { id: "answers", route: "bot", label: H("navAnswers"), short: H("navAnswers") }
+    { id: "papers", route: "prepare", label: T("navBuilder"), short: T("navBuilderShort") },
+    { id: "wait", route: "timelines", label: T("navWait"), short: T("navWaitShort") },
+    { id: "interview", route: "interview", label: T("navInterview"), short: T("navInterviewShort") },
+    { id: "insights", route: "insights", label: T("navInsights"), short: T("navInsightsShort"), also: ["answers"] },
+    { id: "feed", route: "home", label: T("navCommunity"), short: T("navCommunityShort") }
   ];
 }
 
@@ -261,7 +284,7 @@ function topbar() {
   const user = me(state);
   const current = section();
   const item = (entry) => {
-    const on = current === entry.id;
+    const on = current === entry.id || (entry.also || []).includes(current);
     return `<a href="#${entry.id}" data-act="tab" data-tab="${entry.route}" class="nav-link${on ? " on" : ""}"${on ? ' aria-current="page"' : ""}>${esc(entry.label)}</a>`;
   };
   const name = user?.username || L("you");
@@ -269,7 +292,7 @@ function topbar() {
   return `<a href="#main" class="skip-link">${esc(H("skipToContent"))}</a>
   <header class="topbar app-bar">
     <div class="bar-inner">
-      <a href="#feed" class="brand" data-act="tab" data-tab="home" aria-label="${esc(`${L("appName")} — ${H("navFeed")}`)}">
+      <a href="#papers" class="brand" data-act="tab" data-tab="prepare" aria-label="${esc(`${L("appName")} — ${T("navBuilder")}`)}">
         ${logoMark(28)}
         <span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span>
       </a>
@@ -313,7 +336,7 @@ function bottomNav() {
   if (!user) return "";
   const current = section();
   const item = (entry) => {
-    const on = current === entry.id;
+    const on = current === entry.id || (entry.also || []).includes(current);
     return `<a href="#${entry.id}" data-act="tab" data-tab="${entry.route}" class="${on ? "on" : ""}"${on ? ' aria-current="page"' : ""}>${icon(entry.id, 22)}<span>${esc(entry.short)}</span></a>`;
   };
   return `<nav class="bottom-nav" aria-label="${esc(H("navMain"))}">${navItems().map(item).join("")}</nav>`;
@@ -449,6 +472,7 @@ function screen() {
   if (route.name === "explain") return landing({ signed: true });
   if (route.name === "spaces") return spacesScreen();
   if (route.name === "timelines") return timelinesScreen();
+  if (route.name === "insights") return insightsScreen();
   if (route.name === "bot") return botScreen();
   if (route.name === "you") return youScreen();
   if (route.name === "interview") return interviewScreen(route.spaceId);
@@ -471,7 +495,7 @@ function welcome() {
   return `<div class="site">
     <header class="topbar public-bar">
       <button class="brand" data-act="public-home" aria-label="CaseCircle Home">${logoMark(28)}<span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span></button>
-      ${home ? `<nav class="nav" aria-label="Navigation">${jump("painpoints", H("homeNavPain"))}${jump("compare", H("homeNavCompare"))}${jump("pricing", H("homeNavPricing"))}${jump("find-help", H("homeNavHelp"))}</nav>` : `<div class="nav"></div>`}
+      ${home ? `<nav class="nav" aria-label="Navigation"><button data-act="start-tool" data-route="prepare">${esc(T("navBuilder"))}</button><button data-act="start-tool" data-route="timelines">${esc(T("navWait"))}</button><button data-act="start-tool" data-route="interview">${esc(T("navInterview"))}</button>${jump("insights-home", T("navInsights"))}${jump("talk", T("navCommunity"))}${jump("pricing", H("homeNavPricing"))}${jump("find-help", H("homeNavHelp"))}</nav>` : `<div class="nav"></div>`}
       <div class="top-actions">${langToggle()}</div>
     </header>
     <main class="page" id="main">${step === 0 ? publicMain() : onboardingScreen()}</main>
@@ -510,19 +534,7 @@ function landing({ signed = false } = {}) {
     </button>`;
   }).join("");
 
-  return `<section class="home-hero" id="start">
-      <div>
-        <p class="kicker">${esc(L("notAffiliated"))}</p>
-        <h1>${esc(H("homeTitle"))}</h1>
-        <p class="lede">${esc(H("homeLede"))}</p>
-        <div class="cta">
-          ${signed ? `<button class="btn" data-act="tab" data-tab="home">${esc(H("openFeed"))}</button>` : onboard.showEmail ? `<div class="narrow">${emailBox()}</div>` : `<button class="btn" data-act="show-email">${esc(H("again"))}</button>`}
-          ${!signed ? `<button class="btn-secondary" data-act="demo">${esc(L("reviewerDemo"))}</button>` : ""}
-          <button class="btn-secondary" data-act="home-section" data-id="pricing">${esc(H("homeNavPricing"))}</button>
-        </div>
-        <p class="note">${esc(H("homeTrust"))}</p>
-      </div>
-    </section>
+  return `${toolsHero(signed)}
 
     <section class="home-section" id="painpoints">
       <h2>${esc(H("painsTitle"))}</h2>
@@ -554,6 +566,12 @@ function landing({ signed = false } = {}) {
       <div class="card-grid">${formCards}</div>
     </section>
 
+    <section class="home-section" id="how">
+      <h2>${esc(H("howTitle"))}</h2>
+      <p class="lede">${esc(H("howLead"))}</p>
+      <div class="how-grid">${steps.map((item, index) => `<article><span>${index + 1}</span><h3>${esc(item.title)}</h3><p>${esc(item.body)}</p></article>`).join("")}</div>
+    </section>
+
     <section class="home-section" id="talk">
       <h2>${esc(Q("sayingTitle"))}</h2>
       <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalog().length))} ${esc(Q("dataListed"))}</p>
@@ -562,12 +580,6 @@ function landing({ signed = false } = {}) {
       <h3>${esc(Q("dataTitles"))}</h3>
       <div class="feed">${redditCatalog().slice(0, webShown.home).map((item) => webCard(item, signed)).join("")}</div>
       ${redditCatalog().length > webShown.home ? `<button class="ghost" data-act="more-web" data-list="home">${esc(Q("dataMore"))}</button>` : ""}
-    </section>
-
-    <section class="home-section" id="how">
-      <h2>${esc(H("howTitle"))}</h2>
-      <p class="lede">${esc(H("howLead"))}</p>
-      <div class="how-grid">${steps.map((item, index) => `<article><span>${index + 1}</span><h3>${esc(item.title)}</h3><p>${esc(item.body)}</p></article>`).join("")}</div>
     </section>
 
     ${pricingSection()}
@@ -699,6 +711,7 @@ function spacesStep() {
     </button>`;
   }).join("");
   return `<h1>${esc(L("spacesTitle"))}</h1><p class="muted">${esc(H("joinSpaces"))}</p>
+    <p class="onboard-tools">${icon("spark", 18)}<span>${esc(T("onboardToolsNote"))}</span></p>
     <div class="card-grid">${cards}</div>
     <button class="ghost" data-act="show-forms">${esc(showAllForms ? Q("showFewer") : Q("showAllForms"))}</button>`;
 }
@@ -869,6 +882,8 @@ function caseRail(preferSpaceId = "") {
     </section>`;
   const toolsCard = `<section class="rail-card" aria-labelledby="rail-tools">
       <h2 class="rail-label" id="rail-tools">${esc(H("addons"))}</h2>
+      <a class="rail-tool" href="#papers" data-act="tab" data-tab="prepare"><strong>${esc(T("navBuilder"))}</strong><span>${esc(T("toolBuilderBody"))}</span></a>
+      <a class="rail-tool" href="#insights" data-act="tab" data-tab="insights"><strong>${esc(T("navInsights"))}</strong><span>${esc(T("insightsHomeLead"))}</span></a>
       <a class="rail-tool" href="#answers" data-act="tab" data-tab="bot"><strong>${esc(H("navAnswers"))}</strong><span>${esc(H("answersBody"))}</span></a>
       <a class="rail-tool" href="#interview=${esc(summary?.spaceId || user.profiles?.[0]?.spaceId || "i-485")}" data-act="open-interview" data-id="${esc(summary?.spaceId || user.profiles?.[0]?.spaceId || "i-485")}"><strong>${esc(H("interviewPrep"))}</strong><span>${esc(H("interviewPrepBody"))}</span></a>
     </section>`;
@@ -1115,35 +1130,6 @@ function questionsScreen() {
     <ol>${quietSteps(lang()).map((step) => `<li><strong>${esc(step.title)}.</strong> ${esc(step.body)} <a href="${esc(step.href)}" target="_blank" rel="noreferrer">${esc(step.link)}</a></li>`).join("")}</ol>`;
 }
 
-function timelinesScreen() {
-  const user = me(state);
-  const cases = [...(user?.profiles || [])].sort((a, b) => new Date(b.filed) - new Date(a.filed));
-  const notes = [...new Set(cases.map((profile) => profile.spaceId))].map((id) => waitNote(lang(), id)).filter(Boolean);
-  
-  return `<div class="page-head">
-    <p class="kicker">${esc(L("notAffiliated"))}</p>
-    <h1>${esc(Q("waits"))}</h1>
-    <p class="muted">${esc(Q("waitsLead"))}</p>
-  </div>
-  
-  ${waitCalculator()}
-  
-  ${notes.map((note) => `<h2>${esc(Q("yourWait"))}: ${esc(note.title)}</h2><p>${esc(note.body)}</p>`).join("")}
-  
-  <h2>${esc(L("yourCases"))}</h2>
-  <div class="card-grid">${cases.map((profile) => `<button class="card" data-act="edit-profile" data-id="${esc(profile.spaceId)}"><strong>${esc(spaceName(lang(), profile.spaceId))}</strong><div class="kicker">${esc(badge(lang(), profile))}</div><div>${monthsSince(profile.filed)} ${esc(L("months"))} ${esc(L("sinceFiling"))}</div></button>`).join("") || emptyProfileState()}
-    <button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button>
-  </div>
-  
-  <h2>${esc(Q("ifQuiet"))}</h2>
-  <ol>${quietSteps(lang()).map((step) => `<li><strong>${esc(step.title)}.</strong> ${esc(step.body)} <a href="${esc(step.href)}" target="_blank" rel="noreferrer">${esc(step.link)}</a></li>`).join("")}</ol>
-  
-  <p><a href="https://egov.uscis.gov/processing-times/" target="_blank" rel="noreferrer">${esc(L("official"))}</a></p>
-  <p class="footer-note muted">${esc(L("officialNote"))}</p>
-  
-  ${legalDisclaimer()}`;
-}
-
 function emptyProfileState() {
   return `<div class="empty-state" style="grid-column: 1/-1;">
     ${icon("papers", 40)}
@@ -1225,7 +1211,7 @@ function readFolder(spaceId) {
 
 function chatFor(spaceId) {
   if (!folderChats.has(spaceId)) {
-    folderChats.set(spaceId, { consent: false, draft: "", messages: [], status: "idle", error: "", retry: "" });
+    folderChats.set(spaceId, { consent: false, shareFindings: false, draft: "", messages: [], status: "idle", error: "", retry: "" });
   }
   return folderChats.get(spaceId);
 }
@@ -1279,6 +1265,7 @@ function folderChatPanel(spaceId, packet, folder) {
     ${unavailable ? `<div class="chat-unavailable" role="status"><strong>${esc(P("chatUnavailable"))}</strong><p>${esc(P("chatUnavailableBody"))}</p></div>` : ""}
     ${folderChatStatus.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : ""}
     ${unavailable || pendingStatus ? "" : `<label class="check-item chat-consent"><input id="chat-consent" type="checkbox" data-act="chat-consent" data-space="${esc(spaceId)}" ${chat.consent ? "checked" : ""} ${loading ? "disabled" : ""}><span>${esc(P("chatConsent"))}</span></label>`}
+    ${unavailable || pendingStatus || !(folder.docs || []).some((doc) => doc.check) ? "" : `<label class="check-item chat-consent"><input id="chat-findings" type="checkbox" data-act="chat-findings" data-space="${esc(spaceId)}" ${chat.shareFindings ? "checked" : ""} ${loading ? "disabled" : ""}><span>${esc(T("chatFindingsConsent"))}</span></label>`}
     <div class="chat-log" id="chat-log" role="log" aria-live="polite">${messages || (unavailable || pendingStatus ? "" : `<p class="muted">${esc(P("chatEmpty"))}</p>`)}</div>
     ${loading ? `<p class="muted" role="status">${esc(P("chatLoading"))}</p>` : ""}
     ${chat.error ? `<p class="danger" role="alert">${esc(chat.error)}</p>` : ""}
@@ -1298,13 +1285,20 @@ async function sendFolderChat(spaceId, question) {
     return;
   }
   const folder = readFolder(spaceId);
+  const input = BUILDER_FORMS.includes(spaceId) ? readinessInput(spaceId) : null;
+  const findings = input && chat.shareFindings
+    ? [...input.docs.flatMap((doc) => (doc.check?.findings || []).filter((row) => !row.resolved).map((row) => ({ itemId: doc.itemId, status: doc.check.status, code: row.code, message: row.message }))),
+       ...input.cross.filter((row) => !row.resolved).map((row) => ({ itemId: row.itemId, status: "possible_issue", code: row.code, message: row.message }))]
+    : undefined;
   const payload = buildFolderChatPayload({
     spaceId,
     lang: lang(),
     question: asked,
     history: chat.messages.filter((row) => !row.streaming).map((row) => ({ role: row.role, text: row.text })),
     folder,
-    consent: true
+    consent: true,
+    items: input ? input.items.map((item) => ({ id: item.id, label: itemLabel(item), status: input.marks[item.id] || "need" })) : undefined,
+    findings
   });
   const blocked = scanFolderChatPayload(payload);
   if (blocked.verdict === "block") {
@@ -1414,84 +1408,747 @@ async function sendFolderChat(spaceId, question) {
   }
 }
 
-function prepareScreen(spaceId) {
-  const user = me(state);
-  const choices = [...new Set([...(user?.spaces || []), "i-485", "i-765", "n-400", "i-130", "i-751", "i-131"])];
-  
-  if (!spaceId || !spaceById(spaceId)) {
-    return `<div class="page-head">
-      <h1>${esc(Q("pathFolder"))}</h1>
-      <p class="muted">${esc(P("folderLead"))}</p>
-    </div>
-    <h2>${esc(P("pickForm"))}</h2>
-    <div class="card-grid">${choices.map((id) => {
-      const item = spaceById(id);
-      if (!item) return "";
-      const folder = readFolder(id);
-      const packet = packetFor(id);
-      const counts = tally(packet, folder);
-      const score = calculateScore(packet, folder);
-      return `<button class="card" data-act="open-folder" data-id="${esc(id)}">
-        <div class="kicker">${esc(item.forms[0])}</div>
-        <strong>${esc(lang() === "es" ? item.es : item.en)}</strong>
-        <div class="progress" style="margin:8px 0 4px"><span style="width:${score}%"></span></div>
-        <div class="muted">${counts.ready}/${counts.total} ${esc(P("progress"))}</div>
-      </button>`;
-    }).join("")}</div>
-    
-    ${rfeHelperSection()}
-    
-    ${legalDisclaimer()}`;
+/* ───────────── Tools: shared ───────────── */
+async function ensureAiStatus() {
+  if (aiStatus.loaded || aiStatus.inflight) return;
+  aiStatus.inflight = true;
+  try {
+    const response = await fetch("/api/ai-status", { headers: { Accept: "application/json" } });
+    const data = response.ok ? await response.json() : {};
+    aiStatus = { loaded: true, inflight: false, available: Boolean(data.available), mock: Boolean(data.mock), provider: String(data.provider || ""), host: String(data.host || ""), model: String(data.model || "") };
+  } catch {
+    aiStatus = { loaded: true, inflight: false, available: false, mock: false, provider: "", host: "", model: "" };
   }
-  
-  const packet = packetFor(spaceId);
+  render();
+}
+
+function ensureData() {
+  if (dataCache.timelines || dataCache.loading || dataCache.failed) return;
+  dataCache.loading = true;
+  Promise.all([
+    fetch("data/timelines.json").then((r) => { if (!r.ok) throw new Error("t"); return r.json(); }),
+    fetch("data/insights.json").then((r) => { if (!r.ok) throw new Error("i"); return r.json(); })
+  ]).then(([timelines, insights]) => {
+    dataCache.timelines = timelines;
+    dataCache.insights = insights;
+  }).catch(() => { dataCache.failed = true; }).finally(() => { dataCache.loading = false; render(); });
+}
+
+function officialFor(form, office) {
+  const key = `${form}|${office || ""}`;
+  if (officialCache.has(key)) return officialCache.get(key);
+  officialCache.set(key, { loading: true });
+  fetch(`/api/processing-times?form=${encodeURIComponent(form)}&office=${encodeURIComponent(office || "")}`, { headers: { Accept: "application/json" } })
+    .then((r) => r.json())
+    .then((data) => officialCache.set(key, data))
+    .catch(() => officialCache.set(key, { source: "none", data: null, officialUrl: OFFICIAL.processing }))
+    .finally(render);
+  return officialCache.get(key);
+}
+
+function demoPill() {
+  return aiStatus.mock ? `<span class="pill demo-ai" title="${esc(T("demoAiNote"))}">${icon("spark", 14)}${esc(T("demoAi"))}</span>` : "";
+}
+
+function formOfSpace(spaceId) {
+  return spaceById(spaceId)?.forms?.[0] || spaceId.toUpperCase();
+}
+
+function extLink(href, label) {
+  return `<a href="${esc(href)}" target="_blank" rel="noreferrer">${esc(label)}</a>`;
+}
+
+/* Guest account for the tools: no email, nothing leaves this browser. */
+function startTool(route) {
+  if (!state.meId) {
+    const taken = new Set(state.members.map((person) => person.username.toLowerCase()));
+    let guest = "";
+    for (let i = 0; i < 20; i += 1) {
+      guest = `guest_${Math.random().toString(36).slice(2, 8)}`;
+      if (!taken.has(guest) && !usernameIssue(guest, taken)) break;
+    }
+    const result = createAccount(state, { username: guest, email: "", locale: lang(), spaceIds: ["i-485", "i-130", "n-400"], profile: null });
+    if (!result.ok) { toast = L(result.error) || result.error; render(); return; }
+    state = result.state;
+  }
+  state.route = route;
+  save();
+  render();
+  window.scrollTo?.(0, 0);
+}
+
+/* ───────────── Folder Builder: data ───────────── */
+function builderOf(spaceId) {
   const folder = readFolder(spaceId);
-  const counts = tally(packet, folder);
-  const focus = packet.sections.find((section) => section.id === folder.focus) || packet.sections[0];
-  if (!folderChatStatus.loaded) ensureChatStatus();
-  const pct = Math.round((counts.ready / Math.max(counts.total, 1)) * 100);
-  
-  const scoreLevel = pct >= 80 ? "high" : pct >= 50 ? "medium" : "low";
-  const profile = user?.profiles?.find(p => p.spaceId === spaceId);
-  const riskFlags = profile ? calculateRiskFlags(lang(), profile, folder) : [];
-  
-  return `<div class="spread">
-    ${backButton(P("backToForms"), 'data-act="tab" data-tab="prepare"')}
-  </div>
-  <div class="page-head">
-    <p class="kicker">${esc(packet.form)}</p>
-    <h1>${esc(spaceName(lang(), spaceId))}</h1>
-    <p class="muted">${esc(P("folderLead"))}</p>
-  </div>
-  
-  <div class="score-meter" style="max-width:400px;margin-bottom:24px;">
-    <div class="score-label">
-      <span>${esc(P("checklistProgress"))}</span>
-      <span class="value">${counts.ready}/${counts.total}</span>
+  if (!folder.builder || typeof folder.builder !== "object") folder.builder = { answers: {}, description: "", done: false, ai: null, skippedAi: false };
+  if (!folder.builder.answers) folder.builder.answers = {};
+  if (!Array.isArray(folder.docs)) folder.docs = [];
+  if (!Array.isArray(folder.resolvedCross)) folder.resolvedCross = [];
+  return folder;
+}
+
+function planFor(spaceId) {
+  const folder = builderOf(spaceId);
+  return mergeAiPlan(buildPlan(spaceId, folder.builder.answers), folder.builder.ai);
+}
+
+function itemLabel(item) {
+  return lang() === "es" ? item.es : item.en;
+}
+
+function readinessInput(spaceId) {
+  const folder = builderOf(spaceId);
+  const plan = planFor(spaceId);
+  const ids = new Set(plan.items.map((item) => item.id));
+  const docs = folder.docs.filter((doc) => ids.has(doc.itemId));
+  const cross = crossDocFindings(docs, lang()).map((row) => ({ ...row, resolved: folder.resolvedCross.includes(`${row.docId}:${row.code}`) }));
+  return { items: plan.items, marks: folder.marks || {}, docs, cross, plan, folder };
+}
+
+function fixText(fix, items) {
+  const item = items.find((row) => row.id === fix.itemId);
+  const label = item ? itemLabel(item) : "";
+  if (fix.type === "add") return T("fixAdd", { item: label });
+  if (fix.type === "evidence") return T("fixEvidence", { item: label });
+  if (fix.type === "mismatch") return T("fixMismatch", { item: label });
+  if (fix.type === "check") return T("fixCheck");
+  const body = fix.fix || fix.message || "";
+  return label ? `${label}: ${body}` : body;
+}
+
+function folderScore(spaceId) {
+  const input = readinessInput(spaceId);
+  return computeReadiness(input).score;
+}
+
+/* ───────────── Folder Builder: start ───────────── */
+function builderStartScreen() {
+  const user = me(state);
+  const choices = [...new Set([...BUILDER_FORMS, ...(user?.spaces || []).filter((id) => BUILDER_FORMS.includes(id))])];
+  const pending = builderUi.pending;
+  const chips = choices.map((id) => `<button class="chip form-chip" data-act="builder-form" data-id="${esc(id)}"><strong>${esc(formOfSpace(id))}</strong><span>${esc(spaceName(lang(), id))}</span></button>`).join("");
+  const started = choices.filter((id) => {
+    const folder = state.folders?.[user?.id]?.[id];
+    return folder && (folder.builder?.done || Object.keys(folder.builder?.answers || {}).length || (folder.docs || []).length || Object.keys(folder.marks || {}).length);
+  });
+  return `<div class="page-head builder-head">
+      <p class="kicker">${icon("spark", 16)} ${esc(T("builderKicker"))} ${demoPill()}</p>
+      <h1>${esc(T("builderTitle"))}</h1>
+      <p class="lede">${esc(T("builderLead"))}</p>
+      <p class="legal-line">${esc(T("notLegal"))}</p>
     </div>
-    <div class="score-bar ${scoreLevel}"><span style="width:${pct}%"></span></div>
-    <p class="muted" style="margin:0">${esc(P("checklistProgressHint"))}</p>
+    <section class="builder-chat card" aria-label="${esc(T("builderKicker"))}">
+      <div class="bubbles">
+        ${botBubble(T("builderHello"))}
+        ${pending ? userBubble(pending.text) + botBubble(T("builderWhichForm")) : ""}
+      </div>
+      <div class="builder-compose">
+        <p class="compose-label">${esc(T("builderPickForm"))}</p>
+        <div class="form-chips" role="group" aria-label="${esc(T("builderPickForm"))}">${chips}</div>
+        ${pending ? "" : `<p class="compose-label or">${esc(T("builderOr"))}</p>
+        <label class="field sr-label"><span class="sr-only">${esc(T("builderOr"))}</span>
+          <textarea id="builder-desc" rows="3" placeholder="${esc(T("builderDescribePh"))}">${esc(builderUi.desc)}</textarea>
+        </label>
+        <div class="compose-row"><p class="hint">${icon("lock", 14)} ${esc(T("builderDescribeHint"))}</p><button class="btn" data-act="builder-describe">${esc(T("builderStart"))}</button></div>`}
+      </div>
+    </section>
+    ${started.length ? `<h2>${esc(T("formsTitle"))}</h2>
+    <div class="card-grid folder-cards">${started.map((id) => {
+      const score = folderScore(id);
+      const band = readinessBand(score);
+      return `<button class="card folder-card" data-act="open-folder" data-id="${esc(id)}">
+        <div class="kicker">${esc(formOfSpace(id))}</div>
+        <strong>${esc(spaceName(lang(), id))}</strong>
+        <div class="mini-ready ${band}"><span class="mini-score">${score}</span><span>${esc(T("readinessTitle"))}</span></div>
+        <div class="progress"><span style="width:${score}%"></span></div>
+      </button>`;
+    }).join("")}</div>` : ""}
+    ${rfeHelperSection()}
+    ${legalDisclaimer()}`;
+}
+
+function botBubble(text, extra = "") {
+  return `<div class="bubble bot"><span class="bubble-avatar" aria-hidden="true">${icon("spark", 16)}</span><div class="bubble-body"><p class="bubble-who">${esc(T("assistant"))}</p><p>${esc(text)}</p>${extra}</div></div>`;
+}
+function userBubble(text) {
+  return `<div class="bubble me"><div class="bubble-body"><p class="bubble-who">${esc(T("you"))}</p><p>${esc(text)}</p></div></div>`;
+}
+
+/* ───────────── Folder Builder: one folder ───────────── */
+function builderIntake(spaceId, folder, plan) {
+  const b = folder.builder;
+  const questions = questionsFor(spaceId);
+  const parts = [];
+  if (b.description) {
+    parts.push(userBubble(b.description));
+    const picked = Object.entries(b.inferred || {}).map(([key, value]) => {
+      const question = questions.find((row) => row.id === key);
+      return question ? `<li><span>${esc(lang() === "es" ? question.es : question.en)}</span> <strong>${esc(answerLabel(lang(), spaceId, key, value))}</strong></li>` : "";
+    }).filter(Boolean);
+    parts.push(botBubble(picked.length ? T("builderPicked", { list: picked.length }) : T("builderPickedNone"), picked.length ? `<ul class="picked">${picked.join("")}</ul>` : ""));
+  }
+  let open = null;
+  for (const question of questions) {
+    const value = b.answers[question.id];
+    if (value) {
+      if (b.inferred && b.inferred[question.id] === value) continue;
+      parts.push(botBubble(lang() === "es" ? question.es : question.en));
+      parts.push(userBubble(answerLabel(lang(), spaceId, question.id, value)));
+    } else if (!b.done) {
+      open = question;
+      break;
+    }
+  }
+  if (open) {
+    const options = open.options.map((option) => `<button class="chip answer-chip" data-act="builder-answer" data-space="${esc(spaceId)}" data-q="${esc(open.id)}" data-v="${esc(option.value)}">${esc(lang() === "es" ? option.es : option.en)}</button>`).join("");
+    parts.push(botBubble(lang() === "es" ? open.es : open.en, `${open.hint ? `<p class="hint">${esc(lang() === "es" ? open.hint.es : open.hint.en)}</p>` : ""}<div class="answer-chips" role="group">${options}</div>`));
+    parts.push(`<div class="intake-skip"><button class="ghost small" data-act="builder-skip" data-space="${esc(spaceId)}">${esc(T("builderSkipQuestions"))}</button></div>`);
+    return { html: parts.join(""), done: false };
+  }
+  const added = plan.items.filter((item) => item.source !== "base").length;
+  parts.push(botBubble(T("builderBuilt", { n: plan.items.length, added, removed: plan.removed.length })));
+  // AI tailoring (optional, consented by the button itself; answers + labels only)
+  if (b.ai) {
+    const notes = (b.ai.notes || []).map((note) => `<li>${esc(note)}</li>`).join("");
+    const changed = (b.ai.add || []).length + (b.ai.remove || []).length;
+    parts.push(botBubble(changed ? T("builderTailored", { add: (b.ai.add || []).length, remove: (b.ai.remove || []).length }) : T("builderTailoredNone"), `${b.ai.mock ? `<p class="chat-mock">${esc(T("demoAiNote"))}</p>` : ""}${notes ? `<ul class="ai-notes">${notes}</ul>` : ""}`));
+  } else if (builderUi.tailoring === spaceId) {
+    parts.push(botBubble(T("builderTailoring")));
+  } else if (!b.skippedAi) {
+    const ready = aiStatus.loaded && aiStatus.available;
+    const actions = ready
+      ? `<div class="answer-chips"><button class="btn small" data-act="builder-tailor" data-space="${esc(spaceId)}">${icon("spark", 14)} ${esc(T("builderTailorBtn"))}</button><button class="chip" data-act="builder-tailor-skip" data-space="${esc(spaceId)}">${esc(T("builderTailorSkip"))}</button></div>
+         <p class="hint">${esc(aiStatus.mock ? T("consentToDemo") : T("consentToProvider", { provider: aiStatus.provider, host: aiStatus.host, model: aiStatus.model }))}</p>`
+      : "";
+    parts.push(botBubble(aiStatus.loaded && !aiStatus.available ? T("builderTailorUnavailable") : T("builderTailorAsk"), actions));
+  }
+  if (b.aiError) parts.push(botBubble(b.aiError));
+  parts.push(botBubble(T("builderNextUp")));
+  return { html: parts.join(""), done: true };
+}
+
+function readinessCard(spaceId, input) {
+  const result = computeReadiness(input);
+  const fixes = topFixes(input, 3);
+  const band = readinessBand(result.score);
+  const unchecked = !input.docs.some((doc) => doc.check);
+  const rows = [
+    ["required", T("partRequired")],
+    ["consistency", T("partConsistency")],
+    ["dates", T("partDates")],
+    ["evidence", T("partEvidence")]
+  ].map(([key, label]) => {
+    const part = result.parts[key];
+    const pct = Math.round((part.points / Math.max(part.max, 1)) * 100);
+    const note = unchecked && (key === "consistency" || key === "dates") ? `<span class="part-note">${esc(T("partUnchecked"))}</span>` : "";
+    return `<div class="part-row"><div class="part-top"><span>${esc(label)}</span><strong>${Math.round(part.points)}<small>/${part.max}</small></strong></div><div class="part-bar ${readinessBand(pct)}"><span style="width:${pct}%"></span></div>${note}</div>`;
+  }).join("");
+  return `<section class="readiness card ${band}" id="readiness" aria-labelledby="readiness-h">
+    <div class="ready-main">
+      <div class="ready-ring ${band}" style="--p:${result.score}" role="img" aria-label="${esc(`${T("readinessTitle")}: ${result.score}/100`)}"><span>${result.score}</span><small>/100</small></div>
+      <div class="ready-copy">
+        <h2 id="readiness-h">${esc(T("readinessTitle"))} ${demoPill()}</h2>
+        <p class="ready-note">${esc(T("readinessNote"))}</p>
+      </div>
+    </div>
+    <div class="ready-parts">${rows}</div>
+    <div class="ready-fixes">
+      <h3>${esc(T("topFixes"))}</h3>
+      ${fixes.length ? `<ol>${fixes.map((fix) => `<li><div class="fix-row"><span>${esc(fixText(fix, input.items))}</span><span class="pts">${esc(T("points", { n: fix.points }))}</span></div></li>`).join("")}</ol>` : `<p class="muted">${esc(T("noFixes"))}</p>`}
+    </div>
+    <div class="ready-foot">
+      <details><summary>${esc(T("howScored"))}</summary><p>${esc(T("howScoredBody"))}</p></details>
+      <button class="btn-secondary small" data-act="folder-summary" data-space="${esc(spaceId)}">${icon("doc", 16)} ${esc(T("downloadSummary"))}</button>
+    </div>
+  </section>`;
+}
+
+const STATUS_PILL = { matches: ["green", "statusMatches"], possible_issue: ["amber", "statusPossible"], mismatch: ["coral", "statusMismatch"] };
+
+function docRow(spaceId, item, doc, input) {
+  const busy = builderUi.busy[doc.id];
+  const error = builderUi.errors[doc.id];
+  const check = doc.check;
+  const pill = check ? STATUS_PILL[check.status] : null;
+  const meta = [doc.source === "pdf" ? "PDF" : doc.source === "image" ? (lang() === "es" ? "Imagen" : "Image") : (lang() === "es" ? "Texto" : "Text")];
+  if (doc.pages) meta.push(doc.pages === 1 ? (lang() === "es" ? "1 página" : "1 page") : T("pages", { n: doc.pages }));
+  if (doc.chars) meta.push(T("chars", { n: formatCount(doc.chars) }));
+  const cross = input.cross.filter((row) => row.docId === doc.id);
+  const findings = [
+    ...(check?.findings || []).map((row, index) => ({ ...row, index, origin: "ai" })),
+    ...cross.map((row) => ({ ...row, origin: "device" }))
+  ];
+  const findingList = findings.length ? `<ul class="findings">${findings.map((row) => `<li class="finding ${esc(row.severity || "medium")}${row.resolved ? " resolved" : ""}">
+      <div class="finding-top"><span class="sev-dot" aria-hidden="true"></span><p>${esc(row.message)}</p></div>
+      ${row.fix ? `<p class="finding-fix"><strong>${esc(T("fix"))}:</strong> ${esc(row.fix)}</p>` : ""}
+      <div class="finding-actions">${row.origin === "device" ? `<span class="tiny">${esc(T("foundOnDevice"))}</span>` : ""}
+      ${row.resolved ? `<span class="pill green">${icon("check", 12)} ${esc(T("fixed"))}</span>` : `<button class="ghost small" data-act="finding-fixed" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}" data-origin="${row.origin}" data-index="${row.index ?? ""}" data-code="${esc(row.code)}">${esc(T("markFixed"))}</button>`}</div>
+    </li>`).join("")}</ul>` : "";
+  const consent = builderUi.consentFor === doc.id ? consentPanel(spaceId, item, doc) : "";
+  const canCheck = doc.chars >= 20 && !busy;
+  return `<div class="doc-row${check ? ` checked ${esc(check.status)}` : ""}" id="doc-${esc(doc.id)}">
+    <div class="doc-top">
+      <span class="doc-icon" aria-hidden="true">${icon("doc", 18)}</span>
+      <div class="doc-name"><strong>${esc(doc.name)}</strong><span class="tiny">${esc(meta.join(" · "))} · ${icon("lock", 11)} ${esc(T("onDevice"))}</span></div>
+      <div class="doc-pills">${pill ? `<span class="pill ${pill[0]}">${esc(T(pill[1]))}</span>` : busy ? "" : `<span class="pill plain">${esc(T("notChecked"))}</span>`}${check?.mock ? `<span class="pill demo-ai">${esc(T("demoAi"))}</span>` : ""}</div>
+    </div>
+    ${busy ? `<p class="doc-busy" role="status"><span class="spinner" aria-hidden="true"></span>${esc(T(busy))}</p>` : ""}
+    ${error ? `<p class="danger small" role="alert">${esc(error)}</p>` : ""}
+    ${check?.summary ? `<p class="doc-summary">${esc(check.summary)}</p>` : ""}
+    ${findingList}
+    ${consent}
+    <div class="doc-actions">
+      ${consent ? "" : `<button class="btn-secondary small" data-act="doc-check" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}" ${canCheck ? "" : "disabled"}>${icon("spark", 14)} ${esc(check ? T("recheck") : T("checkAi"))}</button>`}
+      <button class="ghost small" data-act="doc-remove" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}">${esc(T("removeDoc"))}</button>
+    </div>
+  </div>`;
+}
+
+function consentPanel(spaceId, item, doc) {
+  const to = aiStatus.mock ? T("consentToDemo") : T("consentToProvider", { provider: aiStatus.provider || "AI", host: aiStatus.host || "", model: aiStatus.model || "" });
+  return `<section class="consent-panel" id="consent" aria-labelledby="consent-h">
+    <h4 id="consent-h">${icon("lock", 16)} ${esc(T("consentTitle"))}</h4>
+    <dl class="consent-facts">
+      <div><dt>${esc(T("consentWhat"))}</dt><dd>${esc(T("consentWhatBody"))}</dd></div>
+      <div><dt>${esc(T("consentTo"))}</dt><dd>${esc(to)}</dd></div>
+      <div><dt>${esc(T("consentRedact"))}</dt><dd>${esc(T("consentRedactBody"))}</dd></div>
+    </dl>
+    <p class="mask-count ${builderUi.consentCounts ? "has" : ""}">${icon("check", 14)} ${esc(builderUi.consentCounts ? T("maskedCount", { n: builderUi.consentCounts }) : T("maskedNone"))}</p>
+    <label class="field">${esc(T("previewLabel"))}
+      <textarea id="consent-text" rows="7" spellcheck="false">${esc(builderUi.consentDraft)}</textarea>
+    </label>
+    <label class="check-item consent-agree"><input id="consent-agree" type="checkbox" data-act="consent-agree" ${builderUi.consentAgree ? "checked" : ""}><span>${esc(T("consentAgree"))}</span></label>
+    <div class="consent-actions">
+      <button class="btn small" data-act="consent-send" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}" ${builderUi.consentAgree ? "" : "disabled"}>${esc(T("consentSend"))}</button>
+      <button class="ghost small" data-act="consent-cancel">${esc(T("consentKeep"))}</button>
+    </div>
+  </section>`;
+}
+
+function checklistItem(spaceId, item, input) {
+  const mark = input.marks[item.id] || "need";
+  const docs = input.docs.filter((doc) => doc.itemId === item.id);
+  const worst = docs.map((doc) => doc.check?.status).find((s) => s === "mismatch") || docs.map((doc) => doc.check?.status).find((s) => s === "possible_issue") || (docs.some((doc) => doc.check?.status === "matches") ? "matches" : "");
+  const present = mark === "ready" || docs.some((doc) => doc.check?.status !== "mismatch");
+  const tag = item.source === "ai" ? `<span class="pill violet">${esc(T("aiSuggested"))}</span>` : item.source === "rule" ? `<span class="pill plain">${esc(T("addedForYou"))}</span>` : "";
+  const paste = builderUi.pasteFor === item.id ? `<div class="paste-panel">
+      <label class="field">${esc(T("pasteText"))}<textarea id="paste-text" rows="5" placeholder="${esc(T("pastePh"))}">${esc(builderUi.pasteDraft)}</textarea></label>
+      <div class="consent-actions"><button class="btn small" data-act="paste-add" data-space="${esc(spaceId)}" data-item="${esc(item.id)}">${esc(T("pasteAdd"))}</button><button class="ghost small" data-act="paste-cancel">${esc(T("cancel"))}</button></div>
+    </div>` : "";
+  return `<article class="doc-item card ${mark === "na" ? "na" : present ? "present" : ""} ${worst ? `st-${worst}` : ""}" id="item-${esc(item.id)}">
+    <div class="doc-item-head">
+      <span class="item-state" aria-hidden="true">${present ? icon("check", 14) : ""}</span>
+      <h3>${esc(itemLabel(item))}</h3>
+      <div class="item-tags">${item.required ? `<span class="pill coral-soft">${esc(T("required"))}</span>` : `<span class="pill plain">${esc(T("optional"))}</span>`}${tag}</div>
+    </div>
+    ${item.reason ? `<p class="item-reason"><strong>${esc(T("why"))}:</strong> ${esc(lang() === "es" ? item.reason.es : item.reason.en)}</p>` : ""}
+    <div class="mark-row" role="group" aria-label="${esc(T("status"))}">
+      ${[["ready", "markReady"], ["need", "markNeed"], ["na", "markNa"]].map(([value, key]) => `<button class="chip small ${mark === value ? "on" : ""}" data-act="folder-mark" data-space="${esc(spaceId)}" data-id="${esc(item.id)}" data-mark="${value}" aria-pressed="${mark === value}">${esc(T(key))}</button>`).join("")}
+    </div>
+    ${docs.map((doc) => docRow(spaceId, item, doc, input)).join("")}
+    ${paste}
+    ${mark === "na" || paste ? "" : `<div class="add-row">
+      <label class="btn-secondary small file-btn">${icon("upload", 14)} ${esc(T("addDoc"))}<input type="file" class="file-input" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" data-act="doc-file" data-space="${esc(spaceId)}" data-item="${esc(item.id)}"></label>
+      <button class="ghost small" data-act="paste-open" data-item="${esc(item.id)}">${esc(T("pasteText"))}</button>
+    </div>`}
+  </article>`;
+}
+
+function builderFolderScreen(spaceId) {
+  const folder = builderOf(spaceId);
+  if (!aiStatus.loaded) ensureAiStatus();
+  if (!folderChatStatus.loaded) ensureChatStatus();
+  const input = readinessInput(spaceId);
+  const plan = input.plan;
+  const intake = builderIntake(spaceId, folder, plan);
+  const required = plan.items.filter((item) => item.required);
+  const optional = plan.items.filter((item) => !item.required);
+  const transcript = `<section class="builder-chat card${intake.done ? " done" : ""}" aria-label="${esc(T("builderKicker"))}">
+      ${intake.done ? `<details class="intake-details"${folder.builder.ai || builderUi.tailoring === spaceId || !folder.builder.skippedAi ? " open" : ""}><summary>${esc(T("builderYourAnswers"))} · ${Object.keys(folder.builder.answers).length}</summary><div class="bubbles">${intake.html}</div></details>
+      <div class="intake-tools"><button class="ghost small" data-act="builder-edit" data-space="${esc(spaceId)}">${esc(T("builderEditAnswers"))}</button></div>` : `<div class="bubbles">${intake.html}</div>`}
+    </section>`;
+  const head = `<div class="spread">${backButton(T("allFolders"), 'data-act="builder-home"')}</div>
+    <div class="page-head builder-head">
+      <p class="kicker">${icon("spark", 16)} ${esc(T("builderKicker"))} · ${esc(formOfSpace(spaceId))} ${demoPill()}</p>
+      <h1>${esc(spaceName(lang(), spaceId))}</h1>
+      <p class="legal-line">${esc(T("notLegal"))}</p>
+    </div>`;
+  if (!intake.done) {
+    return `${head}<div class="builder-solo">${transcript}</div>${legalDisclaimer()}`;
+  }
+  return `${head}
+  <div class="builder-grid">
+    <div class="builder-main">
+      ${transcript}
+      ${readinessCard(spaceId, input)}
+      <section class="checklist-wrap" aria-labelledby="checklist-h">
+        <h2 id="checklist-h">${esc(T("checklistTitle"))}</h2>
+        <h3 class="group-h">${esc(T("groupRequired"))} <span class="count">${required.length}</span></h3>
+        <div class="stack">${required.map((item) => checklistItem(spaceId, item, input)).join("")}</div>
+        ${optional.length ? `<h3 class="group-h">${esc(T("groupOptional"))} <span class="count">${optional.length}</span></h3><div class="stack">${optional.map((item) => checklistItem(spaceId, item, input)).join("")}</div>` : ""}
+        ${plan.removed.length ? `<details class="removed"><summary>${esc(T("groupRemoved"))} · ${plan.removed.length}</summary><ul>${plan.removed.map((row) => `<li><strong>${esc(lang() === "es" ? row.es : row.en)}</strong><span>${esc(lang() === "es" ? row.reason.es : row.reason.en)}</span></li>`).join("")}</ul></details>` : ""}
+      </section>
+    </div>
+    ${folderChatPanel(spaceId, packetFor(spaceId), folder)}
   </div>
-  
-  ${riskFlags.length ? `<div class="risk-flags">${riskFlags.map(flag => `<div class="risk-flag ${flag.type}"><span class="icon" aria-hidden="true">${flag.type === "error" ? "⚠️" : flag.type === "warning" ? "⏰" : "✓"}</span><span class="text">${esc(flag.message)}</span></div>`).join("")}</div>` : ""}
-  
-  <div class="prepare-grid">
-    <nav class="section-nav" aria-label="${esc(lang() === "es" ? "Secciones" : "Sections")}">
-      ${packet.sections.map((section) => `<button class="card ${section.id === focus.id ? "on" : ""}" data-act="folder-section" data-space="${esc(spaceId)}" data-id="${esc(section.id)}"><strong>${esc(lang() === "es" ? section.es : section.en)}</strong></button>`).join("")}
-    </nav>
-    <div class="stack">${focus.items.map((item) => {
-      const mark = folder.marks[item.id] || "need";
-      return `<article class="card ${mark === "ready" ? "complete" : ""}">
-        <p>${esc(lang() === "es" ? item.es : item.en)}</p>
-        <div class="mark-row" role="group" aria-label="${esc(lang() === "es" ? "Estado" : "Status")}">
-          ${["ready", "need", "na"].map((value) => `<button class="chip ${mark === value ? "on" : ""}" data-act="folder-mark" data-space="${esc(spaceId)}" data-id="${esc(item.id)}" data-mark="${value}" aria-pressed="${mark === value}">${esc(P(value))}</button>`).join("")}
-        </div>
-      </article>`;
-    }).join("")}</div>
-    ${folderChatPanel(spaceId, packet, folder)}
-  </div>
-  
   ${legalDisclaimer()}`;
+}
+
+function prepareScreen(spaceId) {
+  if (!aiStatus.loaded) ensureAiStatus();
+  if (!spaceId || !spaceById(spaceId) || !BUILDER_FORMS.includes(spaceId)) return builderStartScreen();
+  return builderFolderScreen(spaceId);
+}
+
+/* ───────────── Folder Builder: actions ───────────── */
+function openBuilderFolder(spaceId, description = "", inferred = {}) {
+  const folder = builderOf(spaceId);
+  if (description) {
+    folder.builder = { answers: { ...inferred }, inferred: { ...inferred }, description, done: false, ai: null, skippedAi: false };
+  }
+  builderUi.pending = null;
+  builderUi.desc = "";
+  state.route = { name: "prepare", spaceId };
+  save();
+  render();
+  window.scrollTo?.(0, 0);
+}
+
+function answerBuilder(spaceId, question, value) {
+  const folder = builderOf(spaceId);
+  folder.builder.answers = { ...folder.builder.answers, [question]: value };
+  if (!nextQuestion(spaceId, folder.builder.answers)) folder.builder.done = true;
+  save();
+  render();
+}
+
+async function tailorPlan(spaceId) {
+  const folder = builderOf(spaceId);
+  const plan = buildPlan(spaceId, folder.builder.answers);
+  const masked = maskIdentifiers(folder.builder.description || "").text.slice(0, 1500);
+  const payload = {
+    consent: true, lang: lang(), spaceId, form: formOfSpace(spaceId),
+    answers: folder.builder.answers, description: masked,
+    items: plan.items.slice(0, 80).map((item) => ({ id: item.id, label: itemLabel(item).slice(0, 200), required: item.required }))
+  };
+  builderUi.tailoring = spaceId;
+  folder.builder.aiError = "";
+  render();
+  try {
+    const response = await fetch("/api/folder-plan", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.reason || "error");
+    folder.builder.ai = { add: data.add || [], remove: data.remove || [], notes: data.notes || [], mock: Boolean(data.mock) };
+  } catch {
+    folder.builder.aiError = T("builderTailorFail");
+  }
+  builderUi.tailoring = "";
+  save();
+  render();
+}
+
+function newDocId() {
+  return `doc-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+async function addDocFromFile(spaceId, itemId, file) {
+  const folder = builderOf(spaceId);
+  const kind = kindOf(file);
+  if (!kind) { toast = T("readFail"); render(); return; }
+  const doc = { id: newDocId(), itemId, name: String(file.name || "document").slice(0, 120), mime: file.type, size: file.size, source: kind, pages: null, chars: 0, addedAt: new Date().toISOString(), check: null };
+  folder.docs.push(doc);
+  builderUi.busy[doc.id] = kind === "pdf" ? "readingPdf" : "readingImage";
+  save();
+  render();
+  try {
+    const out = await extractFromFile(file, lang());
+    doc.pages = out.pages || null;
+    doc.chars = out.text.length;
+    await saveText(doc.id, out.text);
+    keepFile(doc.id, file);
+    if (out.text.length < 20) builderUi.errors[doc.id] = T("readFail");
+  } catch {
+    builderUi.errors[doc.id] = T("readFail");
+  }
+  delete builderUi.busy[doc.id];
+  save();
+  render();
+}
+
+async function addDocFromText(spaceId, itemId, text) {
+  const folder = builderOf(spaceId);
+  const clean = String(text || "").trim().slice(0, 12000);
+  if (!clean) return;
+  const date = new Date().toLocaleDateString(lang() === "es" ? "es" : "en", { month: "short", day: "numeric" });
+  const doc = { id: newDocId(), itemId, name: `${T("pasteText")} · ${date}`, mime: "text/plain", size: clean.length, source: "text", pages: null, chars: clean.length, addedAt: new Date().toISOString(), check: null };
+  folder.docs.push(doc);
+  await saveText(doc.id, clean);
+  builderUi.pasteFor = "";
+  builderUi.pasteDraft = "";
+  save();
+  render();
+}
+
+async function openConsent(spaceId, docId) {
+  const text = await loadText(docId);
+  if (!text) { builderUi.errors[docId] = T("readFail"); render(); return; }
+  const masked = maskIdentifiers(text);
+  builderUi.consentFor = docId;
+  builderUi.consentDraft = masked.text;
+  builderUi.consentCounts = masked.total;
+  builderUi.consentAgree = false;
+  render();
+  document.getElementById("consent")?.scrollIntoView?.({ block: "center" });
+}
+
+async function sendCheck(spaceId, docId) {
+  const folder = builderOf(spaceId);
+  const doc = folder.docs.find((row) => row.id === docId);
+  if (!doc || !builderUi.consentAgree) return;
+  const plan = planFor(spaceId);
+  const item = plan.items.find((row) => row.id === doc.itemId);
+  const text = maskIdentifiers(builderUi.consentDraft).text.trim();
+  const otherNames = folder.docs.filter((row) => row.id !== docId && row.check?.facts?.primaryName).map((row) => row.check.facts.primaryName).slice(0, 12);
+  const itemId = /^[a-z0-9-]{1,48}$/.test(doc.itemId) ? doc.itemId : "item";
+  const payload = { consent: true, lang: lang(), spaceId, form: formOfSpace(spaceId), item: { id: itemId, label: (item ? itemLabel(item) : itemId).slice(0, 200) }, text, source: doc.source, pages: doc.pages ?? null, otherNames };
+  builderUi.consentFor = "";
+  builderUi.consentAgree = false;
+  builderUi.busy[docId] = "checking";
+  delete builderUi.errors[docId];
+  render();
+  try {
+    const response = await fetch("/api/folder-check", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      builderUi.errors[docId] = data.error === "blocked" ? T("checkBlocked") : data.error === "unavailable" ? T("checkUnavailable") : T("checkFail");
+    } else {
+      doc.check = { status: data.status, summary: data.summary || "", findings: (data.findings || []).map((row) => ({ ...row, resolved: false })), facts: data.facts || {}, mock: Boolean(data.mock), at: new Date().toISOString() };
+      if (doc.check.status !== "mismatch" && (folder.marks[doc.itemId] || "need") === "need") folder.marks[doc.itemId] = "ready";
+    }
+  } catch {
+    builderUi.errors[docId] = T("checkFail");
+  }
+  delete builderUi.busy[docId];
+  save();
+  render();
+}
+
+function removeDoc(spaceId, docId) {
+  const folder = builderOf(spaceId);
+  folder.docs = folder.docs.filter((row) => row.id !== docId);
+  folder.resolvedCross = folder.resolvedCross.filter((key) => !key.startsWith(`${docId}:`));
+  deleteText(docId).catch(() => {});
+  if (builderUi.consentFor === docId) builderUi.consentFor = "";
+  save();
+  render();
+}
+
+function openFolderSummary(spaceId) {
+  const input = readinessInput(spaceId);
+  const readiness = computeReadiness(input);
+  const fixes = topFixes(input, 3).map((fix) => ({ text: fixText(fix, input.items), points: fix.points }));
+  const items = input.items.map((item) => ({ ...item, label: itemLabel(item) }));
+  const html = folderSummaryHtml({ lang: lang(), form: formOfSpace(spaceId), title: spaceName(lang(), spaceId), items, marks: input.marks, docs: input.docs, readiness, fixes, mock: input.docs.some((doc) => doc.check?.mock) || aiStatus.mock, date: new Date(), officialUrl: `https://www.uscis.gov/${formOfSpace(spaceId).toLowerCase()}` });
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, "_blank", "noopener");
+  if (!opened) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `casecircle-${spaceId}-folder-summary.html`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* ───────────── Check the wait ───────────── */
+let waitTool = null;
+function waitDefaults() {
+  if (waitTool) return waitTool;
+  const profile = me(state)?.profiles?.[0];
+  const form = profile && WAIT_FORMS.includes(profile.form) ? profile.form : "I-485";
+  const office = profile ? officeById(profile.officeId)?.code || "" : "";
+  waitTool = { form, office, filed: profile?.filed || "", checked: Boolean(profile?.filed) };
+  return waitTool;
+}
+
+function waitToolSection() {
+  const tool = waitDefaults();
+  ensureData();
+  const officeOptions = offices.filter((row) => row.code).map((row) => `<option value="${esc(row.code)}" ${tool.office === row.code ? "selected" : ""}>${esc(lang() === "es" ? row.es : row.en)} (${esc(row.code)})</option>`).join("");
+  const form = `<form class="wait-form card" onsubmit="return false">
+    <label class="field">${esc(T("waitForm"))}<select id="wait-form-sel">${WAIT_FORMS.map((f) => `<option ${tool.form === f ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label>
+    <label class="field">${esc(T("waitOffice"))}<select id="wait-office-sel"><option value="">${esc(T("waitOfficeAny"))}</option>${officeOptions}</select></label>
+    <label class="field">${esc(T("waitFiled"))}<input id="wait-filed" type="date" value="${esc(tool.filed)}" max="${new Date().toISOString().slice(0, 10)}"></label>
+    <button class="btn" data-act="wait-check">${esc(T("waitCheck"))}</button>
+  </form>`;
+  if (!tool.checked || !tool.filed) return form + howToReadCard(false);
+  const official = officialFor(tool.form, tool.office);
+  const pos = waitPosition({ form: tool.form, filed: tool.filed, timelines: dataCache.timelines, official: official?.data ? official : null });
+  if (pos.error) return form + `<p class="danger" role="alert">${esc(T("waitFutureDate"))}</p>`;
+  const officialCard = `<article class="wait-card official">
+    <h3>${esc(T("waitOfficialTitle"))}</h3>
+    ${official?.loading ? `<p class="muted">${esc(T("insightsLoading"))}</p>` : pos.official.available
+      ? `<p class="big">${esc(T("waitOfficialLive", { m: pos.official.months }))}</p><p class="${pos.official.past ? "warn" : "ok"}">${esc(pos.official.past ? T("waitOfficialPast") : T("waitOfficialWithin"))}</p><p class="tiny">${esc(T("waitOfficialSource", { date: String(pos.official.fetchedAt || "").slice(0, 10) }))}</p>`
+      : `<p>${esc(T("waitOfficialNone"))}</p>`}
+    <p><a class="btn-secondary small" href="${esc(OFFICIAL.processing)}" target="_blank" rel="noreferrer">${esc(T("waitOpenOfficial"))} ↗</a></p>
+  </article>`;
+  const pub = pos.publicPosts;
+  const bar = rangeBar(pub, pos.days);
+  const publicCard = `<article class="wait-card public">
+    <h3>${esc(T("waitPublicTitle"))}</h3>
+    <p class="label-chip">${esc(T("publicLabel"))}</p>
+    ${pub.thin ? `<p>${esc(T("waitPublicThin", { form: tool.form, n: pub.n }))}</p>` : `
+      <p>${esc(T("waitPublicBody", { n: pub.n, form: tool.form, median: pub.median, p25: pub.p25, p75: pub.p75 }))}</p>
+      <div class="range-bar" role="img" aria-label="${esc(`p25 ${pub.p25}, median ${pub.median}, p75 ${pub.p75}, you ${pos.days}`)}">
+        <span class="iqr" style="left:${bar.p25}%;width:${Math.max(1, bar.p75 - bar.p25)}%"></span>
+        <span class="med" style="left:${bar.median}%"></span>
+        <span class="you" style="left:${bar.you}%"><em>${esc(T("you"))}</em></span>
+      </div>
+      <div class="range-axis"><span>0</span><span>${bar.max} ${esc(T("insightsDays"))}</span></div>
+      ${pub.pct != null ? `<p class="strong">${esc(T("waitPublicYou", { d: pos.days, pct: pub.pct }))}</p>` : ""}
+      <details class="sources"><summary>${esc(T("insightsSources"))} (${pub.n})</summary><ul>${(cellSources(tool.form)).map((row) => `<li>${extLink(row.href, row.title)} <span class="tiny">${row.days} ${esc(T("insightsDays"))}</span></li>`).join("")}</ul></details>`}
+  </article>`;
+  const nextCard = `<article class="wait-card next">
+    <h3>${esc(T("waitNextTitle"))}</h3>
+    <ol class="next-steps">${pos.next.map((step) => `<li class="${step.upcoming === false ? "past" : ""}"><strong>${esc(lang() === "es" ? step.label.es : step.label.en)}</strong><p>${esc(lang() === "es" ? step.body.es : step.body.en)}</p><span class="tiny">${step.milestone ? esc(step.typical != null ? T("waitTypical", { median: step.typical, n: step.n }) : T("waitNoTypical")) : ""}</span></li>`).join("")}</ol>
+  </article>`;
+  const outside = `<article class="wait-card outside">
+    <h3>${esc(T("waitOutsideTitle"))}</h3>
+    <p class="muted">${esc(T("waitOutsideLead"))}</p>
+    <ol class="outside-steps">
+      <li><strong>${esc(T("outside1"))}</strong><p>${esc(T("outside1Body"))}</p>${extLink(OFFICIAL.processing, T("linkProcessing"))}</li>
+      <li><strong>${esc(T("outside2"))}</strong><p>${esc(T("outside2Body"))}</p>${extLink(OFFICIAL.eRequest, T("linkERequest"))} · ${extLink(OFFICIAL.contact, T("linkContact"))}</li>
+      <li><strong>${esc(T("outside3"))}</strong><p>${esc(T("outside3Body"))}</p>${extLink(OFFICIAL.ombudsman, T("linkOmbudsman"))}</li>
+      <li><strong>${esc(T("outside4"))}</strong><p>${esc(T("outside4Body"))}</p>${extLink(OFFICIAL.house, T("linkHouse"))}</li>
+    </ol>
+  </article>`;
+  return `${form}
+    <p class="elapsed" id="wait-result">${esc(T("waitElapsed", { d: formatCount(pos.days), m: pos.months }))}</p>
+    <div class="wait-grid">${officialCard}${publicCard}</div>
+    <div class="wait-grid">${nextCard}${outside}</div>
+    ${howToReadCard(pos.official.available)}`;
+}
+
+function cellSources(form) {
+  return dataCache.timelines?.forms?.[form]?.filed_to_approval?.sources || [];
+}
+
+function howToReadCard(collapsed) {
+  const body = `<ol>${[1, 2, 3, 4].map((n) => `<li>${esc(T(`howToRead${n}`))}</li>`).join("")}</ol><p>${extLink(OFFICIAL.processing, T("linkProcessing"))} · ${extLink(OFFICIAL.moreInfo, T("moreInfo"))} · ${extLink(OFFICIAL.faqs, "FAQ")}</p>`;
+  return collapsed
+    ? `<details class="card how-read"><summary>${esc(T("howToReadTitle"))}</summary>${body}</details>`
+    : `<section class="card how-read"><h3>${esc(T("howToReadTitle"))}</h3>${body}</section>`;
+}
+
+function timelinesScreen() {
+  const user = me(state);
+  const cases = [...(user?.profiles || [])].sort((a, b) => new Date(b.filed) - new Date(a.filed));
+  return `<div class="page-head">
+    <p class="kicker">${esc(T("waitKicker"))}</p>
+    <h1>${esc(T("waitTitle"))}</h1>
+    <p class="lede">${esc(T("waitLead"))}</p>
+    <p class="legal-line">${esc(T("notLegal"))}</p>
+  </div>
+  ${waitToolSection()}
+  <h2 class="secondary-h">${esc(T("waitCommunityTitle"))}</h2>
+  ${waitCalculator()}
+  ${cases.length ? `<div class="card-grid">${cases.map((profile) => `<button class="card" data-act="edit-profile" data-id="${esc(profile.spaceId)}"><strong>${esc(spaceName(lang(), profile.spaceId))}</strong><div class="kicker">${esc(badge(lang(), profile))}</div><div>${monthsSince(profile.filed)} ${esc(L("months"))} ${esc(L("sinceFiling"))}</div></button>`).join("")}</div>` : ""}
+  <p class="footer-note muted">${esc(L("officialNote"))}</p>
+  ${legalDisclaimer()}`;
+}
+
+/* ───────────── Insights ───────────── */
+const QUESTION_TARGET = { documents: "prepare", evidence: "prepare", rfe: "prepare", fees: "prepare", timeline: "timelines", status: "timelines", interview: "interview", travel: "bot", work: "bot" };
+
+function insightsScreen() {
+  ensureData();
+  const data = dataCache.insights;
+  const timelines = dataCache.timelines;
+  const head = `<div class="page-head">
+    <p class="kicker">${esc(T("insightsKicker"))}</p>
+    <h1>${esc(T("insightsTitle"))}</h1>
+    <p class="lede">${esc(T("insightsLead"))}</p>
+    <p class="label-chip">${esc(T("publicLabel"))}</p>
+  </div>`;
+  if (!data || !timelines) return `${head}<p class="muted" role="status">${esc(dataCache.failed ? T("readFail") : T("insightsLoading"))}</p>${legalDisclaimer()}`;
+  const src = data.source;
+  const questions = WAIT_FORMS.map((form) => {
+    const row = data.questionsByForm?.[form];
+    if (!row) return "";
+    const top = row.topics.slice(0, 4);
+    const max = Math.max(1, ...top.map((t) => t.count));
+    const spaceId = form.toLowerCase();
+    return `<article class="ins-form">
+      <div class="spread"><h4>${esc(form)}</h4><span class="tiny">${esc(T("insightsPosts", { n: row.questions }))}</span></div>
+      <ul class="bars">${top.map((topic) => `<li><span class="bar-label">${esc(lang() === "es" ? topic.es : topic.en)}</span><span class="bar"><span style="width:${Math.round((topic.count / max) * 100)}%"></span></span><span class="bar-n">${topic.count}</span>${topic.examples?.[0] ? `<a class="bar-ex tiny" href="${esc(topic.examples[0].href)}" target="_blank" rel="noreferrer">${esc(topic.examples[0].title)}</a>` : ""}</li>`).join("")}</ul>
+      <button class="ghost small" data-act="ins-open" data-route="${esc(QUESTION_TARGET[top[0]?.id] || "prepare")}" data-space="${esc(spaceId)}">${esc(top[0] && QUESTION_TARGET[top[0].id] === "timelines" ? T("insightsOpenWait") : top[0] && QUESTION_TARGET[top[0].id] === "interview" ? T("insightsOpenInterview") : T("insightsOpenFolder"))} →</button>
+    </article>`;
+  }).join("");
+  const gapRows = [];
+  for (const form of WAIT_FORMS) {
+    for (const [milestone, cell] of Object.entries(timelines.forms?.[form] || {})) {
+      if (!cell.n) continue;
+      gapRows.push({ form, milestone, cell });
+    }
+  }
+  const gaps = `<table class="gap-table"><thead><tr><th>${esc(T("waitForm"))}</th><th>${esc(lang() === "es" ? "Intervalo" : "Interval")}</th><th>n</th><th>${esc(T("insightsMedian"))}</th><th>p25–p75</th></tr></thead><tbody>${gapRows.map(({ form, milestone, cell }) => `<tr><td>${esc(form)}</td><td>${esc(T(`ms_${milestone}`))}</td><td>${cell.n}</td>${cell.median != null ? `<td><strong>${cell.median}</strong> ${esc(T("insightsDays"))}</td><td>${cell.p25}–${cell.p75}</td>` : `<td colspan="2" class="muted">${esc(T("insightsNotEnough"))}</td>`}</tr>`).join("")}</tbody></table>`;
+  const rfeMax = Math.max(1, ...data.rfe.topics.map((t) => t.count));
+  const rfe = `<ul class="bars">${data.rfe.topics.slice(0, 8).map((topic) => `<li><span class="bar-label">${esc(lang() === "es" ? topic.es : topic.en)}</span><span class="bar coral"><span style="width:${Math.round((topic.count / rfeMax) * 100)}%"></span></span><span class="bar-n">${topic.count}</span>${topic.examples?.[0] ? `<a class="bar-ex tiny" href="${esc(topic.examples[0].href)}" target="_blank" rel="noreferrer">${esc(topic.examples[0].title)}</a>` : ""}</li>`).join("")}</ul>`;
+  const themes = redditThemes(lang()).slice(0, 10);
+  const themeMax = Math.max(1, ...themes.map((t) => t.total));
+  const themeList = `<ul class="bars">${themes.map((theme) => `<li><span class="bar-label">${esc(theme.label)}</span><span class="bar violet"><span style="width:${Math.round((theme.total / themeMax) * 100)}%"></span></span><span class="bar-n">${esc(formatCount(theme.total))}</span></li>`).join("")}</ul>`;
+  return `${head}
+  <p class="data-note">${esc(T("insightsDataNote", { n: formatCount(src.posts), from: src.from, to: src.to }))}</p>
+  <div class="insights-grid">
+    <section class="card ins-card wide"><h2>${esc(T("insightsQuestions"))}</h2><p class="muted">${esc(T("insightsQuestionsBody", { n: formatCount(src.questions) }))}</p><div class="ins-forms">${questions}</div></section>
+    <section class="card ins-card"><h2>${esc(T("insightsGaps"))}</h2><p class="muted">${esc(T("insightsGapsBody"))}</p>${gaps}<button class="btn-secondary small" data-act="tab" data-tab="timelines">${esc(T("insightsOpenWait"))} →</button></section>
+    <section class="card ins-card"><h2>${esc(T("insightsRfe"))}</h2><p class="muted">${esc(T("insightsRfeBody", { n: data.rfe.posts }))}</p>${rfe}<button class="btn-secondary small" data-act="tab" data-tab="prepare">${esc(T("insightsOpenFolder"))} →</button></section>
+    <section class="card ins-card wide"><h2>${esc(T("insightsThemes"))}</h2><p class="muted">${esc(T("insightsThemesBody", { n: formatCount(redditStats.posts), from: redditStats.from, to: redditStats.to }))}</p>${themeList}<div class="cta"><button class="btn-secondary small" data-act="tab" data-tab="bot">${esc(T("insightsOpenCommunity"))} →</button><button class="ghost small" data-act="tab" data-tab="questions">${esc(H("navAnswers"))}</button></div></section>
+  </div>
+  ${legalDisclaimer()}`;
+}
+
+/* ───────────── Landing: tools first ───────────── */
+function toolsHero(signed) {
+  const go = (route) => signed ? `data-act="tab" data-tab="${route}"` : `data-act="start-tool" data-route="${route}"`;
+  const tools = [
+    ["papers", "prepare", T("navBuilder"), T("toolBuilderBody")],
+    ["wait", "timelines", T("navWait"), T("toolWaitBody")],
+    ["interview", "interview", T("navInterview"), T("toolInterviewBody")],
+    ["feed", "home", T("navCommunity"), T("toolCommunityBody")]
+  ];
+  return `<section class="home-hero tools-hero" id="start">
+      <div class="hero-copy">
+        <p class="kicker">${esc(T("heroKicker"))}</p>
+        <h1>${esc(T("heroTitle"))}</h1>
+        <p class="lede">${esc(T("heroLede"))}</p>
+        <div class="cta">
+          <button class="btn" ${go("prepare")}>${icon("spark", 18)} ${esc(T("heroStartBuilder"))}</button>
+          <button class="btn-secondary" ${go("timelines")}>${esc(T("heroCheckWait"))}</button>
+          ${!signed ? `<button class="ghost" data-act="demo">${esc(L("reviewerDemo"))}</button>` : ""}
+        </div>
+        ${!signed ? (onboard.showEmail ? `<div class="narrow hero-join">${emailBox()}</div>` : `<p class="hero-join-link"><button class="link-btn" data-act="show-email">${esc(H("again"))}</button></p>`) : ""}
+        <p class="note">${icon("lock", 14)} ${esc(T("heroPrivacy"))}</p>
+      </div>
+      <div class="hero-demo" aria-hidden="true">
+        <span class="pill plain hero-sample">${esc(L("sample"))}</span>
+        <div class="bubble bot"><span class="bubble-avatar">${icon("spark", 14)}</span><div class="bubble-body"><p>${esc(T("builderHello"))}</p></div></div>
+        <div class="hero-score"><div class="ready-ring medium" style="--p:72"><span>72</span><small>/100</small></div><div><strong>${esc(T("readinessTitle"))}</strong><p>${esc(T("readinessNote"))}</p></div></div>
+      </div>
+    </section>
+    <section class="home-section tool-section" id="tools">
+      <h2>${esc(T("toolsTitle"))}</h2>
+      <div class="tool-grid">${tools.map(([id, route, title, body], index) => `<button class="tool-card${index === 0 ? " lead" : ""}" ${go(route)}><span class="tool-icon">${icon(id, 22)}</span><strong>${esc(title)}</strong><span>${esc(body)}</span><span class="tool-open">${esc(T("open"))} →</span></button>`).join("")}</div>
+    </section>
+    <section class="home-section" id="insights-home">
+      <h2>${esc(T("insightsHomeTitle"))}</h2>
+      <p class="lede">${esc(T("insightsHomeLead"))}</p>
+      ${redditStatsBlock()}
+      <button class="btn-secondary" ${go("insights")}>${esc(T("seeInsights"))} →</button>
+    </section>`;
 }
 
 function rfeHelperSection() {
@@ -1750,14 +2407,11 @@ document.addEventListener("click", (event) => {
   if (act === "pain-point") {
     const id = node.dataset.id;
     if (id === "waiting" || id === "status") {
-      if (state.meId) { state.route = { name: "timelines" }; save(); }
-      else { onboard.showEmail = true; onboard.step = 0; }
+      startTool({ name: "timelines" }); return;
     } else if (id === "interview") {
-      if (state.meId) { state.route = { name: "interview", spaceId: "i-485" }; save(); }
-      else { onboard.showEmail = true; onboard.step = 0; }
+      startTool({ name: "interview", spaceId: "i-485" }); return;
     } else if (id === "folder") {
-      if (state.meId) { state.route = { name: "prepare" }; save(); }
-      else { onboard.showEmail = true; onboard.step = 0; }
+      startTool({ name: "prepare" }); return;
     } else if (id === "scams") {
       if (state.meId) { state.route = { name: "explain" }; save(); render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
       else { publicView = "home"; onboard.step = 0; render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
@@ -1832,6 +2486,87 @@ document.addEventListener("click", (event) => {
   if (act === "onboard-back") { onboard.step = Math.max(0, onboard.step - 1); render(); return; }
   if (act === "onboard-skip") { finishOnboard(false); return; }
   if (act === "onboard-next") { advanceOnboard(); return; }
+  if (act === "start-tool") {
+    const name = resolveRouteName(node.dataset.route) || "prepare";
+    startTool(name === "interview" ? { name, spaceId: "i-485" } : { name });
+    return;
+  }
+  if (act === "builder-home") { state.route = { name: "prepare" }; save(); render(); window.scrollTo(0, 0); return; }
+  if (act === "builder-form") {
+    const id = node.dataset.id;
+    if (builderUi.pending) {
+      const pending = builderUi.pending;
+      openBuilderFolder(id, pending.text, inferFromDescription(`${id} ${pending.text}`).answers);
+    } else openBuilderFolder(id);
+    return;
+  }
+  if (act === "builder-describe") {
+    const text = (document.querySelector("#builder-desc")?.value || builderUi.desc).trim();
+    if (!text) { restoreFocus = "builder-desc"; render(); return; }
+    const clean = maskIdentifiers(text).text.slice(0, 1500);
+    const inferred = inferFromDescription(clean);
+    if (inferred.form) openBuilderFolder(inferred.form, clean, inferred.answers);
+    else { builderUi.pending = { text: clean }; render(); }
+    return;
+  }
+  if (act === "builder-answer") { answerBuilder(node.dataset.space, node.dataset.q, node.dataset.v); return; }
+  if (act === "builder-skip") { const folder = builderOf(node.dataset.space); folder.builder.done = true; save(); render(); return; }
+  if (act === "builder-edit") {
+    const folder = builderOf(node.dataset.space);
+    folder.builder = { answers: {}, description: "", done: false, ai: null, skippedAi: false };
+    save();
+    render();
+    return;
+  }
+  if (act === "builder-tailor") { tailorPlan(node.dataset.space); return; }
+  if (act === "builder-tailor-skip") { const folder = builderOf(node.dataset.space); folder.builder.skippedAi = true; save(); render(); return; }
+  if (act === "paste-open") { builderUi.pasteFor = node.dataset.item; builderUi.pasteDraft = ""; restoreFocus = "paste-text"; render(); return; }
+  if (act === "paste-cancel") { builderUi.pasteFor = ""; builderUi.pasteDraft = ""; render(); return; }
+  if (act === "paste-add") { addDocFromText(node.dataset.space, node.dataset.item, document.querySelector("#paste-text")?.value || builderUi.pasteDraft); return; }
+  if (act === "doc-check") { openConsent(node.dataset.space, node.dataset.doc); return; }
+  if (act === "consent-agree") { builderUi.consentAgree = Boolean(node.checked); restoreFocus = "consent-agree"; render(); return; }
+  if (act === "consent-cancel") { builderUi.consentFor = ""; builderUi.consentAgree = false; builderUi.consentDraft = ""; render(); return; }
+  if (act === "consent-send") { builderUi.consentDraft = document.querySelector("#consent-text")?.value ?? builderUi.consentDraft; sendCheck(node.dataset.space, node.dataset.doc); return; }
+  if (act === "doc-remove") { removeDoc(node.dataset.space, node.dataset.doc); return; }
+  if (act === "finding-fixed") {
+    const folder = builderOf(node.dataset.space);
+    if (node.dataset.origin === "device") folder.resolvedCross.push(`${node.dataset.doc}:${node.dataset.code}`);
+    else {
+      const doc = folder.docs.find((row) => row.id === node.dataset.doc);
+      const finding = doc?.check?.findings?.[Number(node.dataset.index)];
+      if (finding) finding.resolved = true;
+    }
+    save();
+    render();
+    return;
+  }
+  if (act === "folder-summary") { openFolderSummary(node.dataset.space); return; }
+  if (act === "chat-findings") { chatFor(node.dataset.space).shareFindings = Boolean(node.checked); render(); return; }
+  if (act === "wait-check") {
+    event.preventDefault();
+    waitTool = {
+      form: document.querySelector("#wait-form-sel")?.value || "I-485",
+      office: document.querySelector("#wait-office-sel")?.value || "",
+      filed: document.querySelector("#wait-filed")?.value || "",
+      checked: true
+    };
+    render();
+    document.getElementById("wait-result")?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    return;
+  }
+  if (act === "ins-open") {
+    const name = node.dataset.route;
+    const spaceId = node.dataset.space;
+    if (name === "prepare") openBuilderFolder(spaceId);
+    else {
+      if (name === "timelines") waitTool = { ...waitDefaults(), form: spaceId.toUpperCase() };
+      state.route = name === "interview" ? { name, spaceId } : { name };
+      save();
+      render();
+      window.scrollTo(0, 0);
+    }
+    return;
+  }
   if (act === "tab") {
     const name = resolveRouteName(node.dataset.tab) || "home";
     state.route = { name };
@@ -2046,13 +2781,21 @@ document.addEventListener("click", (event) => {
   if (act === "mod") { state.route = { name: "mod" }; render(); return; }
   if (act === "mod-act") { apply(moderate(state, node.dataset.id, node.dataset.do)); return; }
   if (act === "delete") {
-    if (confirm(L("deleteHelp"))) apply(deleteAccount(state));
+    if (confirm(L("deleteHelp"))) {
+      for (const folder of Object.values(state.folders?.[state.meId] || {})) for (const doc of folder?.docs || []) deleteText(doc.id).catch(() => {});
+      apply(deleteAccount(state));
+    }
   }
 });
 
 document.addEventListener("change", (event) => {
   const node = event.target.closest("[data-act]");
   if (!node) return;
+  if (node.dataset.act === "doc-file") {
+    const file = node.files?.[0];
+    if (file) addDocFromFile(node.dataset.space, node.dataset.item, file);
+    return;
+  }
   if (node.dataset.act === "profile") {
     const draft = state.meId && state.route?.name === "profile-edit" ? profileDraft : onboard.profile;
     draft[node.dataset.key] = node.type === "checkbox" ? node.checked : node.value;
@@ -2094,6 +2837,9 @@ document.addEventListener("input", (event) => {
     if (spaceId) chatFor(spaceId).draft = event.target.value;
   }
   if (event.target.id === "rfe-text") rfeText = event.target.value;
+  if (event.target.id === "builder-desc") builderUi.desc = event.target.value;
+  if (event.target.id === "paste-text") builderUi.pasteDraft = event.target.value;
+  if (event.target.id === "consent-text") builderUi.consentDraft = event.target.value;
   if (event.target.id === "search") { filters.query = event.target.value; restoreFocus = "search"; render(); }
   if (event.target.id === "space-search") { spaceQuery = event.target.value; restoreFocus = "space-search"; render(); }
 });
@@ -2127,7 +2873,7 @@ function finishOnboard(includeProfile) {
     spaceIds: onboard.spaces.length ? onboard.spaces : ["i-485"],
     profile: includeProfile ? readProfile("onboard") : null
   });
-  apply(result, () => { onboard = blankOnboard(); toast = L("saved"); });
+  apply(result, () => { onboard = blankOnboard(); toast = L("saved"); state.route = { name: "prepare" }; });
 }
 
 function publishAsk() {

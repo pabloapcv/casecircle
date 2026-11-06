@@ -23,9 +23,10 @@ export function folderChatItems(packet, folder, lang) {
   return items;
 }
 
-export function buildFolderChatPayload({ spaceId, lang, question, history, folder, consent }) {
+/* items: optional pre-built [{id,label,status}] (the AI Folder Builder list). findings: only when the user opted in. */
+export function buildFolderChatPayload({ spaceId, lang, question, history, folder, consent, items, findings }) {
   const packet = packetFor(spaceId);
-  return {
+  const payload = {
     consent: consent === true,
     lang: lang === "es" ? "es" : "en",
     spaceId,
@@ -35,14 +36,26 @@ export function buildFolderChatPayload({ spaceId, lang, question, history, folde
       role: row.role === "assistant" ? "assistant" : "user",
       text: String(row.text || "").slice(0, FOLDER_CHAT_LIMITS.question)
     })),
-    items: folderChatItems(packet, folder, lang)
+    items: Array.isArray(items)
+      ? items.slice(0, FOLDER_CHAT_LIMITS.items).map((row) => ({ id: String(row.id), label: String(row.label || "").slice(0, FOLDER_CHAT_LIMITS.label), status: statusOf(row.status) }))
+      : folderChatItems(packet, folder, lang)
   };
+  if (Array.isArray(findings) && findings.length) {
+    payload.findings = findings.slice(0, 40).map((row) => ({
+      itemId: String(row.itemId || ""),
+      status: ["matches", "possible_issue", "mismatch"].includes(row.status) ? row.status : "possible_issue",
+      code: String(row.code || ""),
+      message: String(row.message || "").slice(0, 300)
+    }));
+  }
+  return payload;
 }
 
 export function scanFolderChatPayload(payload) {
   const parts = [payload?.question, payload?.form, payload?.spaceId];
   for (const row of payload?.history || []) parts.push(row.text);
   for (const item of payload?.items || []) parts.push(item.label, item.id);
+  for (const row of payload?.findings || []) parts.push(row.message);
   for (const part of parts) {
     const scanned = evaluate(part);
     if (scanned.verdict === "block") return scanned;
@@ -51,7 +64,7 @@ export function scanFolderChatPayload(payload) {
 }
 
 export function folderChatContextSafe(payload) {
-  const keys = Object.keys(payload || {}).sort();
+  const keys = Object.keys(payload || {}).filter((key) => key !== "findings").sort();
   return keys.join(",") === "consent,form,history,items,lang,question,spaceId"
     && !("filed" in (payload || {}))
     && !("email" in (payload || {}))

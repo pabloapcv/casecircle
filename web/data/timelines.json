@@ -1,0 +1,321 @@
+{
+ "generatedBy": "web/scripts/build-data.mjs",
+ "label": {
+  "en": "From public posts, self-reported, not official",
+  "es": "De publicaciones públicas, autodeclarado, no oficial"
+ },
+ "source": {
+  "posts": 3689,
+  "uniqueTitles": 3495,
+  "from": "2025-11-03",
+  "to": "2026-11-03",
+  "subs": [
+   "r/USCIS",
+   "r/USCIS_FORUM"
+  ],
+  "fields": "titles only"
+ },
+ "minSample": 10,
+ "method": "Conservative regex rules over post titles. Kept only completed intervals stated outright (for example 'approved in 103 days', 'approved after 11 months', 'Sept ’25 -> Jan ’26'). Skipped questions, pending or 'no update' posts, denials and RFEs, and titles that name more than one form (I-130 + I-485 together counts as I-485). Duplicate titles across both subreddits count once. Months are 30.44 days.",
+ "extracted": 26,
+ "forms": {
+  "I-485": {
+   "filed_to_biometrics": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_interview": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_approval": {
+    "n": 21,
+    "median": 91,
+    "p25": 75,
+    "p75": 122,
+    "min": 61,
+    "max": 335,
+    "sources": [
+     {
+      "title": "Approved in 4 months (Dallas FO)",
+      "href": "https://www.reddit.com/r/USCIS/comments/1xel9xu/approved_in_4_months_dallas_fo/",
+      "days": 122,
+      "date": "2026-10-24"
+     },
+     {
+      "title": "Approved in 4 months!",
+      "href": "https://www.reddit.com/r/USCIS/comments/1xdtmjn/approved_in_4_months/",
+      "days": 122,
+      "date": "2026-10-23"
+     },
+     {
+      "title": "Case Approved after ~10 months 🙏 (75 countries)",
+      "href": "https://www.reddit.com/r/USCIS/comments/1xc2h7s/case_approved_after_10_months_75_countries/",
+      "days": 304,
+      "date": "2026-10-21"
+     },
+     {
+      "title": "I-485 EB2 ROW approved (principal + spouse), LA County FO, 22 days after transfer, 154 days total. Timeline + API data",
+      "href": "https://www.reddit.com/r/USCIS/comments/1x8mxy2/i485_eb2_row_approved_principal_spouse_la_county/",
+      "days": 154,
+      "date": "2026-10-17"
+     },
+     {
+      "title": "GREENED!! Marriage-based AOS approved in 103 days! LA Field Office, B2 overstay, unauthorized work, F1 history, spouse + stepchild, Friday interview and Saturday approval!",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1x2ow6d/greened_marriagebased_aos_approved_in_103_days_la/",
+      "days": 103,
+      "date": "2026-10-10"
+     },
+     {
+      "title": "I-485 & I-130 AOS approved in 63 days (same day interview & ADIT stamp)",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wtoynp/i485_i130_aos_approved_in_63_days_same_day/",
+      "days": 63,
+      "date": "2026-09-29"
+     },
+     {
+      "title": "Approved in 119 days! 🇺🇲🙏🏼💚 timeline and details",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wpghc8/approved_in_119_days_timeline_and_details/",
+      "days": 119,
+      "date": "2026-09-24"
+     },
+     {
+      "title": "AOS INTERVIEW EXPERIENCE, I-485 APPROVED IN 3 months, TIMELINE 🇺🇸",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1w1lcol/aos_interview_experience_i485_approved_in_3/",
+      "days": 91,
+      "date": "2026-08-29"
+     },
+     {
+      "title": "Venezuelan in removal, USCIS green card approved in 3 months 25 days. 🇻🇪❤️",
+      "href": "https://www.reddit.com/r/USCIS/comments/1vuvlzx/venezuelan_in_removal_uscis_green_card_approved/",
+      "days": 116,
+      "date": "2026-08-21"
+     },
+     {
+      "title": "AOS I-485 Approved in 3 months (Baltimore FO)",
+      "href": "https://www.reddit.com/r/USCIS/comments/1vc7g3m/aos_i485_approved_in_3_months_baltimore_fo/",
+      "days": 91,
+      "date": "2026-07-31"
+     },
+     {
+      "title": "Marriage AOS approved within 2 months 🥳🎉",
+      "href": "https://www.reddit.com/r/USCIS/comments/1v5rbld/marriage_aos_approved_within_2_months/",
+      "days": 61,
+      "date": "2026-07-24"
+     },
+     {
+      "title": "Green card approved in 68 days, interview waived.",
+      "href": "https://www.reddit.com/r/USCIS/comments/1umtm5u/green_card_approved_in_68_days_interview_waived/",
+      "days": 68,
+      "date": "2026-07-03"
+     },
+     {
+      "title": "Dallas FO AOS Timeline (Approved in ~3 Months)",
+      "href": "https://www.reddit.com/r/USCIS/comments/1tua8w0/dallas_fo_aos_timeline_approved_in_3_months/",
+      "days": 91,
+      "date": "2026-06-01"
+     },
+     {
+      "title": "EB2 I-485 approved after 11 months",
+      "href": "https://www.reddit.com/r/USCIS/comments/1tbilx9/eb2_i485_approved_after_11_months/",
+      "days": 335,
+      "date": "2026-05-12"
+     },
+     {
+      "title": "Marriage based AOS approved after 75 days SFV FO. Full timeline!",
+      "href": "https://www.reddit.com/r/USCIS/comments/1rxjwec/marriage_based_aos_approved_after_75_days_sfv_fo/",
+      "days": 75,
+      "date": "2026-03-18"
+     },
+     {
+      "title": "[Timeline & Experience] Approved in 87 Days - Marriage AOS - ATL FO",
+      "href": "https://www.reddit.com/r/USCIS/comments/1rmu5it/timeline_experience_approved_in_87_days_marriage/",
+      "days": 87,
+      "date": "2026-03-06"
+     },
+     {
+      "title": "Approved in 2 months!",
+      "href": "https://www.reddit.com/r/USCIS/comments/1rfq95o/approved_in_2_months/",
+      "days": 61,
+      "date": "2026-02-26"
+     },
+     {
+      "title": "Green card approved within 3 months",
+      "href": "https://www.reddit.com/r/USCIS/comments/1rab1li/green_card_approved_within_3_months/",
+      "days": 91,
+      "date": "2026-02-20"
+     },
+     {
+      "title": "AOS Approval 5 months 8 days",
+      "href": "https://www.reddit.com/r/USCIS/comments/1r8ipjj/aos_approval_5_months_8_days/",
+      "days": 160,
+      "date": "2026-02-18"
+     },
+     {
+      "title": "NYC Marriage Based AOS Approved in 3.5 months 🎉",
+      "href": "https://www.reddit.com/r/USCIS/comments/1oy67rs/nyc_marriage_based_aos_approved_in_35_months/",
+      "days": 107,
+      "date": "2025-11-15"
+     },
+     {
+      "title": "I-485 and I-130 approved in 67 days",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1ooixza/i485_and_i130_approved_in_67_days/",
+      "days": 67,
+      "date": "2025-11-04"
+     }
+    ]
+   },
+   "interview_to_approval": {
+    "n": 1,
+    "sources": [
+     {
+      "title": "APPROVED on Memorial Day! I-485 Approved after 7.5 months post-interview",
+      "href": "https://www.reddit.com/r/USCIS/comments/1tnoyey/approved_on_memorial_day_i485_approved_after_75/",
+      "days": 228,
+      "date": "2026-05-25"
+     }
+    ]
+   },
+   "interview_to_oath": {
+    "n": 0,
+    "sources": []
+   }
+  },
+  "I-130": {
+   "filed_to_biometrics": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_interview": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_oath": {
+    "n": 0,
+    "sources": []
+   }
+  },
+  "I-751": {
+   "filed_to_biometrics": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_interview": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_approval": {
+    "n": 1,
+    "sources": [
+     {
+      "title": "Wife Approved in 2 months",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wombun/wife_approved_in_2_months/",
+      "days": 61,
+      "date": "2026-09-23"
+     }
+    ]
+   },
+   "interview_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_oath": {
+    "n": 0,
+    "sources": []
+   }
+  },
+  "N-400": {
+   "filed_to_biometrics": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_interview": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_approval": {
+    "n": 1,
+    "sources": [
+     {
+      "title": "🇺🇸 N-400 Approval | Philadelphia FO | Name Change (Judicial) | 114 Days Total (Sept '25 -> Jan '26)",
+      "href": "https://www.reddit.com/r/USCIS/comments/1q521m1/n400_approval_philadelphia_fo_name_change/",
+      "days": 114,
+      "date": "2026-01-05"
+     }
+    ]
+   },
+   "interview_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_oath": {
+    "n": 0,
+    "sources": []
+   }
+  },
+  "I-765": {
+   "filed_to_biometrics": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_interview": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_approval": {
+    "n": 2,
+    "sources": [
+     {
+      "title": "J-2 EAD (C05) Approved – Timeline 3 months and 23 days).",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1w9p59a/j2_ead_c05_approved_timeline_3_months_and_23_days/",
+      "days": 114,
+      "date": "2026-09-07"
+     },
+     {
+      "title": "Finally got my EAD approved in 7 months!",
+      "href": "https://www.reddit.com/r/USCIS/comments/1q1i59f/finally_got_my_ead_approved_in_7_months/",
+      "days": 213,
+      "date": "2026-01-01"
+     }
+    ]
+   },
+   "interview_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_oath": {
+    "n": 0,
+    "sources": []
+   }
+  },
+  "I-131": {
+   "filed_to_biometrics": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_interview": {
+    "n": 0,
+    "sources": []
+   },
+   "filed_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_approval": {
+    "n": 0,
+    "sources": []
+   },
+   "interview_to_oath": {
+    "n": 0,
+    "sources": []
+   }
+  }
+ }
+}

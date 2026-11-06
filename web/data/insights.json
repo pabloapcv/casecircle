@@ -1,0 +1,575 @@
+{
+ "generatedBy": "web/scripts/build-data.mjs",
+ "label": {
+  "en": "From public posts, self-reported, not official",
+  "es": "De publicaciones públicas, autodeclarado, no oficial"
+ },
+ "source": {
+  "posts": 3689,
+  "uniqueTitles": 3495,
+  "questions": 1189,
+  "from": "2025-11-03",
+  "to": "2026-11-03",
+  "fields": "titles only"
+ },
+ "datasetWide": {
+  "posts": 33922,
+  "from": "2025-11-03",
+  "to": "2026-11-03",
+  "note": "Theme counts across the full 12-month pull (reddit.js redditStats)."
+ },
+ "questionsByForm": {
+  "I-485": {
+   "questions": 396,
+   "topics": [
+    {
+     "id": "timeline",
+     "en": "Waiting and timelines",
+     "es": "Espera y tiempos",
+     "count": 87,
+     "examples": [
+      {
+       "title": "I-485 denied, I-130 still pending, now scheduled for interview. Anyone experienced this?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1xb5te6/i485_denied_i130_still_pending_now_scheduled_for/"
+      },
+      {
+       "title": "I-485 file without medical or wait?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1p50jwd/i485_file_without_medical_or_wait/"
+      }
+     ]
+    },
+    {
+     "id": "interview",
+     "en": "Interview",
+     "es": "Entrevista",
+     "count": 81,
+     "examples": [
+      {
+       "title": "I-485 denied, I-130 still pending, now scheduled for interview. Anyone experienced this?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1xb5te6/i485_denied_i130_still_pending_now_scheduled_for/"
+      },
+      {
+       "title": "How long post interview do you guys see approvals ?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1u4b7mh/how_long_post_interview_do_you_guys_see_approvals/"
+      }
+     ]
+    },
+    {
+     "id": "documents",
+     "en": "Documents and evidence",
+     "es": "Documentos y pruebas",
+     "count": 40,
+     "examples": [
+      {
+       "title": "I-485 file without medical or wait?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1p50jwd/i485_file_without_medical_or_wait/"
+      },
+      {
+       "title": "No Joint Bank Account Yet; Is This Evidence Enough for Marriage-Based AOS?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1pkcrqv/no_joint_bank_account_yet_is_this_evidence_enough/"
+      }
+     ]
+    },
+    {
+     "id": "rfe",
+     "en": "RFEs and NOIDs",
+     "es": "RFE y NOID",
+     "count": 22,
+     "examples": [
+      {
+       "title": "USCIS API shows actionRequired: true but no RFE/notice — anyone seen this before?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1qje72e/uscis_api_shows_actionrequired_true_but_no/"
+      },
+      {
+       "title": "I-130 denied after missing signed I-30A in RFE. Had an interview for I-485 and got denied also. What do I do?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1t0d3f4/i130_denied_after_missing_signed_i30a_in_rfe_had/"
+      }
+     ]
+    }
+   ]
+  },
+  "I-130": {
+   "questions": 39,
+   "topics": [
+    {
+     "id": "timeline",
+     "en": "Waiting and timelines",
+     "es": "Espera y tiempos",
+     "count": 11,
+     "examples": [
+      {
+       "title": "Motion to Terminate Removal Proceedings with Pending I-130 (No Approval Yet), Any Success Stories?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1q7vyk9/motion_to_terminate_removal_proceedings_with/"
+      },
+      {
+       "title": "How long does it normally take to get a sibling visa? Or green card or whatever it is.",
+       "href": "https://www.reddit.com/r/USCIS/comments/1uwpnvu/how_long_does_it_normally_take_to_get_a_sibling/"
+      }
+     ]
+    },
+    {
+     "id": "interview",
+     "en": "Interview",
+     "es": "Entrevista",
+     "count": 7,
+     "examples": [
+      {
+       "title": "Does USC need to be physically present at the embassy during child CRBA interview?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1pdklbd/does_usc_need_to_be_physically_present_at_the/"
+      },
+      {
+       "title": "For those of you that had your i130 approved after the interview, how long did it take before getting the green card?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1wgix2f/for_those_of_you_that_had_your_i130_approved/"
+      }
+     ]
+    },
+    {
+     "id": "expedite",
+     "en": "Expedite and inquiries",
+     "es": "Agilizar y consultas",
+     "count": 3,
+     "examples": [
+      {
+       "title": "Do we cancel an expedite request?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1prqdfx/do_we_cancel_an_expedite_request/"
+      },
+      {
+       "title": "F3 India: Should I contact my congressman about my I-130?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1wyk8fn/f3_india_should_i_contact_my_congressman_about_my/"
+      }
+     ]
+    },
+    {
+     "id": "rfe",
+     "en": "RFEs and NOIDs",
+     "es": "RFE y NOID",
+     "count": 2,
+     "examples": [
+      {
+       "title": "NOID based on my previous marriage… lawyer says refile I-130? Does this even make sense?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1s3ra5w/noid_based_on_my_previous_marriage_lawyer_says/"
+      },
+      {
+       "title": "RFE Guys any recommendations what kind of documents should I prepare? And whats next?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1ryg0e6/rfe_guys_any_recommendations_what_kind_of/"
+      }
+     ]
+    }
+   ]
+  },
+  "I-751": {
+   "questions": 46,
+   "topics": [
+    {
+     "id": "timeline",
+     "en": "Waiting and timelines",
+     "es": "Espera y tiempos",
+     "count": 9,
+     "examples": [
+      {
+       "title": "My I 751 has been pending for 40 months and counting who’s on the same boat as me?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1wd7vc7/my_i_751_has_been_pending_for_40_months_and/"
+      },
+      {
+       "title": "How long did it take to get the I-751 notice in mail?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1xi32ki/how_long_did_it_take_to_get_the_i751_notice_in/"
+      }
+     ]
+    },
+    {
+     "id": "interview",
+     "en": "Interview",
+     "es": "Entrevista",
+     "count": 6,
+     "examples": [
+      {
+       "title": "Second green card interview. Are these evidences enough?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1vwm1fs/second_green_card_interview_are_these_evidences/"
+      },
+      {
+       "title": "Is it likely to get detained at removal of conditions interview?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1p99zn1/is_it_likely_to_get_detained_at_removal_of/"
+      }
+     ]
+    },
+    {
+     "id": "documents",
+     "en": "Documents and evidence",
+     "es": "Documentos y pruebas",
+     "count": 5,
+     "examples": [
+      {
+       "title": "I751 returned for submitting earlier than 90 days, resubmit same documents and new form with updated dates?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1s2tnjc/i751_returned_for_submitting_earlier_than_90_days/"
+      },
+      {
+       "title": "Not enough evidence for I-751?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1owkir1/not_enough_evidence_for_i751/"
+      }
+     ]
+    },
+    {
+     "id": "biometrics",
+     "en": "Biometrics",
+     "es": "Biometría",
+     "count": 2,
+     "examples": [
+      {
+       "title": "Is a printout of I-751 receipt enough for biometrics?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1w6o2uc/is_a_printout_of_i751_receipt_enough_for/"
+      },
+      {
+       "title": "How long after your biometrics appt was your I-751 approved?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1v97c9z/how_long_after_your_biometrics_appt_was_your_i751/"
+      }
+     ]
+    }
+   ]
+  },
+  "N-400": {
+   "questions": 91,
+   "topics": [
+    {
+     "id": "timeline",
+     "en": "Waiting and timelines",
+     "es": "Espera y tiempos",
+     "count": 16,
+     "examples": [
+      {
+       "title": "N-400 still pending because USCIS thinks I might already be a citizen through my dad?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1wdwy6x/n400_still_pending_because_uscis_thinks_i_might/"
+      },
+      {
+       "title": "N-400 Expedite Approved! How Long Until USCIS Actually Takes Action?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1w4tzj8/n400_expedite_approved_how_long_until_uscis/"
+      }
+     ]
+    },
+    {
+     "id": "interview",
+     "en": "Interview",
+     "es": "Entrevista",
+     "count": 14,
+     "examples": [
+      {
+       "title": "N-400 Citizenship applications updates for those whose GC interviews were waived. Anyone?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1qps4a6/n400_citizenship_applications_updates_for_those/"
+      },
+      {
+       "title": "NYC N400 interview - anyone getting scheduled?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1qsgq6n/nyc_n400_interview_anyone_getting_scheduled/"
+      }
+     ]
+    },
+    {
+     "id": "documents",
+     "en": "Documents and evidence",
+     "es": "Documentos y pruebas",
+     "count": 14,
+     "examples": [
+      {
+       "title": "Should I withdraw N-400 application if I owe taxes?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1vfqtal/should_i_withdraw_n400_application_if_i_owe_taxes/"
+      },
+      {
+       "title": "N-400 denied for filling taxes late?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1ul1w2e/n400_denied_for_filling_taxes_late/"
+      }
+     ]
+    },
+    {
+     "id": "oath",
+     "en": "Oath ceremony",
+     "es": "Juramento",
+     "count": 9,
+     "examples": [
+      {
+       "title": "Traveling to Canada Before Oath Ceremony – How to Document Travel History?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1w8eqkk/traveling_to_canada_before_oath_ceremony_how_to/"
+      },
+      {
+       "title": "Oath ceremony scheduled or not?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1rpghi5/oath_ceremony_scheduled_or_not/"
+      }
+     ]
+    }
+   ]
+  },
+  "I-765": {
+   "questions": 52,
+   "topics": [
+    {
+     "id": "work",
+     "en": "Work permit",
+     "es": "Permiso de trabajo",
+     "count": 36,
+     "examples": [
+      {
+       "title": "When marrying an American in Europe, can I enter the US to work and stay, already when the work permit is granted? (before full greencard)",
+       "href": "https://www.reddit.com/r/USCIS/comments/1pkckkt/when_marrying_an_american_in_europe_can_i_enter/"
+      },
+      {
+       "title": "March 27 2026 filer: Nebraska SC: Today (29 Oct 2026) : Silent Case Update on I-765 (EAD). Anyone else who got such update?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1xiyi5n/march_27_2026_filer_nebraska_sc_today_29_oct_2026/"
+      }
+     ]
+    },
+    {
+     "id": "timeline",
+     "en": "Waiting and timelines",
+     "es": "Espera y tiempos",
+     "count": 12,
+     "examples": [
+      {
+       "title": "EAD pending, eligble for congressional inquiry?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1v5rb3o/ead_pending_eligble_for_congressional_inquiry/"
+      },
+      {
+       "title": "Reply from senator: USCIS WILL expedite! How long after for EAD approval?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1wto99r/reply_from_senator_uscis_will_expedite_how_long/"
+      }
+     ]
+    },
+    {
+     "id": "rfe",
+     "en": "RFEs and NOIDs",
+     "es": "RFE y NOID",
+     "count": 4,
+     "examples": [
+      {
+       "title": "Should I only upload RFE via mail?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1rxj4to/should_i_only_upload_rfe_via_mail/"
+      },
+      {
+       "title": "RFE for I-765 photo capture, ASC notice arrived after appointment date, now RFE deadline is approaching. What should I do?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1u0osim/rfe_for_i765_photo_capture_asc_notice_arrived/"
+      }
+     ]
+    },
+    {
+     "id": "biometrics",
+     "en": "Biometrics",
+     "es": "Biometría",
+     "count": 3,
+     "examples": [
+      {
+       "title": "If biometrics were done previously for an EAD can they use those results for GC? It was about 4 years ago",
+       "href": "https://www.reddit.com/r/USCIS/comments/1rqdctu/if_biometrics_were_done_previously_for_an_ead_can/"
+      },
+      {
+       "title": "I-765 Premium Processing Clock Restarted After Biometrics — Will I Get EAD Before May 12?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1syjcq6/i765_premium_processing_clock_restarted_after/"
+      }
+     ]
+    }
+   ]
+  },
+  "I-131": {
+   "questions": 20,
+   "topics": [
+    {
+     "id": "travel",
+     "en": "Travel while pending",
+     "es": "Viajar con el caso pendiente",
+     "count": 12,
+     "examples": [
+      {
+       "title": "10-year green card holder questioned about abandonment — reentry permit pending, can I travel?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1rja7pl/10year_green_card_holder_questioned_about/"
+      },
+      {
+       "title": "New Green Card holder, already activated it. Can I apply for a Reentry Permit (I-131) now, even though I'm currently abroad and haven't moved to the US yet?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1w8eeqy/new_green_card_holder_already_activated_it_can_i/"
+      }
+     ]
+    },
+    {
+     "id": "timeline",
+     "en": "Waiting and timelines",
+     "es": "Espera y tiempos",
+     "count": 8,
+     "examples": [
+      {
+       "title": "10-year green card holder questioned about abandonment — reentry permit pending, can I travel?",
+       "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1rja7pl/10year_green_card_holder_questioned_about/"
+      },
+      {
+       "title": "22 months for AP? Realistic Timeline",
+       "href": "https://www.reddit.com/r/USCIS/comments/1t8pehc/22_months_for_ap_realistic_timeline/"
+      }
+     ]
+    },
+    {
+     "id": "expedite",
+     "en": "Expedite and inquiries",
+     "es": "Agilizar y consultas",
+     "count": 4,
+     "examples": [
+      {
+       "title": "Emergency Advance Parole denied in person but officer requested expedite — has anyone experienced this?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1slpg0w/emergency_advance_parole_denied_in_person_but/"
+      },
+      {
+       "title": "Should I expedite i131?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1qxxy4i/should_i_expedite_i131/"
+      }
+     ]
+    },
+    {
+     "id": "documents",
+     "en": "Documents and evidence",
+     "es": "Documentos y pruebas",
+     "count": 1,
+     "examples": [
+      {
+       "title": "Whose photo and ID should I upload in online I-131 application?",
+       "href": "https://www.reddit.com/r/USCIS/comments/1ss3loc/whose_photo_and_id_should_i_upload_in_online_i131/"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "rfe": {
+  "posts": 147,
+  "byForm": {
+   "I-485": 60,
+   "I-130": 7,
+   "I-751": 1,
+   "N-400": 9,
+   "I-765": 4,
+   "I-131": 0
+  },
+  "topics": [
+   {
+    "id": "medical",
+    "en": "Medical exam (I-693) / vaccines",
+    "es": "Examen médico (I-693) / vacunas",
+    "count": 14,
+    "examples": [
+     {
+      "title": "Medical RFE: redo the entire exam or just correct the form?",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1xga9ut/medical_rfe_redo_the_entire_exam_or_just_correct/"
+     },
+     {
+      "title": "I-485 denied, I-693 RFE not received despite proof of delivery",
+      "href": "https://www.reddit.com/r/USCIS/comments/1xabd49/i485_denied_i693_rfe_not_received_despite_proof/"
+     }
+    ]
+   },
+   {
+    "id": "bonafide",
+    "en": "Proof of a real marriage",
+    "es": "Prueba de matrimonio real",
+    "count": 12,
+    "examples": [
+     {
+      "title": "I-130 and I-485 Denied After Marriage Interview and NOID — Has Anyone Successfully Refiled From Scratch?",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1x10vqi/i130_and_i485_denied_after_marriage_interview_and/"
+     },
+     {
+      "title": "Anyone have experience with marriage based adjustment of status (from F-1 to greencard) with an RFE for a medical exam which the civil surgeon filled out incorrectly?",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wph2m5/anyone_have_experience_with_marriage_based/"
+     }
+    ]
+   },
+   {
+    "id": "criminal",
+    "en": "Court or police records",
+    "es": "Registros judiciales o policiales",
+    "count": 8,
+    "examples": [
+     {
+      "title": "RFE- Opt with Arrest - Class A misdemeanor",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1x5cltc/rfe_opt_with_arrest_class_a_misdemeanor/"
+     },
+     {
+      "title": "F-1 OPT I-765 RFE involving prior court case/PBJ — looking for similar experiences and immigration attorney recommendations",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wom77q/f1_opt_i765_rfe_involving_prior_court_casepbj/"
+     }
+    ]
+   },
+   {
+    "id": "civil",
+    "en": "Civil documents (birth, marriage, divorce)",
+    "es": "Documentos civiles (nacimiento, matrimonio, divorcio)",
+    "count": 6,
+    "examples": [
+     {
+      "title": "RFE at interview because Birth certificate was “wrong”!?",
+      "href": "https://www.reddit.com/r/USCIS/comments/1xh8mpo/rfe_at_interview_because_birth_certificate_was/"
+     },
+     {
+      "title": "Anyone have experience with marriage based adjustment of status (from F-1 to greencard) with an RFE for a medical exam which the civil surgeon filled out incorrectly?",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wph2m5/anyone_have_experience_with_marriage_based/"
+     }
+    ]
+   },
+   {
+    "id": "support",
+    "en": "Affidavit of support / income",
+    "es": "Declaración de apoyo / ingresos",
+    "count": 5,
+    "examples": [
+     {
+      "title": "Filed I-485 with outdated I-864 edition after Oct 1, 2026 RFE or possible denial without RFE?",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1xg84yz/filed_i485_with_outdated_i864_edition_after_oct_1/"
+     },
+     {
+      "title": "I-864 RFE — do officers discount retirement accounts (401k/IRA) when using assets to cover an income shortfall?",
+      "href": "https://www.reddit.com/r/USCIS/comments/1utznnv/i864_rfe_do_officers_discount_retirement_accounts/"
+     }
+    ]
+   },
+   {
+    "id": "status",
+    "en": "Status and entry records",
+    "es": "Estatus y registros de entrada",
+    "count": 5,
+    "examples": [
+     {
+      "title": "I-539 H-1B to F-1 change of status approved after RFE, but I never responded. Do I still need to?",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1wwtciw/i539_h1b_to_f1_change_of_status_approved_after/"
+     },
+     {
+      "title": "H-1B → F-1 change of status, got an RFE for a \"lapsed I-20 start date",
+      "href": "https://www.reddit.com/r/USCIS/comments/1wsug82/h1b_f1_change_of_status_got_an_rfe_for_a_lapsed/"
+     }
+    ]
+   },
+   {
+    "id": "employment",
+    "en": "Employment evidence",
+    "es": "Pruebas de empleo",
+    "count": 4,
+    "examples": [
+     {
+      "title": "I-129 (H-1B Change of Employer): RFE responded → RFE cancelled → \"Notice Explaining USCIS' Actions Was Mailed\" — anyone seen this sequence?",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1uyiawm/i129_h1b_change_of_employer_rfe_responded_rfe/"
+     },
+     {
+      "title": "I-140 approval changed to RFE",
+      "href": "https://www.reddit.com/r/USCIS/comments/1rcy2fm/i140_approval_changed_to_rfe/"
+     }
+    ]
+   },
+   {
+    "id": "translation",
+    "en": "Translations",
+    "es": "Traducciones",
+    "count": 3,
+    "examples": [
+     {
+      "title": "RFE for missing certified translation (I-130 / I-485)",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1t0atm7/rfe_for_missing_certified_translation_i130_i485/"
+     },
+     {
+      "title": "RFE for missing certified translation (I-130 / I-485 concurrent filing)",
+      "href": "https://www.reddit.com/r/USCIS_FORUM/comments/1szw1t1/rfe_for_missing_certified_translation_i130_i485/"
+     }
+    ]
+   }
+  ],
+  "note": "A title can mention more than one topic."
+ }
+}

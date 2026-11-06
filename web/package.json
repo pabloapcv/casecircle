@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test logic.test.js prepare.test.js folder-chat.test.js nav.test.js sidebar.test.js && python3 -m unittest folder_chat_test.py",
-    "start": "python3 serve.py 8080"
+    "test": "node --test logic.test.js prepare.test.js folder-chat.test.js nav.test.js sidebar.test.js redact.test.js readiness.test.js timeline.test.js builder.test.js && python3 -m unittest folder_chat_test.py folder_check_test.py",
+    "start": "python3 serve.py 8080",
+    "build-data": "node scripts/build-data.mjs"
   }
 }

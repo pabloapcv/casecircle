@@ -447,5 +447,38 @@ export const formChecklists = {
     optional: [
       { id: "i130-photos", en: "Photos together over time", es: "Fotos juntos a través del tiempo" }
     ]
+  },
+  "i-751": {
+    required: [
+      { id: "i751-form", en: "Form I-751 completed and signed by both spouses (joint filing)", es: "Formulario I-751 completado y firmado por ambos cónyuges (presentación conjunta)" },
+      { id: "i751-fee", en: "Filing fee", es: "Tarifa de presentación" },
+      { id: "i751-card", en: "Copy of the conditional green card (front and back)", es: "Copia de la tarjeta condicional (frente y dorso)" },
+      { id: "i751-joint", en: "Joint records across the two years (lease or mortgage, bank, insurance, taxes)", es: "Registros conjuntos de los dos años (contrato o hipoteca, banco, seguro, impuestos)" }
+    ],
+    conditional: [
+      { id: "i751-children", en: "Birth certificates of children born to the marriage", es: "Actas de nacimiento de hijos del matrimonio", condition: "children" },
+      { id: "i751-waiver", en: "Waiver basis evidence (divorce decree, death certificate, or abuse evidence)", es: "Pruebas de la base del perdón (divorcio, defunción o pruebas de abuso)", condition: "waiver" },
+      { id: "i751-court", en: "Certified court records for any arrest or citation", es: "Registros judiciales certificados de cualquier arresto o citación", condition: "arrests" }
+    ],
+    optional: [
+      { id: "i751-affidavits", en: "Affidavits from people who know you as a couple", es: "Declaraciones de personas que los conocen como pareja" },
+      { id: "i751-photos", en: "Photos together over time", es: "Fotos juntos a través del tiempo" }
+    ]
+  },
+  "i-131": {
+    required: [
+      { id: "i131-form", en: "Form I-131 completed and signed", es: "Formulario I-131 completado y firmado" },
+      { id: "i131-fee", en: "Filing fee (or included with a pending I-485 if the instructions say so)", es: "Tarifa (o incluida con un I-485 pendiente si las instrucciones lo dicen)" },
+      { id: "i131-id", en: "Copy of a government photo ID", es: "Copia de una identificación con foto" },
+      { id: "i131-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" }
+    ],
+    conditional: [
+      { id: "i131-pending", en: "Receipt notice of the pending I-485", es: "Recibo del I-485 pendiente", condition: "pending" },
+      { id: "i131-gc", en: "Copy of the green card (reentry permit)", es: "Copia de la tarjeta de residencia (permiso de reingreso)", condition: "reentry" },
+      { id: "i131-refugee", en: "Proof of refugee or asylee status", es: "Prueba de estatus de refugiado o asilado", condition: "refugee" }
+    ],
+    optional: [
+      { id: "i131-purpose", en: "Short explanation of the trip and its dates", es: "Explicación breve del viaje y sus fechas" }
+    ]
   }
 };

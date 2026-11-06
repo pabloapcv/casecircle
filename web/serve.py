@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Serve the website and the same-origin folder chat endpoint on loopback."""
+"""Serve the website and its same-origin API on loopback.
+
+GET  /api/folder-chat       chat availability          POST /api/folder-chat   folder chat (SSE)
+GET  /api/ai-status         provider + Demo AI flag    POST /api/folder-check  one document vs one checklist item
+GET  /api/processing-times  official times (cached)    POST /api/folder-plan   tailor the checklist
+"""
 from __future__ import annotations
 
 import os
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import folder_chat
+import folder_check
+import processing_times
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 folder_chat.load_dotenv(os.path.join(HERE, ".env"))
@@ -33,7 +40,9 @@ class Handler(SimpleHTTPRequestHandler):
     def _blocked_path(self) -> bool:
         path = urlparse(self.path).path.lower()
         name = os.path.basename(path)
-        if name.startswith(".env") or name.endswith(".pyc"):
+        if name.startswith(".env") or name.endswith((".pyc", ".py")):
+            return True  # server code (and its prompts) is never served as a static file
+        if "/data/cache/" in path or "__pycache__" in path:
             return True
         return False
 
@@ -41,14 +50,28 @@ class Handler(SimpleHTTPRequestHandler):
         if self._blocked_path():
             self.send_error(404, "File not found")
             return
-        if urlparse(self.path).path == "/api/folder-chat":
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/folder-chat":
             folder_chat.handle_status(self, self.server_port)
+            return
+        if parsed.path == "/api/ai-status":
+            folder_check.handle_status(self, self.server_port)
+            return
+        if parsed.path == "/api/processing-times":
+            processing_times.handle(self, parse_qs(parsed.query))
             return
         super().do_GET()
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path == "/api/folder-chat":
+        path = urlparse(self.path).path
+        if path == "/api/folder-chat":
             folder_chat.handle_post(self, self.server_port)
+            return
+        if path == "/api/folder-check":
+            folder_check.handle_check(self, self.server_port)
+            return
+        if path == "/api/folder-plan":
+            folder_check.handle_plan(self, self.server_port)
             return
         self.send_error(404, "File not found")
 

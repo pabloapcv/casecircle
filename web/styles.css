@@ -46,32 +46,10 @@
   --coral: var(--danger);
   --btn: var(--accent);
 
-  color-scheme: light dark;
+  color-scheme: light;
   font-family: var(--font);
   font-size: 16px;
   line-height: 1.5;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ground: #111715;
-    --surface: #19211F;
-    --ink: #E6ECEA;
-    --secondary: #A6B3AF;
-    --accent: #4FB3A4;
-    --accent-deep: #8AD6C8;
-    --accent-soft: rgba(79, 179, 164, 0.16);
-    --line: #2A3431;
-    --chip-line: #3B4743;
-    --field-line: #5F6D69;
-    --amber: #E3A766;
-    --amber-soft: rgba(227, 167, 102, 0.14);
-    --danger: #EE8B7C;
-    --danger-soft: rgba(238, 139, 124, 0.14);
-    --dark: #0B100F;
-    --on-accent: #0D1312;
-    --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
-  }
 }
 
 /* ───────── Base ───────── */
@@ -568,8 +546,6 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .case-links a { color: var(--dark-link); font-size: 0.875rem; font-weight: 600; text-decoration: none; }
 .case-links a:hover { color: #fff; text-decoration: underline; }
 .case-card :focus-visible { outline-color: var(--dark-link); }
-@media (prefers-color-scheme: dark) { .case-card { border-color: var(--line); } }
-
 .rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .rail-list li { margin: 0; border-top: 1px solid var(--line); }
 .rail-list li:first-child { border-top: 0; }

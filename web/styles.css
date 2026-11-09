@@ -423,7 +423,7 @@ button.card:hover, button.post-type:hover, button.pain:hover, .web-post:hover { 
   display: flex; flex-direction: column; gap: 6px;
   font-size: 0.875rem; font-weight: 600; color: var(--ink);
 }
-input[type="text"], input[type="email"], input[type="search"], input:not([type]), select, textarea {
+input[type="text"], input[type="email"], input[type="password"], input[type="search"], input:not([type]), select, textarea {
   width: 100%; min-height: 46px; padding: 11px 14px;
   border: 1px solid var(--field-line); border-radius: var(--radius-card);
   background: var(--surface); color: var(--ink);
@@ -1193,3 +1193,33 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .home-hero .note { display: flex; gap: 6px; align-items: flex-start; }
 .home-hero .note .ico { margin-top: 3px; }
 .hero-sample { align-self: flex-start; }
+
+/* ───────────── Accounts + server-backed community (MVP) ───────────── */
+.sign-in-btn { min-height: 40px; padding: 0 14px; white-space: nowrap; }
+.auth-card { margin: 8px auto 48px; padding: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-panel); }
+.auth-card h1 { margin: 6px 0 8px; font-size: 1.75rem; line-height: 1.2; color: var(--ink); }
+.auth-card .kicker { display: flex; align-items: center; gap: 8px; color: var(--accent-deep); }
+.auth-card .lede { margin: 0 0 20px; color: var(--secondary); }
+.auth-form { gap: 16px; }
+.auth-form input[type="email"], .auth-form input[type="password"], .auth-form input[type="text"] { width: 100%; }
+.auth-groups { border: 0; padding: 0; margin: 0; }
+.auth-groups legend { padding: 0; margin-bottom: 8px; font-weight: 600; color: var(--ink); }
+.auth-groups .chips { margin: 0 0 6px; }
+.auth-switch { margin: 18px 0 8px; color: var(--secondary); }
+.small-print { font-size: 0.8125rem; line-height: 1.45; margin: 4px 0 0; }
+.btn.block { width: 100%; justify-content: center; }
+.guest-card { background: var(--accent-soft); border: 1px solid var(--accent-soft); border-radius: var(--radius-card); }
+.guest-card .row, .guest-reply .row { display: flex; flex-wrap: wrap; gap: 10px; }
+.guest-reply { padding: 16px; border: 1px dashed var(--chip-line); border-radius: var(--radius-card); background: var(--surface); }
+.guest-reply p { margin: 0 0 12px; }
+.feed-status { padding: 24px 0; text-align: center; }
+.legal-page p { line-height: 1.6; margin: 0 0 14px; }
+.legal-page h1 { margin-bottom: 18px; }
+.reply.helpful { background: var(--accent-soft); border-radius: var(--radius-card); padding: 16px; border-bottom: 0; margin: 6px 0; }
+.read-actions .vote.on, .reply .read-actions .vote.on { background: var(--accent); color: var(--on-accent); }
+.waitlist-box .small-print { color: var(--secondary); }
+@media (max-width: 720px) {
+  .sign-in-btn { display: none; }
+  .auth-card { padding: 20px; border-radius: var(--radius-card); }
+}
+.auth-card .note { display: flex; gap: 6px; align-items: flex-start; }

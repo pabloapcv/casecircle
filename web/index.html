@@ -11,19 +11,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="styles.css?v=62d6a2e">
+  <link rel="stylesheet" href="styles.css?v=mvp1">
 </head>
 <body>
   <div id="app">Loading CaseCircle…</div>
-  <script type="module">
-    import("./app.js").catch((error) => {
-      const root = document.getElementById("app");
-      if (!root) return;
-      const pre = document.createElement("pre");
-      pre.className = "page";
-      pre.textContent = error && (error.stack || error.message) || String(error);
-      root.replaceChildren(pre);
-    });
-  </script>
+  <script type="module" src="boot.js?v=mvp1"></script>
 </body>
 </html>

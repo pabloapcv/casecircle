@@ -1,0 +1,35 @@
+# CaseCircle web app on Render: one Python web service (stdlib only) + a persistent disk for SQLite.
+# Persistent disks need a paid instance type and keep the service at a single instance (no zero-downtime deploys).
+services:
+  - type: web
+    name: casecircle
+    runtime: python
+    plan: starter
+    rootDir: web
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 serve.py
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    disk:
+      name: casecircle-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: CASECIRCLE_DB_PATH
+        value: /var/data/casecircle.db
+      - key: CASECIRCLE_TRUST_PROXY
+        value: "1"
+      - key: CASECIRCLE_COOKIE_SECURE
+        value: "1"
+      - key: CASECIRCLE_ADMIN_EMAILS
+        sync: false
+      - key: CASECIRCLE_PUBLIC_ORIGIN
+        sync: false
+      - key: CASECIRCLE_LLM_API_KEY
+        sync: false
+      - key: CASECIRCLE_LLM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: CASECIRCLE_LLM_MODEL
+        value: gpt-4o-mini

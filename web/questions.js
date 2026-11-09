@@ -375,7 +375,7 @@ const home = {
   waitNoCompare: ["Not enough similar timelines to compare yet.", "Aún no hay suficientes tiempos parecidos para comparar."],
   moreCases: ["+{n} more in Check the wait", "+{n} más en Revisa la espera"],
   caseEmptyTitle: ["No case added yet", "Aún no agregas un caso"],
-  caseEmptyBody: ["Add your form, filing month and stage to see your months since filing here. It stays in this browser.", "Agrega tu formulario, mes de presentación y etapa para ver aquí tus meses desde la presentación. Se queda en este navegador."],
+  caseEmptyBody: ["Add your form, filing month and stage to see your months since filing here. Saved to your account when you're signed in, otherwise only in this browser.", "Agrega tu formulario, mes de presentación y etapa para ver aquí tus meses desde la presentación. Se guarda en tu cuenta si iniciaste sesión; si no, solo en este navegador."],
   savedTitle: ["Saved posts", "Publicaciones guardadas"],
   savedSeeAll: ["See all saved ({n})", "Ver todo lo guardado ({n})"],
   savedEmptyBody: ["Tap Save on a post to keep it here.", "Toca Guardar en una publicación para tenerla aquí."],
@@ -457,11 +457,8 @@ const pricingCopy = {
     "Una sola vez, por caso, por 12 meses: chat de carpeta ilimitado, lista bilingüe imprimible, paquete de entrevista y alertas de espera."
   ],
   passComing: ["Coming soon — Join the waitlist", "Próximamente — Únete a la lista de espera"],
-  waitlistHelp: [
-    "No checkout yet. We save your email only in this browser, or you can email us.",
-    "Aún no hay pago. Guardamos tu correo solo en este navegador, o puedes escribirnos."
-  ],
-  waitlistSaved: ["Saved on this device. We will not charge you from this page.", "Guardado en este dispositivo. No te cobramos desde esta página."],
+  waitlistHelp: ["No checkout yet. Leave your email and we will write once when Case Pass is ready. We never charge you from this page.", "Aún no hay pago. Deja tu correo y te escribiremos una vez cuando Case Pass esté listo. Nunca te cobramos desde esta página."],
+  waitlistSaved: ["You're on the waitlist. We'll email you once when Case Pass is ready — no charge.", "Estás en la lista de espera. Te escribiremos una vez cuando Case Pass esté listo, sin cobro."],
   waitlistMailto: ["Or email support@casecircle.app to join the waitlist", "O escribe a support@casecircle.app para unirte a la lista"],
   abNote: ["Price shown is the A/B test amount configured for this build.", "El precio mostrado es el monto de la prueba A/B configurado en esta versión."]
 };

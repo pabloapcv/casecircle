@@ -1,0 +1,2 @@
+# CaseCircle's server uses only the Python standard library (http.server, sqlite3, hashlib.scrypt).
+# This file exists so hosts that run `pip install -r requirements.txt` have something to read.

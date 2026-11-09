@@ -4,17 +4,18 @@ The calm, bilingual companion for the USCIS wait / El acompañante bilingüe y t
 
 CaseCircle is a free-to-start community and case companion for people with family-based and naturalization cases: compare your wait, gather papers on the device, prepare for interviews, and learn from moderated community experiences. It is **not** affiliated with USCIS, not legal advice, and not a filing service.
 
-The site is static files plus a few same-origin JSON endpoints (`serve.py`). Tools come first — **Folder Builder, Check the wait, Interview prep, Insights** — and the community is second.
+The site is static files plus same-origin JSON endpoints served by `serve.py` (Python standard library only), with accounts, community posts and the waitlist stored in SQLite. Tools come first — **Folder Builder, Check the wait, Interview prep, Insights** — and the community is second.
 
 ## Preview on your Mac (port 8766)
 
 From `web/`:
 
 ```bash
-python3 serve.py 8766
+python3 serve.py            # 127.0.0.1:8766, database at web/data/casecircle.db
+python3 serve.py 8766       # same, explicit port
 ```
 
-Open [http://127.0.0.1:8766/](http://127.0.0.1:8766/). The process binds **127.0.0.1 only**. `serve.py` also handles `POST /api/folder-chat` so the folder page and the language-model chat share that origin.
+Open [http://127.0.0.1:8766/](http://127.0.0.1:8766/). Locally the server binds **127.0.0.1**. When `PORT` is set (as hosts do) it binds `0.0.0.0` unless `HOST` says otherwise. The SQLite file is created and migrated on startup; `web/data/*.db` is gitignored and never served.
 
 This branch includes the blank-page startup fix from [PR #2](https://github.com/pabloapcv/casecircle/pull/2). Keep using this `serve.py`; plain `python3 -m http.server` will not expose `/api/folder-chat`.
 
@@ -29,7 +30,7 @@ This branch includes the blank-page startup fix from [PR #2](https://github.com/
 
 - **Free core:** feed, Check the wait, checklists, common questions, limited Ask-the-posts questions.
 - **Case Pass:** one-time, per case, 12 months — unlimited folder chat, printable bilingual checklist, interview prep pack, wait alerts.
-- Checkout is **not** wired. The UI shows **Coming soon / Join the waitlist** and only stores an email in `localStorage` (or offers a mailto).
+- Checkout is **not** wired. The UI shows **Coming soon / Join the waitlist**; `POST /api/waitlist` stores the email, language and source page in SQLite (table `waitlist`). The browser only remembers a "joined" flag.
 - A/B price test: `CASE_PASS_PRICE_USD` in `app.js` is set to **19** (alternative under test: **29**). Change that constant to flip the displayed price; do not invent a charge.
 
 ## Folder chat (language model)
@@ -108,6 +109,59 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 
 `serve.py` refuses to serve `.py` files, `__pycache__` and `data/cache/`, so prompts are not exposed.
 
+## Accounts and community (server)
+
+`community.py` (stdlib + `sqlite3`) owns accounts, posts, replies, votes, saves, reports, moderation and the waitlist.
+
+- **Accounts:** email + password (`hashlib.scrypt`, n=2^14, r=8, p=1, 16-byte random salt per user; Python builds without OpenSSL scrypt, such as macOS system Python, fall back to PBKDF2-SHA256 with 600,000 iterations, tagged in the stored hash), public handle (3–20 letters/numbers/_; reserved words like `uscis`, `admin` refused), chosen case groups and optional case profile. Sessions are random 256-bit tokens stored as SHA-256 hashes, sent as an `HttpOnly; SameSite=Lax` cookie (`Secure` behind HTTPS), 30 days.
+- **Reading is open** to everyone (signed-out visitors get a device-only "guest" so the tools work too). Posting, replying, voting, saving and reporting need an account; the UI shows a sign-in prompt instead.
+- **CSRF:** every state-changing request must carry `X-CaseCircle: 1` (cannot be sent cross-site without a CORS preflight, which is never granted) and, when the browser sends one, a same-origin `Origin`.
+- **Rate limits (in memory, per IP or per user):** sign-up 5/h per IP, sign-in 10/15 min per IP and per email, posts 1/30 s and 20/day, replies 1/8 s and 200/day, votes/saves 60/min, reports 20/h, waitlist 5/h per IP.
+- **Content:** length limits (title 8–140, post 20–5,000, reply 8–3,000 chars), control characters stripped, and the same rules as the client (`logic.js evaluate`) run on the server: receipt numbers, A-numbers, SSNs, passport numbers and abuse are refused; scam phrases are held for review. Text is stored as plain text and the client renders every field through its HTML escaper; the CSP blocks inline scripts.
+- **Moderation:** a post or reply with `CASECIRCLE_REPORT_HIDE_THRESHOLD` (default 3) open reports is hidden automatically. Accounts whose email is in `CASECIRCLE_ADMIN_EMAILS` see **Review queue** (account menu) and can hide, unhide, remove or dismiss reports.
+- **Delete account** (profile → Delete) needs the password; it removes email, password and handle and keeps posts as "Deleted member".
+- The **App Review demo** account and the old browser-only posts are gone from production paths (old local data is dropped on load). The "Public titles" Reddit section is unchanged.
+- Documents are **never** uploaded: the Folder Builder, readiness score and per-document consent flow are unchanged and still work signed out.
+
+| Endpoint | Method | Notes |
+| --- | --- | --- |
+| `/healthz` | GET | `{ok:true}` after opening the database |
+| `/api/me` | GET / POST | current account (+ group member counts) / update locale, groups, case profiles |
+| `/api/signup`, `/api/login`, `/api/logout` | POST | session cookie |
+| `/api/account/delete` | POST | `{password}` |
+| `/api/handle-check?handle=` | GET | `{issue: null\|taken\|reserved\|invalid}` |
+| `/api/posts` | GET / POST | list: `group`, `groups=a,b`, `type`, `sort=new\|top\|unanswered`, `q`, `author=me`, `saved=1`, `limit`, `offset` / create |
+| `/api/posts/<id>` | GET | post + replies |
+| `/api/posts/<id>/replies`, `/save`, `/helpful` | POST | reply / toggle save / asker marks a reply helpful |
+| `/api/vote`, `/api/report` | POST | `{target: "p12" \| "c34"}` |
+| `/api/mod/queue`, `/api/mod` | GET / POST | admins only; `{target, action: hide\|unhide\|remove\|dismiss}` |
+| `/api/waitlist` | POST | `{email, lang, source}` |
+
+**Privacy and Terms pages** (`#privacy`, `#terms`, copy in `auth-text.js`, English and Spanish) are a **draft for attorney review** before launch. They state what is stored (account email, hashed password, handle, groups/profile, posts, saves, votes, reports, waitlist email), that documents never leave the device, and that CaseCircle is not legal advice.
+
+## Deploy
+
+The repo root has a `render.yaml` Blueprint: one Python web service (`rootDir: web`, `python3 serve.py`, health check `/healthz`) with a 1 GB persistent disk at `/var/data` for SQLite. On Render: **New → Blueprint**, pick the repo, fill the `sync: false` values, deploy. Disks need a paid instance (the Blueprint uses `starter`) and keep the service at **one instance**; deploys have a few seconds of downtime. Render snapshots the disk daily.
+
+Any host that runs a long-lived Python 3.10+ process with a persistent volume works the same way: `cd web && python3 serve.py`, with these variables:
+
+| Name | Needed | Value |
+| --- | --- | --- |
+| `PORT` | set by the host | port to listen on (binds `0.0.0.0` when set) |
+| `HOST` | no | override bind address |
+| `CASECIRCLE_DB_PATH` | **yes** in production | e.g. `/var/data/casecircle.db` on the persistent disk (default `web/data/casecircle.db`) |
+| `CASECIRCLE_TRUST_PROXY` | yes behind a proxy | `1`: trust `X-Forwarded-For` / `-Proto` / `-Host` (rate limits per real IP, Secure cookie) |
+| `CASECIRCLE_COOKIE_SECURE` | recommended | `1`: always mark the session cookie `Secure` |
+| `CASECIRCLE_ADMIN_EMAILS` | yes | comma-separated emails that get the review queue |
+| `CASECIRCLE_PUBLIC_ORIGIN` | optional | e.g. `https://casecircle.app` (comma-separated) if the proxy rewrites `Host` |
+| `CASECIRCLE_REPORT_HIDE_THRESHOLD` | no | open reports before auto-hide (default 3) |
+| `CASECIRCLE_LLM_API_KEY`, `CASECIRCLE_LLM_BASE_URL`, `CASECIRCLE_LLM_MODEL` | for real AI | see "Folder chat" above; without a key the AI parts say they're unavailable |
+| `CASECIRCLE_LLM_MOCK` | **never in production** | test-only canned replies |
+
+Security headers on every response: `Content-Security-Policy` (self + Google Fonts + jsDelivr for pdf.js/tesseract.js + tesseract language data + `blob:` workers; one hashed inline handler for the printable summary's Print button), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy`, and HSTS when served over HTTPS. CSS/JS/HTML keep `Cache-Control: no-cache, must-revalidate`. Directory listings, `.py`, dotfiles, `scripts/`, `data/cache/` and database files are never served.
+
+Backups: besides Render's daily disk snapshots, copy the database with `sqlite3 /var/data/casecircle.db ".backup /var/data/backup.db"` from the service shell.
+
 ## Find real help
 
 The landing page points only to real free/low-cost resources (no paid lead-gen):
@@ -125,7 +179,7 @@ The landing page points only to real free/low-cost resources (no paid lead-gen):
 npm test
 ```
 
-That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback).
+That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, and `community_test.py`: accounts, scrypt hashing, sessions, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
 
 To smoke the UI against the mock (clearly test-only):
 
@@ -139,4 +193,4 @@ Then open a folder in Prepare. Mock replies start with “Test-only mock reply�
 
 The UI follows the Paper "mineral" design. Tokens (colors, radii, font) are CSS custom properties at the top of `styles.css`. **Light theme only** — there is no dark mode. The font is Inter Tight from Google Fonts with the system sans as fallback, so the browser requests the font files from Google; no case data, documents, or checklist content is part of that request.
 
-On screens 1100px and wider, Feed, a case group, and a post show a right sidebar ("Your case", saved posts, tools, community rules). Its data comes from `sidebar.js`, which only reads local state; `sidebar.test.js` covers it.
+On screens 1100px and wider, Feed, a case group, and a post show a right sidebar ("Your case", saved posts, tools, community rules). "Your case" comes from `sidebar.js` (local/account case profile); saved posts come from `GET /api/posts?saved=1`.

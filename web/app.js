@@ -1,18 +1,20 @@
 import {
-  addComment, badge, basedLabel, basedOn, benchmarkCells, blockMember, categories, createAccount,
-  deleteAccount, emailOk, enterDemo, evaluate, initialState, kindHelp, kindLabel, kinds, levelName,
-  markHelpful, me, member, moderate, monthLabel, monthsSince, officeById, officeName, offices,
-  publish, queuedPosts, report, saveProfile, similarThreads, spaceById, spaceName, spaces,
-  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue, waitComparison,
+  badge, basedLabel, basedOn, benchmarkCells, categories,
+  deleteAccount, emailOk, evaluate, initialState, kindHelp, kindLabel, kinds, levelName,
+  me, monthLabel, monthsSince, officeById, officeName, offices,
+  saveProfile, similarThreads, spaceById, spaceName, spaces,
+  stageLabel, stages, t, ago, usernameIssue, waitComparison,
   normalizeWebState
 } from "./logic.js";
+import { api, errorKey, feedKey } from "./api.js";
+import { authText } from "./auth-text.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { buildFolderChatPayload, scanFolderChatPayload } from "./folder-chat.js";
 import { homeSteps, homeText, homePains, homeCompare, pricingText, helpText, formSeoText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
 import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
 import { askPosts, botPrompts } from "./bot.js";
 import { SECTION_OF, hashForRoute, initialFor, resolveRouteName, routeFromHash } from "./nav.js";
-import { caseSummary, savedPosts } from "./sidebar.js";
+import { caseSummary } from "./sidebar.js";
 import { toolsText } from "./tools-text.js";
 import { BUILDER_FORMS, answerLabel, buildPlan, inferFromDescription, mergeAiPlan, nextQuestion, questionsFor, suggestItem } from "./builder.js";
 import { computeReadiness, crossDocFindings, readinessBand, topFixes } from "./readiness.js";
@@ -24,8 +26,16 @@ import { NEXT_STEPS, OFFICIAL, WAIT_FORMS, rangeBar, waitPosition } from "./insi
 const KEY = "casecircle.web.v3";
 /** A/B test Case Pass price: set to 19 or 29. Documented in README. */
 const CASE_PASS_PRICE_USD = 19;
-const WAITLIST_KEY = "casecircle.waitlist.v1";
+const WAITLIST_KEY = "casecircle.waitlist.joined";
+const LAUNCH_SPACES = spaces.filter((item) => item.launch).map((item) => item.id);
 let state = load();
+/* Server-backed community: account from /api/me, feeds and posts cached in memory only (never in localStorage). */
+const session = { loaded: false, user: null, groupCounts: {} };
+const feeds = new Map();
+const postDetails = new Map();
+const modQueue = { items: null, loading: false };
+let authForm = blankAuth("signup");
+let authReturn = null;
 let toast = "";
 let onboard = blankOnboard();
 let filters = { sort: "new", kind: "", stage: "", officeId: "" };
@@ -65,18 +75,184 @@ function withoutSamples(saved) {
   return saved;
 }
 
+/*
+ * Local state keeps only this device's member (tools, folders, language). Community posts, replies, saves and
+ * reports live on the server; older browser-only posts and the App Review demo account are dropped here.
+ */
+function localOnly(saved) {
+  const mine = (saved.members || []).find((person) => person.id === saved.meId && !person.sample && person.username !== "app_review");
+  saved.members = mine ? [mine] : [];
+  if (!mine) saved.meId = null;
+  saved.posts = [];
+  saved.reports = [];
+  return saved;
+}
+
 function load() {
   try {
     const saved = localStorage.getItem(KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      const clean = normalizeWebState(withoutSamples(parsed));
+      const clean = normalizeWebState(localOnly(withoutSamples(parsed)));
       localStorage.setItem(KEY, JSON.stringify(clean));
       return clean;
     }
   } catch { /* start fresh */ }
   const lang = (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en";
   return initialState(lang);
+}
+
+function blankAuth(mode) {
+  return { mode, email: "", handle: "", spaces: ["i-485"], rules: false, advice: false, busy: false, error: "" };
+}
+
+function newLocalMember(username, spaceIds = ["i-485", "i-130", "n-400"]) {
+  return {
+    id: `local_${Math.random().toString(36).slice(2, 10)}`,
+    username, locale: lang(), reputation: 0, role: "member", sample: false, email: "",
+    spaces: [...spaceIds], profiles: [], votes: {}, bookmarks: [], blocks: [], notes: [], completed: [], accountId: null
+  };
+}
+
+function guestName() {
+  return `guest_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function account() {
+  return session.user;
+}
+
+/* Link (or unlink) the device member to the signed-in account. Server groups/profiles win; local ones are pushed up once. */
+function adoptAccount(user) {
+  session.user = user || null;
+  let local = me(state);
+  if (user) {
+    if (!local) {
+      local = newLocalMember(user.handle, user.spaces?.length ? user.spaces : ["i-485"]);
+      state.members = [local];
+      state.meId = local.id;
+    }
+    const push = {};
+    local.username = user.handle;
+    local.accountId = user.id;
+    local.email = user.email;
+    local.role = user.isAdmin ? "mod" : "member";
+    local.reputation = user.reputation || 0;
+    if (user.spaces?.length) local.spaces = [...user.spaces];
+    else if (local.spaces?.length) push.spaces = local.spaces;
+    if (user.profiles?.length) local.profiles = user.profiles;
+    else if (local.profiles?.length) push.profiles = local.profiles;
+    if (Object.keys(push).length) api("/api/me", { method: "POST", body: push });
+  } else if (local?.accountId) {
+    local.accountId = null;
+    local.role = "member";
+    local.email = "";
+    local.reputation = 0;
+    local.username = guestName();
+  }
+  save();
+}
+
+async function refreshSession() {
+  const res = await api("/api/me");
+  session.loaded = true;
+  if (res.ok) {
+    session.groupCounts = res.data.groupCounts || {};
+    adoptAccount(res.data.user);
+  }
+  render();
+}
+
+/* ── community data (server) ── */
+function feed(params) {
+  const key = feedKey(params);
+  let entry = feeds.get(key);
+  if (!entry) {
+    if (feeds.size > 24) feeds.delete(feeds.keys().next().value);
+    entry = { posts: [], more: false, loading: true, error: false };
+    feeds.set(key, entry);
+    loadFeed(key, entry);
+  }
+  return entry;
+}
+
+async function loadFeed(key, entry) {
+  entry.loading = !entry.posts.length;
+  const res = await api(`/api/posts${key ? `?${key}` : ""}`);
+  entry.loading = false;
+  entry.error = !res.ok;
+  if (res.ok) { entry.posts = res.data.posts || []; entry.more = Boolean(res.data.more); }
+  render();
+}
+
+function postDetail(id) {
+  let entry = postDetails.get(id);
+  if (!entry) {
+    entry = { post: null, loading: true, error: "" };
+    postDetails.set(id, entry);
+    loadPost(id, entry);
+  }
+  return entry;
+}
+
+async function loadPost(id, entry) {
+  const res = await api(`/api/posts/${encodeURIComponent(id)}`);
+  entry.loading = false;
+  entry.error = res.ok ? "" : res.error;
+  if (res.ok) entry.post = res.data.post;
+  render();
+}
+
+/* Re-fetch what is on screen without blanking it (after a post, reply, vote, save, report or sign-in). */
+function refreshCommunity() {
+  for (const [key, entry] of feeds) loadFeed(key, entry);
+  for (const [id, entry] of postDetails) loadPost(id, entry);
+  if (modQueue.items) loadModQueue();
+  api("/api/me").then((res) => { if (res.ok) { session.groupCounts = res.data.groupCounts || {}; if (res.data.user) session.user = res.data.user; } });
+}
+
+async function loadModQueue() {
+  modQueue.loading = true;
+  const res = await api("/api/mod/queue");
+  modQueue.loading = false;
+  modQueue.items = res.ok ? res.data.items || [] : [];
+  render();
+}
+
+function cachedPosts() {
+  const seen = new Map();
+  for (const entry of feeds.values()) for (const post of entry.posts) seen.set(post.id, post);
+  return [...seen.values()];
+}
+
+function notBlocked(posts) {
+  const blocked = new Set(me(state)?.blocks || []);
+  return blocked.size ? posts.filter((post) => !blocked.has(post.authorId)) : posts;
+}
+
+/* Writing needs an account. Returns true (and opens sign-in) when there is none. */
+function needAccount() {
+  if (account()) return false;
+  toast = A("signInToWrite");
+  openAuth("signup");
+  return true;
+}
+
+function openAuth(mode = "signup") {
+  authForm = { ...blankAuth(mode), spaces: me(state)?.spaces?.length ? [...me(state).spaces].slice(0, 6) : ["i-485"] };
+  if (state.meId) {
+    if (state.route?.name !== "auth") authReturn = state.route;
+    state.route = { name: "auth" };
+  } else {
+    publicView = "auth";
+  }
+  render();
+  window.scrollTo?.(0, 0);
+}
+
+function failToast(res) {
+  toast = A(errorKey(res.error));
+  render();
 }
 
 function save() {
@@ -108,16 +284,12 @@ function Pr(key) { return pricingText(lang(), key); }
 function Help(key) { return helpText(lang(), key); }
 function FormSeo(key) { return formSeoText(lang(), key); }
 function T(key, vars) { return toolsText(lang(), key, vars); }
+function A(key, vars) { return authText(lang(), key, vars); }
 function casePassPriceLabel() {
   return lang() === "es" ? `US$${CASE_PASS_PRICE_USD} (una vez)` : `$${CASE_PASS_PRICE_USD} one-time`;
 }
-function readWaitlist() {
-  try { return JSON.parse(localStorage.getItem(WAITLIST_KEY) || "[]"); } catch { return []; }
-}
-function saveWaitlistEmail(email) {
-  const list = readWaitlist().filter((item) => item !== email);
-  list.push(email);
-  localStorage.setItem(WAITLIST_KEY, JSON.stringify(list));
+function onWaitlist() {
+  try { return localStorage.getItem(WAITLIST_KEY) === "1"; } catch { return false; }
 }
 function syncDocumentMeta() {
   const title = H("metaTitle");
@@ -137,10 +309,8 @@ function esc(value) {
 }
 
 function boot() {
-  if (new URLSearchParams(location.search).get("demo") === "1" && !state.meId) {
-    state = enterDemo(state).state;
-    save();
-  }
+  const linked = routeFromHash(location.hash);
+  if (!state.meId && linked && ["post", "space", "home"].includes(linked.name)) ensureLocalMember(); // shared links open read-only
   if (state.meId) {
     // Old saved routes and old/new deep links (#post=…, #spaces, #communities, #bot, #groups, #answers…) all resolve here.
     const saved = state.route?.name ? resolveRouteName(state.route.name) : null;
@@ -150,6 +320,7 @@ function boot() {
   }
   ensureData();
   render();
+  refreshSession();
 }
 
 let restoreFocus = "";
@@ -287,8 +458,9 @@ function topbar() {
     const on = current === entry.id || (entry.also || []).includes(current);
     return `<a href="#${entry.id}" data-act="tab" data-tab="${entry.route}" class="nav-link${on ? " on" : ""}"${on ? ' aria-current="page"' : ""}>${esc(entry.label)}</a>`;
   };
-  const name = user?.username || L("you");
-  const mod = user?.role === "mod";
+  const signed = Boolean(account());
+  const name = signed ? user?.username || L("you") : A("guest");
+  const mod = signed && user?.role === "mod";
   return `<a href="#main" class="skip-link">${esc(H("skipToContent"))}</a>
   <header class="topbar app-bar">
     <div class="bar-inner">
@@ -301,6 +473,7 @@ function topbar() {
       </nav>
       <div class="top-actions">
         ${langToggle()}
+        ${signed || !session.loaded ? "" : `<button type="button" class="btn-secondary sign-in-btn" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button>`}
         <a href="#new" class="btn new-post" data-act="tab" data-tab="ask" aria-label="${esc(H("newPost"))}"${state.route?.name === "ask" ? ' aria-current="page"' : ""}>${icon("plus", 18)}<span class="new-post-label">${esc(H("newPost"))}</span></a>
         <div class="account">
           <button type="button" id="account-btn" class="account-btn${current === "account" ? " on" : ""}" data-act="account-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="${esc(`${H("accountMenu")}: ${name}`)}" title="${esc(name)}">
@@ -324,6 +497,10 @@ function topbar() {
             </div>
             <div class="menu-sep" role="separator"></div>
             <button type="button" role="menuitem" data-act="page" data-page="rules">${icon("book", 18)}<span>${esc(L("rules"))}</span></button>
+            ${signed
+              ? `<button type="button" role="menuitem" data-act="logout">${icon("lock", 18)}<span>${esc(A("signOut"))}</span></button>`
+              : `<button type="button" role="menuitem" data-act="auth" data-mode="signup">${icon("user", 18)}<span>${esc(A("signUp"))}</span></button>
+            <button type="button" role="menuitem" data-act="auth" data-mode="signin">${icon("lock", 18)}<span>${esc(A("signIn"))}</span></button>`}
           </div>
         </div>
       </div>
@@ -433,12 +610,14 @@ function siteFoot() {
       ${jump("what", H("homeNavWhat"))}
       ${jump("pricing", H("homeNavPricing"))}
       ${jump("find-help", H("homeNavHelp"))}
-      ${signed ? `<button class="foot-link" data-act="tab" data-tab="home">${esc(H("navFeed"))}</button>` : `<button class="foot-link" data-act="show-email">${esc(H("again"))}</button>`}
+      ${signed ? `<button class="foot-link" data-act="tab" data-tab="home">${esc(H("navFeed"))}</button>` : ""}
+      ${account() ? "" : `<button class="foot-link" data-act="auth" data-mode="signup">${esc(H("again"))}</button>`}
     </nav>
     <nav aria-label="Information">
       <h2>${esc(H("footRead"))}</h2>
       <button class="foot-link" data-act="page" data-page="about">${esc(L("about"))}</button>
       <button class="foot-link" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
+      <button class="foot-link" data-act="page" data-page="terms">${esc(A("terms"))}</button>
       <button class="foot-link" data-act="page" data-page="rules">${esc(L("rules"))}</button>
       <button class="foot-link" data-act="open-pricing">${esc(H("homeNavPricing"))}</button>
       <a href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
@@ -460,6 +639,7 @@ function siteFoot() {
 
 function screen() {
   const route = state.route || { name: "home" };
+  if (route.name === "auth") return authScreen();
   if (route.name === "post") return postScreen(route.id);
   if (route.name === "space") return spaceScreen(route.id);
   if (route.name === "search") return searchScreen();
@@ -482,11 +662,11 @@ function screen() {
 }
 
 function welcome() {
-  const step = onboard.step;
-  const home = step === 0 && publicView === "home";
+  const home = publicView === "home";
   const jump = (id, label) => `<button data-act="home-section" data-id="${id}">${esc(label)}</button>`;
   const publicMain = () => {
     if (publicView === "home") return landing();
+    if (publicView === "auth") return authScreen();
     if (publicView === "bot") return botScreen();
     if (publicView === "pricing") return pricingScreen({ public: true });
     if (publicView.startsWith("form:")) return formSeoScreen(publicView.slice(5), { public: true });
@@ -496,27 +676,10 @@ function welcome() {
     <header class="topbar public-bar">
       <button class="brand" data-act="public-home" aria-label="CaseCircle Home">${logoMark(28)}<span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span></button>
       ${home ? `<nav class="nav" aria-label="Navigation"><button data-act="start-tool" data-route="prepare">${esc(T("navBuilder"))}</button><button data-act="start-tool" data-route="timelines">${esc(T("navWait"))}</button><button data-act="start-tool" data-route="interview">${esc(T("navInterview"))}</button>${jump("insights-home", T("navInsights"))}${jump("talk", T("navCommunity"))}${jump("pricing", H("homeNavPricing"))}${jump("find-help", H("homeNavHelp"))}</nav>` : `<div class="nav"></div>`}
-      <div class="top-actions">${langToggle()}</div>
+      <div class="top-actions">${langToggle()}${publicView === "auth" ? "" : `<button type="button" class="btn-secondary sign-in-btn" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button>`}</div>
     </header>
-    <main class="page" id="main">${step === 0 ? publicMain() : onboardingScreen()}</main>
+    <main class="page" id="main">${publicMain()}</main>
     ${siteFoot()}
-  </div>`;
-}
-
-function onboardingScreen() {
-  const step = onboard.step;
-  return `<div class="narrow stack">
-    <p class="kicker">${esc(L("notAffiliated"))}</p>
-    <p class="muted">${esc(L("pitch"))}</p>
-    <div class="spread">
-      <p class="step">${esc(lang() === "es" ? "Paso" : "Step")} ${step}/4</p>
-      <button class="ghost" data-act="skip-onboard">${esc(lang() === "es" ? "Saltar configuración" : "Skip setup")}</button>
-    </div>
-    ${step === 1 ? usernameStep() : ""}
-    ${step === 2 ? spacesStep() : ""}
-    ${step === 3 ? rulesStep() : ""}
-    ${step === 4 ? profileStep() : ""}
-    ${onboardFooter()}
   </div>`;
 }
 
@@ -572,6 +735,8 @@ function landing({ signed = false } = {}) {
       <div class="how-grid">${steps.map((item, index) => `<article><span>${index + 1}</span><h3>${esc(item.title)}</h3><p>${esc(item.body)}</p></article>`).join("")}</div>
     </section>
 
+    ${latestCommunity(signed)}
+
     <section class="home-section" id="talk">
       <h2>${esc(Q("sayingTitle"))}</h2>
       <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalog().length))} ${esc(Q("dataListed"))}</p>
@@ -588,7 +753,7 @@ function landing({ signed = false } = {}) {
 }
 
 function pricingSection() {
-  const onList = readWaitlist().length > 0;
+  const onList = onWaitlist();
   return `<section class="home-section" id="pricing">
     <h2>${esc(Pr("pricingTitle"))}</h2>
     <p class="lede">${esc(Pr("pricingLead"))}</p>
@@ -607,11 +772,11 @@ function pricingSection() {
         <p id="waitlist-note" class="muted">${esc(Pr("waitlistHelp"))}</p>
         ${onList ? `<p class="note">${esc(Pr("waitlistSaved"))}</p>` : ""}
         <div id="waitlist-box" class="waitlist-box" hidden>
-          <label class="field">${esc(L("continueEmail"))}
-            <input id="waitlist-email" type="email" autocomplete="email" placeholder="you@email.com">
+          <label class="field">${esc(A("email"))}
+            <input id="waitlist-email" type="email" autocomplete="email" placeholder="you@email.com" value="${esc(account()?.email || "")}">
           </label>
-          <button class="btn" data-act="waitlist-save">${esc(lang() === "es" ? "Guardar en este navegador" : "Save in this browser")}</button>
-          <a class="text-link" href="mailto:support@casecircle.app?subject=${encodeURIComponent("Case Pass waitlist")}">${esc(Pr("waitlistMailto"))}</a>
+          <button class="btn" data-act="waitlist-save" data-source="${esc(state.meId ? "pricing-app" : "pricing")}">${esc(A("waitlistJoin"))}</button>
+          <p class="muted small-print">${esc(A("waitlistPrivacy"))}</p>
         </div>
       </article>
     </div>
@@ -665,7 +830,7 @@ function formSeoScreen(spaceId, { public: isPublic = false } = {}) {
       <h2>${esc(H("whatInterviewTitle"))}</h2>
       <div class="stack">${tips.map((tip) => `<div class="card"><strong>${esc(tip.title)}</strong><p>${esc(tip.body)}</p></div>`).join("")}</div>
       <p class="muted">${esc(H("homeTrust"))}</p>
-      ${!me(state) ? `<button class="btn" data-act="show-email">${esc(H("again"))}</button>` : `<button class="btn" data-act="open-folder" data-id="${esc(id)}">${esc(Q("pathFolder"))}</button>`}
+      ${!me(state) ? `<button class="btn" data-act="auth" data-mode="signup">${esc(H("again"))}</button>` : `<button class="btn" data-act="open-folder" data-id="${esc(id)}">${esc(Q("pathFolder"))}</button>`}
     </article>
     ${findHelpSection()}
     ${legalDisclaimer()}`;
@@ -681,53 +846,71 @@ function legalDisclaimer() {
   </div>`;
 }
 
+function pageBody(page) {
+  if (page === "privacy") return { title: A("privacyTitle"), paras: A("privacyParas") };
+  if (page === "terms") return { title: A("termsTitle"), paras: A("termsParas") };
+  if (page === "about") return { title: L("about"), paras: [L("aboutBody")] };
+  return { title: L("rules"), paras: [L("rulesBody")] };
+}
+
 function publicPage(page) {
-  const body = page === "privacy" ? L("privacyBody") : page === "about" ? L("aboutBody") : L("rulesBody");
-  const title = page === "privacy" ? L("privacy") : page === "about" ? L("about") : L("rules");
-  return `${backButton(L("back"), 'data-act="public-home"')}<article class="narrow"><h1>${esc(title)}</h1><p>${esc(body)}</p></article>`;
+  const { title, paras } = pageBody(page);
+  return `${backButton(L("back"), 'data-act="public-home"')}<article class="narrow legal-page"><h1>${esc(title)}</h1>${paras.map((para) => `<p>${esc(para)}</p>`).join("")}</article>`;
 }
 
-function emailBox() {
-  return `<label class="field">${esc(L("continueEmail"))}
-    <input id="email" type="email" value="${esc(onboard.emailDraft)}" placeholder="you@email.com" autocomplete="email">
-    <span class="muted">${esc(L("emailHelp"))}</span></label>
-    <button class="btn" data-act="use-email">${esc(L("useEmail"))}</button>`;
-}
-
-function usernameStep() {
-  const issue = onboard.username ? usernameIssue(onboard.username, new Set(state.members.map((person) => person.username.toLowerCase()))) : null;
-  return `<h1>${esc(L("usernameTitle"))}</h1><p class="muted">${esc(L("usernameHelp"))}</p>
-    <input id="username" type="text" value="${esc(onboard.username)}" autocapitalize="off" autocomplete="username">
-    ${issue ? `<p class="danger">${esc(issue === "taken" ? L("taken") : issue === "reserved" ? L("reserved") : L("invalidName"))}</p>` : ""}`;
-}
-
-function spacesStep() {
-  const list = showAllForms ? spaces : spaces.filter((item) => item.launch);
-  const cards = list.map((item) => {
-    const on = onboard.spaces.includes(item.id);
-    return `<button class="card ${on ? "on" : ""}" data-act="toggle-space" data-id="${esc(item.id)}" aria-pressed="${on}">
-      <div class="spread"><strong>${esc(item.forms[0])}</strong><span aria-hidden="true">${on ? "✓" : ""}</span></div>
-      <div>${esc(lang() === "es" ? item.es : item.en)}</div>
-    </button>`;
+/* Sign up / sign in (one screen; used signed-out and from inside the app). */
+function authScreen() {
+  const f = authForm;
+  const signup = f.mode === "signup";
+  const back = state.meId ? backButton(L("back"), 'data-act="auth-cancel"') : backButton(L("back"), 'data-act="public-home"');
+  const chips = LAUNCH_SPACES.map((id) => {
+    const on = f.spaces.includes(id);
+    return `<button type="button" class="chip${on ? " on" : ""}" data-act="auth-space" data-id="${esc(id)}" aria-pressed="${on}">${esc(spaceById(id)?.forms[0] || id)}</button>`;
   }).join("");
-  return `<h1>${esc(L("spacesTitle"))}</h1><p class="muted">${esc(H("joinSpaces"))}</p>
-    <p class="onboard-tools">${icon("spark", 18)}<span>${esc(T("onboardToolsNote"))}</span></p>
-    <div class="card-grid">${cards}</div>
-    <button class="ghost" data-act="show-forms">${esc(showAllForms ? Q("showFewer") : Q("showAllForms"))}</button>`;
+  return `${back}
+  <section class="auth-card narrow" aria-labelledby="auth-h">
+    <p class="kicker">${logoMark(18)} ${esc(L("appName"))}</p>
+    <h1 id="auth-h">${esc(signup ? A("authTitleSignup") : A("authTitleSignin"))}</h1>
+    <p class="lede">${esc(signup ? A("authLeadSignup") : A("authLeadSignin"))}</p>
+    <form class="stack auth-form" data-form="auth" novalidate>
+      <label class="field">${esc(A("email"))}
+        <input id="auth-email" type="email" autocomplete="email" required value="${esc(f.email)}" placeholder="you@email.com">
+        ${signup ? `<span class="muted">${esc(L("emailHelp"))}</span>` : ""}
+      </label>
+      <label class="field">${esc(A("password"))}
+        <input id="auth-password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" required minlength="8">
+        ${signup ? `<span class="muted">${esc(A("passwordHelp"))}</span>` : ""}
+      </label>
+      ${signup ? `<label class="field">${esc(A("handle"))}
+        <input id="auth-handle" type="text" autocapitalize="off" autocomplete="username" required value="${esc(f.handle)}" maxlength="20">
+        <span class="muted">${esc(A("handleHelp"))}</span>
+      </label>
+      <fieldset class="field auth-groups"><legend>${esc(A("groupsLabel"))}</legend>
+        <div class="chips" role="group">${chips}</div>
+        <span class="muted">${esc(A("groupsHelp"))}</span>
+      </fieldset>
+      <label class="check"><input id="auth-rules" type="checkbox" ${f.rules ? "checked" : ""}>${esc(A("agreeRules"))}</label>
+      <label class="check"><input id="auth-advice" type="checkbox" ${f.advice ? "checked" : ""}>${esc(A("agreeAdvice"))}</label>` : ""}
+      ${f.error ? `<p class="danger" role="alert">${esc(f.error)}</p>` : ""}
+      <button class="btn block" type="submit" data-act="auth-submit" ${f.busy ? "disabled" : ""}>${esc(f.busy ? A("working") : signup ? A("signUp") : A("signIn"))}</button>
+      ${signup ? `<p class="muted small-print">${esc(A("agreeTerms"))} <button type="button" class="link-btn" data-act="page" data-page="terms">${esc(A("terms"))}</button> · <button type="button" class="link-btn" data-act="page" data-page="privacy">${esc(L("privacy"))}</button></p>` : ""}
+    </form>
+    <p class="auth-switch">${esc(signup ? A("haveAccount") : A("needAccount"))} <button type="button" class="link-btn" data-act="auth-mode" data-mode="${signup ? "signin" : "signup"}">${esc(signup ? A("signIn") : A("signUp"))}</button></p>
+    <p class="note">${icon("lock", 14)} ${esc(T("heroPrivacy"))}</p>
+  </section>`;
 }
 
-function rulesStep() {
-  return `<h1>${esc(L("rulesTitle"))}</h1><p>${esc(L("rulesBody"))}</p>
-    <label class="check"><input id="rules" type="checkbox" ${onboard.rules ? "checked" : ""}>${esc(L("agreeRules"))}</label>
-    <label class="check"><input id="advice" type="checkbox" ${onboard.advice ? "checked" : ""}>${esc(L("agreeNotAdvice"))}</label>
-    ${onboard.rules && onboard.advice ? "" : `<p class="muted">${esc(L("acceptBoth"))}</p>`}`;
-}
-
-function profileStep() {
-  return `<h1>${esc(L("profileTitle"))}</h1>
-    <p class="muted">${esc(L("profileHelp"))}</p>
-    <p class="muted">${esc(lang() === "es" ? "Puedes agregar esto después si lo prefieres." : "You can add this later if you prefer.")}</p>
-    ${profileFields("onboard")}`;
+/* Signed-out landing: a few real community posts (nothing invented; hidden when there are none). */
+function latestCommunity(signed) {
+  const entry = feed({ limit: 4 });
+  const posts = notBlocked(entry.posts).slice(0, 4);
+  if (!posts.length) return "";
+  return `<section class="home-section" id="community-latest">
+      <h2>${esc(A("latestTitle"))}</h2>
+      <p class="lede">${esc(A("latestLead"))}</p>
+      <div class="post-list">${posts.map((post) => postCard(post)).join("")}</div>
+      <button class="btn-secondary" ${signed ? 'data-act="tab" data-tab="home"' : 'data-act="start-tool" data-route="home"'}>${esc(A("seeAll"))} →</button>
+    </section>`;
 }
 
 function profileFields(scope) {
@@ -755,15 +938,6 @@ function profileFields(scope) {
 
 function monthName(index) {
   return new Intl.DateTimeFormat(lang() === "es" ? "es" : "en", { month: "long" }).format(new Date(Date.UTC(2026, index, 1)));
-}
-
-function onboardFooter() {
-  const title = onboard.step === 4 ? L("saveProfile") : L("next");
-  return `<div class="stack">
-    <button class="btn" data-act="onboard-next">${esc(title)}</button>
-    ${onboard.step === 4 ? `<button class="btn-secondary" data-act="onboard-skip">${esc(L("skip"))}</button>` : ""}
-    <button class="ghost" data-act="onboard-back">${esc(L("back"))}</button>
-  </div>`;
 }
 
 function redditStatsBlock() {
@@ -813,9 +987,26 @@ function webCard(item, signed) {
   </article>`;
 }
 
+function feedList(entry, empty, cardOptions = {}) {
+  if (entry.loading) return `<p class="muted feed-status" role="status">${esc(A("loading"))}</p>`;
+  if (entry.error && !entry.posts.length) return `<div class="empty-state"><p>${esc(A("loadFailed"))}</p><button class="btn-secondary" data-act="feed-retry">${esc(A("retry"))}</button></div>`;
+  const posts = notBlocked(entry.posts);
+  return posts.length ? `<div class="post-list">${posts.map((post) => postCard(post, cardOptions)).join("")}</div>` : empty;
+}
+
+function guestCard() {
+  if (account() || !session.loaded) return "";
+  return `<div class="next-card guest-card">
+    <p class="kicker">${esc(A("guestTitle"))}</p>
+    <p>${esc(A("guestBody"))}</p>
+    <div class="row"><button class="btn" data-act="auth" data-mode="signup">${esc(A("signUp"))}</button><button class="btn-secondary" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button></div>
+  </div>`;
+}
+
 function homeScreen() {
   const user = me(state);
-  const posts = visiblePosts(state, filters);
+  const signed = Boolean(account());
+  const entry = feed({ groups: signed ? (user?.spaces || []).join(",") : "", type: filters.kind, sort: filters.sort, limit: 50 });
   const sorts = [["new", L("new")], ["top", L("top")], ["unanswered", L("unanswered")]];
   const hasProfiles = user?.profiles?.length > 0;
   
@@ -823,13 +1014,14 @@ function homeScreen() {
   <div class="with-rail">
     <div class="main-col">
       ${groupSwitcher("all")}
-      ${!hasProfiles ? emptyProfileCTA() : ""}
+      ${guestCard()}
+      ${signed && !hasProfiles ? emptyProfileCTA() : ""}
       <button class="composer-bar" data-act="tab" data-tab="ask">${avatar(user)}<span>${esc(H("shareThought"))}</span></button>
       <div class="feed-controls">
         <div class="seg" role="group" aria-label="${esc(H("sortLabel"))}">${sorts.map(([sort, label]) => `<button data-act="sort" data-sort="${sort}" class="${filters.sort === sort ? "on" : ""}" aria-pressed="${filters.sort === sort}">${esc(label)}</button>`).join("")}</div>
       </div>
       <div class="chips" role="group" aria-label="${esc(H("postTypeLabel"))}">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
-      ${posts.length ? `<div class="post-list">${posts.map(postCard).join("")}</div>` : emptyFeed()}
+      ${feedList(entry, emptyFeed())}
       <h2 class="section-title">${esc(Q("dataTitles"))}</h2>
       <div class="feed">${redditFeed(user?.spaces || []).slice(0, webShown.feed).map((item) => webCard(item, true)).join("")}</div>
       ${redditFeed(user?.spaces || []).length > webShown.feed ? `<button class="btn-secondary more" data-act="more-web" data-list="feed">${esc(Q("dataMore"))}</button>` : ""}
@@ -843,7 +1035,9 @@ function caseRail(preferSpaceId = "") {
   const user = me(state);
   if (!user) return "";
   const summary = caseSummary(state, preferSpaceId);
-  const saved = savedPosts(state, 3);
+  const savedEntry = account() ? feed({ saved: "1", limit: 20 }) : { posts: [] };
+  const savedList = notBlocked(savedEntry.posts).filter((post) => post.status === "live");
+  const saved = { posts: savedList.slice(0, 3), total: savedList.length };
   const es = lang() === "es";
   let caseCard;
   if (summary) {
@@ -922,17 +1116,18 @@ function chip(label, on, kind) {
 }
 
 function postCard(post, options = {}) {
-  const author = member(state, post.authorId);
-  const replies = (post.comments || []).filter((comment) => comment.status === "live").length;
+  const author = post.author;
+  const replies = post.replyCount ?? (post.comments || []).filter((comment) => comment.status === "live").length;
   const space = post.spaceIds?.[0];
   const body = String(post.body || "").length > 180 ? `${post.body.slice(0, 177)}…` : post.body;
   return `<article class="thread">
-    <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}" aria-pressed="${Boolean(me(state)?.votes?.[post.id])}">↑</button><span>${post.votes}</span></div>
+    <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}" aria-pressed="${Boolean(post.voted)}" class="${post.voted ? "on" : ""}">↑</button><span>${post.votes}</span></div>
     <button class="thread-main" data-act="open-post" data-id="${esc(post.id)}">
       <div class="thread-meta">
         ${options.hideSpace || !space ? "" : `<span class="thread-space">${esc(spaceName(lang(), space))}</span>`}
         <span class="muted">${esc(author?.username || L("deletedMember"))} · ${esc(ago(lang(), post.createdAt))}</span>
         ${post.faq ? `<span class="pill plain">${esc(L("pinned"))}</span>` : ""}
+        ${post.status === "held" ? `<span class="pill plain">${esc(L("held"))}</span>` : ""}
       </div>
       <h2>${esc(post.title)}</h2>
       <p>${esc(body)}</p>
@@ -953,21 +1148,22 @@ function postFacts(post) {
 }
 
 function postScreen(id) {
-  const post = state.posts.find((item) => item.id === id);
+  const detail = postDetail(id);
+  if (detail.loading && !detail.post) return `<div class="with-rail"><div class="main-col">${backButton()}<p class="muted feed-status" role="status">${esc(A("loading"))}</p></div>${caseRail()}</div>`;
+  const post = detail.post;
   if (!post) return `<div class="with-rail"><div class="main-col">${backButton()}<div class="empty-state">${icon("chat", 40)}<h3>${esc(lang() === "es" ? "Publicación no encontrada" : "Post not found")}</h3><p>${esc(H("postMissingBody"))}</p><button class="btn" data-act="back">${esc(H("backToFeed"))}</button></div></div>${caseRail()}</div>`;
-  const author = member(state, post.authorId);
-  const user = me(state);
-  const voted = Boolean(user?.votes?.[post.id]);
-  const saved = user?.bookmarks?.includes(post.id);
+  const author = post.author;
+  const voted = Boolean(post.voted);
+  const saved = Boolean(post.saved);
   const space = post.spaceIds?.[0];
-  const comments = (post.comments || []).filter((comment) => comment.status === "live" || user?.role === "mod");
+  const comments = notBlocked(post.comments || []);
   const context = [kindLabel(lang(), post.type), space ? spaceName(lang(), space) : "", ago(lang(), post.createdAt)].filter(Boolean);
   
   const decoded = post.stage ? statusDecoder(lang(), post.stage) : null;
   
   return `<div class="with-rail"><article class="read main-col">
     ${backButton()}
-    ${post.status !== "live" ? `<p class="read-note">${esc(post.status === "held" ? L("held") : L("removed"))}</p>` : ""}
+    ${post.status !== "live" ? `<p class="read-note">${esc(post.status === "held" ? L("held") : post.status === "hidden" ? A("hiddenNote") : L("removed"))}</p>` : ""}
     <p class="read-kicker">${context.map((item) => esc(item)).join(" · ")}</p>
     <h1>${esc(post.title)}</h1>
     <p class="read-by">${esc(author?.username || L("deletedMember"))}${author?.role === "verified_pro" ? ` · ${esc(levelName(lang(), author.reputation))}` : ""}</p>
@@ -979,7 +1175,7 @@ function postScreen(id) {
       <button data-act="bookmark" data-id="${esc(post.id)}" aria-pressed="${Boolean(saved)}" class="${saved ? "on" : ""}">${saved ? esc(L("saved")) : esc(L("save"))}</button>
       <button data-act="share" data-id="${esc(post.id)}">${esc(L("share"))}</button>
       <span class="read-tools">
-        ${author && author.id !== user?.id ? `<button class="quiet" data-act="block" data-id="${esc(author.id)}">${esc(L("block"))}</button>` : ""}
+        ${author && !post.mine ? `<button class="quiet" data-act="block" data-id="${esc(author.id)}">${esc(L("block"))}</button>` : ""}
         <button class="quiet" data-act="report-open" data-id="${esc(post.id)}">${esc(L("report"))}</button>
       </span>
     </div>
@@ -992,11 +1188,11 @@ function postScreen(id) {
     </section>
     <section class="reply-box">
       <h2>${esc(L("writeReply"))}</h2>
-      <div class="composer">
+      ${account() ? `<div class="composer">
         <label class="field" for="reply">${esc(L("commentPlaceholder"))}</label>
-        <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}"></textarea>
+        <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}" maxlength="3000"></textarea>
         <button class="btn block" data-act="reply" data-id="${esc(post.id)}">${esc(L("send"))}</button>
-      </div>
+      </div>` : `<div class="composer guest-reply"><p class="muted">${esc(A("signInToWrite"))}</p><div class="row"><button class="btn" data-act="auth" data-mode="signin">${esc(A("signInToReply"))}</button><button class="btn-secondary" data-act="auth" data-mode="signup">${esc(A("signUp"))}</button></div></div>`}
     </section>
   </article>${caseRail(space || "")}</div>`;
 }
@@ -1009,15 +1205,14 @@ function statusDecoderInline(decoded) {
 }
 
 function commentCard(post, comment) {
-  const author = member(state, comment.authorId);
-  const user = me(state);
+  const author = comment.author;
   const helpful = post.helpfulCommentId === comment.id;
-  const canMark = user && post.type === "question" && post.authorId === user.id && comment.authorId !== user.id;
-  return `<article class="reply">
-    <p class="read-by">${esc(author?.username || L("deletedMember"))}</p>
+  const canMark = Boolean(post.canMarkHelpful) && !comment.mine;
+  return `<article class="reply${helpful ? " helpful" : ""}">
+    <p class="read-by">${esc(author?.username || L("deletedMember"))}${helpful ? ` · <span class="pill">✓ ${esc(L("helpful"))}</span>` : ""}${comment.status === "held" ? ` · <span class="pill plain">${esc(L("held"))}</span>` : ""}${comment.status === "hidden" ? ` · <span class="pill plain">${esc(A("hiddenNote"))}</span>` : ""}</p>
     <p>${esc(comment.body)}</p>
     <div class="read-actions">
-      <button class="vote" data-act="vote" data-id="${esc(comment.id)}">↑ ${comment.votes}</button>
+      <button class="vote${comment.voted ? " on" : ""}" data-act="vote" data-id="${esc(comment.id)}" aria-pressed="${Boolean(comment.voted)}">↑ ${comment.votes}</button>
       ${canMark ? `<button data-act="helpful" data-post="${esc(post.id)}" data-id="${esc(comment.id)}">${helpful ? "✓ " : ""}${esc(L("helpful"))}</button>` : ""}
       <span class="read-tools"><button class="quiet" data-act="report-open" data-id="${esc(comment.id)}">${esc(L("report"))}</button></span>
     </div>
@@ -1054,7 +1249,7 @@ function spaceRow(item) {
 }
 
 function countMembers(spaceId) {
-  return state.members.filter((person) => (person.spaces || []).includes(spaceId) && !String(person.username).startsWith("path_")).length;
+  return Number(session.groupCounts?.[spaceId] || 0);
 }
 
 function spaceScreen(id) {
@@ -1062,7 +1257,7 @@ function spaceScreen(id) {
   if (!item) return "";
   const user = me(state);
   const joined = user?.spaces?.includes(id);
-  const posts = visiblePosts(state, { ...filters, spaceId: id, sort: "new" });
+  const entry = feed({ group: id, type: filters.kind, sort: "new", limit: 50 });
   const web = redditForSpace(id);
   const theme = themeForSpace(id);
   return `<div class="with-rail"><div class="main-col space-page">${groupSwitcher(id)}
@@ -1078,7 +1273,8 @@ function spaceScreen(id) {
       </div>
     </header>
     <p class="space-note">${esc(L("disclaimer"))}</p>
-    ${posts.length ? `<div class="post-list">${posts.map((post) => postCard(post, { hideSpace: true })).join("")}</div>` : `<div class="empty-state">${icon("chat", 40)}<h3>${esc(lang() === "es" ? "No hay publicaciones en este grupo" : "No posts in this group yet")}</h3><p>${esc(fill(H("groupEmptyBody"), { g: lang() === "es" ? item.es : item.en }))}</p><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`}
+    ${guestCard()}
+    ${feedList(entry, `<div class="empty-state">${icon("chat", 40)}<h3>${esc(lang() === "es" ? "No hay publicaciones en este grupo" : "No posts in this group yet")}</h3><p>${esc(fill(H("groupEmptyBody"), { g: lang() === "es" ? item.es : item.en }))}</p><button class="btn" data-act="ask-space" data-id="${esc(id)}">${esc(lang() === "es" ? "Sé el primero" : "Be the first")}</button></div>`, { hideSpace: true })}
     <h2 class="section-title">${esc(Q("dataOnForm"))}</h2>
     <div class="feed">${web.slice(0, webShown.space).map((entry) => webCard(entry, true)).join("") || `<p class="muted">${esc(L("noPosts"))}</p>`}</div>
     ${web.length > webShown.space ? `<button class="btn-secondary more" data-act="more-web" data-list="space">${esc(Q("dataMore"))}</button>` : ""}
@@ -1086,6 +1282,10 @@ function spaceScreen(id) {
 }
 
 function askScreen() {
+  if (!account()) {
+    return `<div class="narrow stack">${backButton()}<h1>${esc(L("whatPosting"))}</h1>
+      <div class="next-card"><p>${esc(A("signInToWrite"))}</p><div class="row"><button class="btn" data-act="auth" data-mode="signup">${esc(A("signUp"))}</button><button class="btn-secondary" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button></div></div></div>`;
+  }
   if (ask.step === 0) {
     return `<div class="narrow"><h1>${esc(L("whatPosting"))}</h1><div class="post-types">${kinds.map((kind) => `<button class="post-type" data-act="ask-type" data-type="${kind}"><strong>${esc(kindLabel(lang(), kind))}</strong><span>${esc(kindHelp(lang(), kind))}</span></button>`).join("")}</div></div>`;
   }
@@ -1095,12 +1295,13 @@ function askScreen() {
       <button class="btn" data-act="ask-next" ${ask.spaceIds.length ? "" : "disabled"}>${esc(L("next"))}</button></div>`;
   }
   const spaceId = ask.spaceIds[0];
-  const similar = ask.type === "question" && ask.title.length >= 8 ? similarThreads(state, ask.title, ask.body, spaceId) : [];
+  const similar = ask.type === "question" && ask.title.length >= 8 ? similarThreads({ posts: cachedPosts() }, ask.title, ask.body, spaceId) : [];
   const showSimilar = ask.warned && similar.length;
   return `<div class="narrow stack"><h1>${esc(kindLabel(lang(), ask.type))}</h1>
     <p class="muted">${esc(ask.spaceIds.map((id) => spaceName(lang(), id)).join(" · "))}</p>
-    <label class="field">${esc(L("title"))}<input id="ask-title" value="${esc(ask.title)}"></label>
-    <label class="field">${esc(L("body"))}<textarea id="ask-body">${esc(ask.body)}</textarea></label>
+    <label class="field">${esc(L("title"))}<input id="ask-title" value="${esc(ask.title)}" maxlength="140"></label>
+    <label class="field">${esc(L("body"))}<textarea id="ask-body" maxlength="5000">${esc(ask.body)}</textarea></label>
+    <p class="read-note">${esc(L("rulesBody"))}</p>
     ${ask.type === "timeline" || ask.type === "interview" ? `<label class="field">${esc(L("stage"))}<select id="ask-stage"><option value="">${esc(L("choose"))}</option>${stages.map((item) => `<option value="${item}" ${ask.stage === item ? "selected" : ""}>${esc(stageLabel(lang(), item))}</option>`).join("")}</select></label>` : ""}
     ${showSimilar ? `<h2>${esc(L("similar"))}</h2><div class="stack">${similar.map(postCard).join("")}</div>` : ""}
     <button class="btn" data-act="publish">${esc(showSimilar ? L("postAnyway") : L("publish"))}</button>
@@ -1460,21 +1661,19 @@ function extLink(href, label) {
 
 /* Guest account for the tools: no email, nothing leaves this browser. */
 function startTool(route) {
-  if (!state.meId) {
-    const taken = new Set(state.members.map((person) => person.username.toLowerCase()));
-    let guest = "";
-    for (let i = 0; i < 20; i += 1) {
-      guest = `guest_${Math.random().toString(36).slice(2, 8)}`;
-      if (!taken.has(guest) && !usernameIssue(guest, taken)) break;
-    }
-    const result = createAccount(state, { username: guest, email: "", locale: lang(), spaceIds: ["i-485", "i-130", "n-400"], profile: null });
-    if (!result.ok) { toast = L(result.error) || result.error; render(); return; }
-    state = result.state;
-  }
+  ensureLocalMember();
   state.route = route;
   save();
   render();
   window.scrollTo?.(0, 0);
+}
+
+/* Tools and reading work without an account: a device-only member holds folders and language. */
+function ensureLocalMember() {
+  if (state.meId && me(state)) return;
+  const local = newLocalMember(guestName());
+  state.members = [local];
+  state.meId = local.id;
 }
 
 /* ───────────── Folder Builder: data ───────────── */
@@ -2128,9 +2327,8 @@ function toolsHero(signed) {
         <div class="cta">
           <button class="btn" ${go("prepare")}>${icon("spark", 18)} ${esc(T("heroStartBuilder"))}</button>
           <button class="btn-secondary" ${go("timelines")}>${esc(T("heroCheckWait"))}</button>
-          ${!signed ? `<button class="ghost" data-act="demo">${esc(L("reviewerDemo"))}</button>` : ""}
         </div>
-        ${!signed ? (onboard.showEmail ? `<div class="narrow hero-join">${emailBox()}</div>` : `<p class="hero-join-link"><button class="link-btn" data-act="show-email">${esc(H("again"))}</button></p>`) : ""}
+        ${account() ? "" : `<p class="hero-join-link"><button class="link-btn" data-act="auth" data-mode="signup">${esc(H("again"))}</button> · <button class="link-btn" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button></p>`}
         <p class="note">${icon("lock", 14)} ${esc(T("heroPrivacy"))}</p>
       </div>
       <div class="hero-demo" aria-hidden="true">
@@ -2247,10 +2445,13 @@ function marriageEvidenceChecklist() {
 function youScreen() {
   const user = me(state);
   if (!user) return homeScreen();
-  const mine = state.posts.filter((post) => post.authorId === user.id);
-  const saved = state.posts.filter((post) => (user.bookmarks || []).includes(post.id));
-  return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(user.username)}</h1><div class="kicker">${esc(levelName(lang(), user.reputation))}</div><div class="muted">${esc(L("reputation"))} ${user.reputation}</div></div></div>
-    ${user.username === "app_review" ? `<div class="banner"><strong>${esc(L("reviewerNotes"))}</strong><p>${esc(L("reviewerBody"))}</p><button class="btn inline" data-act="mod">${esc(L("modQueue"))}</button></div>` : ""}
+  const acct = account();
+  const mineEntry = acct ? feed({ author: "me", limit: 50 }) : { posts: [] };
+  const savedEntry = acct ? feed({ saved: "1", limit: 20 }) : { posts: [] };
+  const mine = mineEntry.posts;
+  const saved = notBlocked(savedEntry.posts);
+  return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(acct ? user.username : A("guest"))}</h1>${acct ? `<div class="kicker">${esc(levelName(lang(), acct.reputation || 0))}</div><div class="muted">${esc(L("reputation"))} ${acct.reputation || 0} · ${esc(A("accountEmail", { email: acct.email }))}</div>` : ""}</div></div>
+    ${acct ? `<div class="row"><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button>` : ""}</div>` : guestCard()}
     <h2>${esc(L("caseProfiles"))}</h2>
     <div class="stack">${user.profiles.length ? user.profiles.map((profile) => `<div class="card">${esc(badge(lang(), profile))}</div>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
     <h2>${esc(L("yourPosts"))}</h2>
@@ -2267,6 +2468,7 @@ function youScreen() {
     <div class="link-list">
       <button class="text-link" data-act="page" data-page="rules">${esc(L("rules"))}</button>
       <button class="text-link" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
+      <button class="text-link" data-act="page" data-page="terms">${esc(A("terms"))}</button>
       <button class="text-link" data-act="page" data-page="about">${esc(L("about"))}</button>
       <a class="text-link" href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
     </div>
@@ -2275,25 +2477,23 @@ function youScreen() {
 }
 
 function pageScreen(page) {
-  const body = page === "privacy" ? L("privacyBody") : page === "about" ? L("aboutBody") : L("rulesBody");
-  const title = page === "privacy" ? L("privacy") : page === "about" ? L("about") : L("rules");
-  return `${backButton()}<h1>${esc(title)}</h1><p>${esc(body)}</p><div class="banner">${esc(L("disclaimer"))}</div>`;
+  const { title, paras } = pageBody(page);
+  return `${backButton()}<article class="narrow legal-page"><h1>${esc(title)}</h1>${paras.map((para) => `<p>${esc(para)}</p>`).join("")}</article><div class="banner">${esc(L("disclaimer"))}</div>`;
 }
 
 function modScreen() {
-  const user = me(state);
-  if (user?.role !== "mod") return `${backButton()}`;
-  const posts = queuedPosts(state);
+  if (!account()?.isAdmin) return `${backButton()}`;
+  if (!modQueue.items && !modQueue.loading) loadModQueue();
+  const items = modQueue.items || [];
+  const btn = (item, action, label, primary = false) => `<button class="${primary ? "btn" : "btn-secondary"} inline" data-act="mod-act" data-id="${esc(item.id)}" data-do="${action}">${esc(label)}</button>`;
   return `${backButton()}
     <h1>${esc(L("modQueue"))}</h1>
-    <div class="banner">${esc(L("reviewerBody"))}</div>
-    <div class="stack">${posts.length ? posts.map((post) => {
-      const open = state.reports.filter((item) => item.targetId === post.id && item.state === "open").length;
-      return `<div class="card mod-card"><strong>${esc(post.title)}</strong><p>${esc(post.body)}</p><div class="meta">${esc(post.status)} · ${open} ${esc(L("openReports"))}</div>
-        <div class="row"><button class="btn inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="restore">${esc(L("restore"))}</button>
-        <button class="btn-secondary inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="remove">${esc(L("remove"))}</button>
-        <button class="btn-secondary inline" data-act="mod-act" data-id="${esc(post.id)}" data-do="dismiss">${esc(L("dismissReports"))}</button></div></div>`;
-    }).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay publicaciones en cola" : "No posts in queue")}</p>`}</div>`;
+    <div class="stack">${modQueue.loading && !modQueue.items ? `<p class="muted">${esc(A("loading"))}</p>` : items.length ? items.map((item) => `<div class="card mod-card">
+        <p class="kicker">${esc(item.kind === "comment" ? A("modReply") : kindLabel(lang(), item.type))} · ${esc(item.author?.username || L("deletedMember"))} · ${esc(ago(lang(), item.createdAt))}</p>
+        ${item.title ? `<strong>${esc(item.title)}</strong>` : ""}<p>${esc(item.body)}</p>
+        <div class="meta">${esc(item.status)} · ${item.openReports} ${esc(L("openReports"))}</div>
+        <div class="row">${item.status === "live" ? btn(item, "hide", A("modHide")) : btn(item, "unhide", A("modUnhide"), true)}
+        ${btn(item, "remove", L("remove"))}${btn(item, "dismiss", L("dismissReports"))}</div></div>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay publicaciones en cola" : "No posts in queue")}</p>`}</div>`;
 }
 
 function profileEditor(spaceId) {
@@ -2310,7 +2510,8 @@ function profileEditor(spaceId) {
 }
 
 function searchScreen() {
-  const posts = filters.query ? visiblePosts(state, { query: filters.query, sort: "new" }) : [];
+  const query = (filters.query || "").trim();
+  const posts = query.length >= 2 ? notBlocked(feed({ q: query, limit: 50 }).posts) : [];
   return `${backButton()}
     <input id="search" type="search" placeholder="${esc(L("searchPrompt"))}" value="${esc(filters.query)}" aria-label="${esc(L("search"))}">
     <div class="stack">${posts.length ? posts.map(postCard).join("") : `<p class="muted">${esc(lang() === "es" ? "No hay resultados" : "No results")}</p>`}</div>`;
@@ -2370,21 +2571,28 @@ document.addEventListener("click", (event) => {
     state.lang = node.dataset.lang;
     const user = me(state);
     if (user) user.locale = state.lang;
+    if (account()) api("/api/me", { method: "POST", body: { locale: state.lang } });
     save();
     render();
     return;
   }
-  if (act === "show-email") {
-    publicView = "home";
-    onboard.step = 0;
-    onboard.showEmail = true;
-    render();
-    document.getElementById("email")?.focus();
+  if (act === "auth" || act === "show-email") { closeAccountMenu(false); openAuth(node.dataset.mode || "signup"); return; }
+  if (act === "auth-mode") { syncAuthForm(); authForm.mode = node.dataset.mode; authForm.error = ""; render(); return; }
+  if (act === "auth-space") {
+    syncAuthForm();
+    const id = node.dataset.id;
+    authForm.spaces = authForm.spaces.includes(id) ? authForm.spaces.filter((item) => item !== id) : [...authForm.spaces, id];
+    const on = authForm.spaces.includes(id);
+    node.classList.toggle("on", on); // in place, so the password field keeps what was typed
+    node.setAttribute("aria-pressed", String(on));
     return;
   }
+  if (act === "auth-cancel") { state.route = authReturn || { name: "home" }; authReturn = null; save(); render(); return; }
+  if (act === "auth-submit") { event.preventDefault(); submitAuth(); return; }
+  if (act === "logout") { closeAccountMenu(false); logout(); return; }
+  if (act === "feed-retry") { refreshCommunity(); return; }
   if (act === "public-home") {
     publicView = "home";
-    onboard.step = 0;
     render();
     window.scrollTo(0, 0);
     return;
@@ -2399,7 +2607,6 @@ document.addEventListener("click", (event) => {
       return;
     }
     publicView = "home";
-    onboard.step = 0;
     render();
     document.getElementById(id)?.scrollIntoView({ block: "start" });
     return;
@@ -2414,11 +2621,11 @@ document.addEventListener("click", (event) => {
       startTool({ name: "prepare" }); return;
     } else if (id === "scams") {
       if (state.meId) { state.route = { name: "explain" }; save(); render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
-      else { publicView = "home"; onboard.step = 0; render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
+      else { publicView = "home"; render(); document.getElementById("find-help")?.scrollIntoView({ block: "start" }); return; }
     } else if (id === "language") {
       /* stay; language toggle is in the header */
     } else {
-      if (!state.meId) { onboard.showEmail = true; onboard.step = 0; }
+      if (!account()) { openAuth("signup"); return; }
     }
     render();
     return;
@@ -2432,9 +2639,14 @@ document.addEventListener("click", (event) => {
   if (act === "waitlist-save") {
     const email = (document.getElementById("waitlist-email")?.value || "").trim().toLowerCase();
     if (!emailOk(email)) { toast = L("emailInvalid"); render(); return; }
-    saveWaitlistEmail(email);
-    toast = Pr("waitlistSaved");
-    render();
+    node.disabled = true;
+    api("/api/waitlist", { method: "POST", body: { email, lang: lang(), source: node.dataset.source || "pricing" } }).then((res) => {
+      if (!res.ok) { failToast(res); return; }
+      try { localStorage.setItem(WAITLIST_KEY, "1"); } catch { /* the note below still shows this session */ }
+      toast = Pr("waitlistSaved");
+      render();
+      document.getElementById("pricing")?.scrollIntoView?.({ block: "start" });
+    });
     return;
   }
   if (act === "open-form-seo") {
@@ -2452,40 +2664,6 @@ document.addEventListener("click", (event) => {
     window.scrollTo(0, 0);
     return;
   }
-  if (act === "use-email") {
-    onboard.emailDraft = document.querySelector("#email")?.value || "";
-    if (!emailOk(onboard.emailDraft)) { toast = L("emailInvalid"); render(); return; }
-    onboard.email = onboard.emailDraft.trim().toLowerCase();
-    onboard.step = 1;
-    render();
-    return;
-  }
-  if (act === "demo") { apply(enterDemo(state)); return; }
-  if (act === "toggle-space") {
-    const id = node.dataset.id;
-    onboard.spaces = onboard.spaces.includes(id) ? onboard.spaces.filter((item) => item !== id) : [...onboard.spaces, id];
-    render();
-    return;
-  }
-  if (act === "skip-onboard") {
-    const taken = new Set(state.members.map((person) => person.username.toLowerCase()));
-    const name = onboard.username.trim();
-    if (!name) {
-      let guest = `member_${Math.random().toString(36).slice(2, 8)}`;
-      while (usernameIssue(guest, taken)) guest = `member_${Math.random().toString(36).slice(2, 8)}`;
-      onboard.username = guest;
-    } else if (usernameIssue(name, taken)) {
-      toast = usernameIssue(name, taken) === "taken" ? L("taken") : usernameIssue(name, taken) === "reserved" ? L("reserved") : L("invalidName");
-      render();
-      return;
-    }
-    onboard.spaces = onboard.spaces.length ? onboard.spaces : ["i-485"];
-    finishOnboard(false);
-    return;
-  }
-  if (act === "onboard-back") { onboard.step = Math.max(0, onboard.step - 1); render(); return; }
-  if (act === "onboard-skip") { finishOnboard(false); return; }
-  if (act === "onboard-next") { advanceOnboard(); return; }
   if (act === "start-tool") {
     const name = resolveRouteName(node.dataset.route) || "prepare";
     startTool(name === "interview" ? { name, spaceId: "i-485" } : { name });
@@ -2681,19 +2859,53 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
-  if (act === "open-post") { state.route = { name: "post", id: node.dataset.id }; save(); render(); return; }
+  if (act === "open-post") { ensureLocalMember(); state.route = { name: "post", id: node.dataset.id }; save(); render(); window.scrollTo?.(0, 0); return; }
   if (act === "open-space") { state.route = { name: "space", id: node.dataset.id }; save(); render(); return; }
   if (act === "open-interview") { state.route = { name: "interview", spaceId: node.dataset.id }; save(); render(); return; }
   if (act === "back") { state.route = { name: "home" }; save(); render(); return; }
-  if (act === "vote") { apply(toggleVote(state, node.dataset.id)); return; }
-  if (act === "bookmark") { apply(toggleBookmark(state, node.dataset.id), () => { toast = L("saved"); }); return; }
-  if (act === "helpful") { apply(markHelpful(state, node.dataset.post, node.dataset.id)); return; }
-  if (act === "report-open") { reportTarget = reportTarget === node.dataset.id ? null : node.dataset.id; render(); return; }
-  if (act === "report") {
-    apply(report(state, node.dataset.id, node.dataset.reason), () => { toast = L("reportThanks"); reportTarget = null; });
+  if (act === "vote") {
+    if (needAccount()) return;
+    api("/api/vote", { method: "POST", body: { target: node.dataset.id } }).then((res) => { if (!res.ok) failToast(res); else refreshCommunity(); });
     return;
   }
-  if (act === "block") { apply(blockMember(state, node.dataset.id), () => { toast = L("blockedToast"); state.route = { name: "home" }; }); return; }
+  if (act === "bookmark") {
+    if (needAccount()) return;
+    api(`/api/posts/${encodeURIComponent(node.dataset.id)}/save`, { method: "POST" }).then((res) => {
+      if (!res.ok) { failToast(res); return; }
+      toast = res.data.saved ? L("saved") : L("save");
+      refreshCommunity();
+    });
+    return;
+  }
+  if (act === "helpful") {
+    if (needAccount()) return;
+    api(`/api/posts/${encodeURIComponent(node.dataset.post)}/helpful`, { method: "POST", body: { commentId: node.dataset.id } }).then((res) => {
+      if (!res.ok) { failToast(res); return; }
+      postDetails.set(node.dataset.post, { post: res.data.post, loading: false, error: "" });
+      render();
+    });
+    return;
+  }
+  if (act === "report-open") { if (needAccount()) return; reportTarget = reportTarget === node.dataset.id ? null : node.dataset.id; render(); return; }
+  if (act === "report") {
+    if (needAccount()) return;
+    api("/api/report", { method: "POST", body: { target: node.dataset.id, reason: node.dataset.reason } }).then((res) => {
+      reportTarget = null;
+      if (!res.ok) { failToast(res); return; }
+      toast = L("reportThanks");
+      refreshCommunity();
+    });
+    return;
+  }
+  if (act === "block") {
+    const user = me(state);
+    if (user && !user.blocks.includes(node.dataset.id)) user.blocks.push(node.dataset.id);
+    toast = L("blockedToast");
+    state.route = { name: "home" };
+    save();
+    render();
+    return;
+  }
   if (act === "share") {
     const url = `${location.origin}${location.pathname}#post=${node.dataset.id}`;
     navigator.clipboard?.writeText(url);
@@ -2702,15 +2914,30 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (act === "reply") {
-    const body = document.querySelector("#reply")?.value || "";
-    apply(addComment(state, node.dataset.id, body), (result) => { toast = result.held ? L("heldToast") : L("posted"); });
+    if (needAccount()) return;
+    const field = document.querySelector("#reply");
+    const body = (field?.value || "").trim();
+    if (body.length < 8) { toast = L("tooShort"); render(); return; }
+    const verdict = evaluate(body);
+    if (verdict.verdict === "block") { toast = L("blockedText"); render(); return; }
+    node.disabled = true;
+    api(`/api/posts/${encodeURIComponent(node.dataset.id)}/replies`, { method: "POST", body: { body } }).then((res) => {
+      node.disabled = false;
+      if (!res.ok) { failToast(res); return; }
+      postDetails.set(node.dataset.id, { post: res.data.post, loading: false, error: "" });
+      toast = res.data.held ? L("heldToast") : L("posted");
+      refreshCommunity();
+      render();
+    });
     return;
   }
   if (act === "join") {
     const user = me(state);
+    if (!user) return;
     const id = node.dataset.id;
     if (user.spaces.includes(id)) user.spaces = user.spaces.filter((item) => item !== id);
     else user.spaces.push(id);
+    if (account()) api("/api/me", { method: "POST", body: { spaces: user.spaces } }).then((res) => { if (res.ok) { session.user = res.data.user; refreshCommunity(); } });
     save();
     render();
     return;
@@ -2762,13 +2989,17 @@ document.addEventListener("click", (event) => {
   if (act === "save-profile") {
     syncDraft("edit");
     if (!profileDraft.stage) { toast = L("chooseStage"); render(); return; }
-    apply(saveProfile(state, readProfile("edit")), () => { toast = L("saved"); state.route = { name: "timelines" }; });
+    apply(saveProfile(state, readProfile("edit")), () => {
+      toast = L("saved");
+      state.route = { name: "timelines" };
+      const user = me(state);
+      if (account() && user) api("/api/me", { method: "POST", body: { profiles: user.profiles, spaces: user.spaces } }).then((res) => { if (res.ok) session.user = res.data.user; });
+    });
     return;
   }
   if (act === "page") {
     if (!state.meId) {
       publicView = node.dataset.page;
-      onboard.step = 0;
       render();
       window.scrollTo(0, 0);
       return;
@@ -2779,13 +3010,15 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (act === "mod") { state.route = { name: "mod" }; render(); return; }
-  if (act === "mod-act") { apply(moderate(state, node.dataset.id, node.dataset.do)); return; }
-  if (act === "delete") {
-    if (confirm(L("deleteHelp"))) {
-      for (const folder of Object.values(state.folders?.[state.meId] || {})) for (const doc of folder?.docs || []) deleteText(doc.id).catch(() => {});
-      apply(deleteAccount(state));
-    }
+  if (act === "mod-act") {
+    api("/api/mod", { method: "POST", body: { target: node.dataset.id, action: node.dataset.do } }).then((res) => {
+      if (!res.ok) { failToast(res); return; }
+      refreshCommunity();
+      loadModQueue();
+    });
+    return;
   }
+  if (act === "delete") { deleteEverything(); }
 });
 
 document.addEventListener("change", (event) => {
@@ -2824,10 +3057,10 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
-  if (event.target.id === "username") onboard.username = event.target.value;
-  if (event.target.id === "email") onboard.emailDraft = event.target.value;
-  if (event.target.id === "rules") { onboard.rules = event.target.checked; restoreFocus = "rules"; render(); }
-  if (event.target.id === "advice") { onboard.advice = event.target.checked; restoreFocus = "advice"; render(); }
+  if (event.target.id === "auth-email") authForm.email = event.target.value;
+  if (event.target.id === "auth-handle") authForm.handle = event.target.value;
+  if (event.target.id === "auth-rules") authForm.rules = event.target.checked;
+  if (event.target.id === "auth-advice") authForm.advice = event.target.checked;
   if (event.target.id === "ask-title") ask.title = event.target.value;
   if (event.target.id === "ask-body") ask.body = event.target.value;
   if (event.target.id === "ask-stage") ask.stage = event.target.value;
@@ -2844,49 +3077,105 @@ document.addEventListener("input", (event) => {
   if (event.target.id === "space-search") { spaceQuery = event.target.value; restoreFocus = "space-search"; render(); }
 });
 
-function advanceOnboard() {
-  if (onboard.step === 1) {
-    const issue = usernameIssue(onboard.username, new Set(state.members.map((person) => person.username.toLowerCase())));
-    if (issue) { toast = issue === "taken" ? L("taken") : issue === "reserved" ? L("reserved") : L("invalidName"); render(); return; }
-  }
-  if (onboard.step === 2) {
-    if (!onboard.spaces.length) { toast = L("spacesHint"); render(); return; }
-    onboard.profile = blankProfile(onboard.spaces[0]);
-  }
-  if (onboard.step === 3 && (!onboard.rules || !onboard.advice)) { toast = L("acceptBoth"); render(); return; }
-  if (onboard.step === 4) {
-    syncDraft("onboard");
-    if (!onboard.profile.stage) { toast = L("chooseStage"); render(); return; }
-    finishOnboard(true);
-    return;
-  }
-  onboard.step += 1;
+/* Enter in the sign-in form submits it. */
+document.addEventListener("submit", (event) => {
+  if (event.target?.dataset?.form === "auth") { event.preventDefault(); submitAuth(); }
+});
+
+function syncAuthForm() {
+  authForm.email = document.querySelector("#auth-email")?.value ?? authForm.email;
+  authForm.handle = document.querySelector("#auth-handle")?.value ?? authForm.handle;
+  authForm.rules = document.querySelector("#auth-rules")?.checked ?? authForm.rules;
+  authForm.advice = document.querySelector("#auth-advice")?.checked ?? authForm.advice;
+}
+
+async function submitAuth() {
+  if (authForm.busy) return;
+  syncAuthForm();
+  const password = document.querySelector("#auth-password")?.value || "";
+  const signup = authForm.mode === "signup";
+  const email = authForm.email.trim().toLowerCase();
+  let problem = "";
+  if (!emailOk(email)) problem = "email";
+  else if (password.length < 8) problem = signup ? "password" : "login";
+  else if (signup && usernameIssue(authForm.handle, new Set())) problem = usernameIssue(authForm.handle, new Set());
+  else if (signup && (!authForm.rules || !authForm.advice)) problem = "agree";
+  if (problem) { authForm.error = A(errorKey(problem)); render(); return; }
+  authForm.busy = true;
+  authForm.error = "";
+  render();
+  const local = me(state);
+  const body = signup
+    ? { email, password, handle: authForm.handle.trim(), locale: lang(), spaces: authForm.spaces.length ? authForm.spaces : ["i-485"], profiles: local?.profiles || [], agreeRules: true, agreeNotAdvice: true }
+    : { email, password };
+  const res = await api(signup ? "/api/signup" : "/api/login", { method: "POST", body });
+  authForm.busy = false;
+  if (!res.ok) { authForm.error = A(errorKey(res.error)); render(); return; }
+  adoptAccount(res.data.user);
+  if (!signup && res.data.user?.locale) state.lang = res.data.user.locale;
+  const next = authReturn && authReturn.name !== "auth" ? authReturn : { name: "home" };
+  authReturn = null;
+  authForm = blankAuth("signin");
+  publicView = "home";
+  state.route = next;
+  toast = A("welcomeBack", { name: res.data.user.handle });
+  save();
+  refreshCommunity();
+  render();
+  window.scrollTo?.(0, 0);
+}
+
+async function logout() {
+  await api("/api/logout", { method: "POST" });
+  adoptAccount(null);
+  feeds.clear();
+  postDetails.clear();
+  modQueue.items = null;
+  toast = A("signedOut");
+  state.route = { name: "home" };
+  save();
+  refreshCommunity();
   render();
 }
 
-function finishOnboard(includeProfile) {
-  if (includeProfile) syncDraft("onboard");
-  const result = createAccount(state, {
-    username: onboard.username,
-    email: onboard.email,
-    locale: lang(),
-    spaceIds: onboard.spaces.length ? onboard.spaces : ["i-485"],
-    profile: includeProfile ? readProfile("onboard") : null
-  });
-  apply(result, () => { onboard = blankOnboard(); toast = L("saved"); state.route = { name: "prepare" }; });
+async function deleteEverything() {
+  if (!confirm(L("deleteHelp"))) return;
+  if (account()) {
+    const password = prompt(A("deletePassword")) || "";
+    if (!password) return;
+    const res = await api("/api/account/delete", { method: "POST", body: { password } });
+    if (!res.ok) { failToast(res); return; }
+    session.user = null;
+    feeds.clear();
+    postDetails.clear();
+  }
+  for (const folder of Object.values(state.folders?.[state.meId] || {})) for (const doc of folder?.docs || []) deleteText(doc.id).catch(() => {});
+  apply(deleteAccount(state), () => { toast = A("deleted"); publicView = "home"; });
+  refreshCommunity();
 }
 
-function publishAsk() {
+async function publishAsk() {
+  if (needAccount()) return;
   ask.title = document.querySelector("#ask-title")?.value ?? ask.title;
   ask.body = document.querySelector("#ask-body")?.value ?? ask.body;
   ask.stage = document.querySelector("#ask-stage")?.value ?? ask.stage;
-  const similar = ask.type === "question" ? similarThreads(state, ask.title, ask.body, ask.spaceIds[0]) : [];
+  const similar = ask.type === "question" ? similarThreads({ posts: cachedPosts() }, ask.title, ask.body, ask.spaceIds[0]) : [];
   if (similar.length && !ask.warned) { ask.warned = true; render(); return; }
-  apply(publish(state, ask), (result) => {
-    toast = result.held ? L("heldToast") : L("posted");
-    ask = blankAsk();
-    state.route = { name: "post", id: result.postId };
-  });
+  const verdict = evaluate(`${ask.title}\n${ask.body}`);
+  if (verdict.verdict === "block") { toast = L("blockedText"); render(); return; }
+  const res = await api("/api/posts", { method: "POST", body: { type: ask.type, title: ask.title, body: ask.body, spaceIds: ask.spaceIds, stage: ask.stage } });
+  if (!res.ok) { failToast(res); return; }
+  const post = res.data.post;
+  postDetails.set(post.id, { post, loading: false, error: "" });
+  toast = res.data.held ? L("heldToast") : L("posted");
+  ask = blankAsk();
+  state.route = { name: "post", id: post.id };
+  const user = me(state);
+  if (user) for (const id of post.spaceIds) if (!user.spaces.includes(id)) user.spaces.push(id);
+  save();
+  refreshCommunity();
+  render();
+  window.scrollTo?.(0, 0);
 }
 
 try {

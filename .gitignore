@@ -12,3 +12,9 @@ xcuserdata/
 *.store-wal
 web/data/cache/
 __pycache__/
+web/data/*.db
+web/data/*.db-wal
+web/data/*.db-shm
+*.db
+*.db-wal
+*.db-shm

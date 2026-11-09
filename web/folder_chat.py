@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.parse import urlparse
 import re
 import threading
 import time
@@ -286,11 +287,21 @@ def mock_reply(payload: dict[str, Any]) -> str:
 
 
 def allowed_origin(origin: str, host: str, port: int) -> bool:
+    """Loopback preview origins, the request's own host (same-origin when deployed), or CASECIRCLE_PUBLIC_ORIGIN."""
     allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
+    public = {item.strip().rstrip("/") for item in os.environ.get("CASECIRCLE_PUBLIC_ORIGIN", "").split(",") if item.strip()}
     if origin:
-        return origin in allowed
+        origin = origin.rstrip("/")
+        if origin in allowed or origin in public:
+            return True
+        loopback_host = host in {f"127.0.0.1:{port}", f"localhost:{port}"}
+        # Deployed behind a proxy: same-origin means the Origin's host is the Host header (never for loopback hosts,
+        # which keep the strict list above).
+        return bool(host) and not loopback_host and urlparse(origin).netloc.lower() == host.lower()
     if host:
-        return host in {f"127.0.0.1:{port}", f"localhost:{port}"}
+        if host in {f"127.0.0.1:{port}", f"localhost:{port}"}:
+            return True
+        return any(urlparse(item).netloc.lower() == host.lower() for item in public)
     return False
 
 

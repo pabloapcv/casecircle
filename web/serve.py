@@ -16,10 +16,11 @@ from __future__ import annotations
 import os
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import community
 import folder_chat
+import mailer
 import folder_check
 import processing_times
 
@@ -68,13 +69,13 @@ class Handler(SimpleHTTPRequestHandler):
         super().log_message("%s", message)
 
     def _blocked_path(self) -> bool:
-        path = urlparse(self.path).path.lower()
+        path = unquote(urlparse(self.path).path).lower()  # decode first: translate_path decodes %6f etc. too
         name = os.path.basename(path)
         if name.startswith(".") or name.endswith((".pyc", ".py")):
             return True  # server code (and its prompts) and dotfiles are never served as static files
         if name.endswith((".db", ".sqlite", ".sqlite3", "-wal", "-shm", "-journal")):
             return True  # the community database
-        if "/data/cache/" in path or "__pycache__" in path or "/." in path or "/scripts/" in path:
+        if "/data/cache/" in path or "/data/outbox/" in path or "__pycache__" in path or "/." in path or "/scripts/" in path:
             return True
         return False
 
@@ -130,7 +131,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_error(404, "File not found")
 
     def end_headers(self) -> None:
-        path = urlparse(self.path).path.lower()
+        path = unquote(urlparse(self.path).path).lower()  # decode first: translate_path decodes %6f etc. too
         # Always revalidate static assets so CSS/JS edits show up after a deploy or a local edit.
         if path.endswith((".css", ".js", ".mjs", ".html")) or path == "/" or path.endswith("/"):
             self.send_header("Cache-Control", "no-cache, must-revalidate")
@@ -169,6 +170,13 @@ def main() -> None:
     server.daemon_threads = True
     shown = "127.0.0.1" if host in ("0.0.0.0", "") else host
     print(f"Serving at http://{shown}:{port}/  (db: {community.db_path()})", flush=True)
+    mail = mailer.provider()
+    if mail == "console" and os.environ.get("PORT"):
+        print("WARNING: CASECIRCLE_EMAIL_PROVIDER is console — verification and reset links only go to the server log. "
+              "Set it to resend or smtp in production.", flush=True)
+    elif mail != "console" and not os.environ.get("CASECIRCLE_PUBLIC_ORIGIN"):
+        print("WARNING: set CASECIRCLE_PUBLIC_ORIGIN so email links point at your real domain.", flush=True)
+    print(f"Email: {mail}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

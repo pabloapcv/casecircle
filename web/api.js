@@ -30,7 +30,9 @@ const ERROR_KEYS = {
   invalid: "errHandle", agree: "errAgree", login: "errLogin", rate: "errRate", auth: "errAuth", short: "errShort",
   long: "errLong", stage: "errStage", type: "errShort", receipt: "errIdentifiers", "a-number": "errIdentifiers",
   ssn: "errIdentifiers", passport: "errIdentifiers", abuse: "errAbuse", already: "errAlready", self: "errSelf",
-  csrf: "errServer", not_found: "errNotFound", closed: "errClosed", offline: "errOffline"
+  csrf: "errServer", not_found: "errNotFound", closed: "errClosed", offline: "errOffline",
+  password_common: "errPasswordCommon", mismatch: "errMismatch", token: "errToken", current: "errCurrent",
+  same_email: "errSameEmail", confirm: "errConfirm", unverified: "errUnverified"
 };
 
 export function errorKey(code) {

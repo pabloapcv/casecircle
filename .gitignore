@@ -18,3 +18,4 @@ web/data/*.db-shm
 *.db
 *.db-wal
 *.db-shm
+web/data/outbox/

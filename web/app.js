@@ -36,6 +36,9 @@ const postDetails = new Map();
 const modQueue = { items: null, loading: false };
 let authForm = blankAuth("signup");
 let authReturn = null;
+let resetToken = ""; // from a #reset= email link; memory only, never saved
+let verifyUi = { busy: false };
+let settingsUi = { busy: "", msg: {}, newEmail: "" };
 let toast = "";
 let onboard = blankOnboard();
 let filters = { sort: "new", kind: "", stage: "", officeId: "" };
@@ -309,6 +312,7 @@ function esc(value) {
 }
 
 function boot() {
+  const emailLink = takeEmailLink();
   const linked = routeFromHash(location.hash);
   if (!state.meId && linked && ["post", "space", "home"].includes(linked.name)) ensureLocalMember(); // shared links open read-only
   if (state.meId) {
@@ -319,8 +323,9 @@ function boot() {
     if (fromHash) state.route = fromHash;
   }
   ensureData();
+  if (emailLink?.kind === "reset") handleEmailLink(emailLink);
   render();
-  refreshSession();
+  refreshSession().then(() => { if (emailLink?.kind === "verify") confirmEmail(emailLink.token); });
 }
 
 let restoreFocus = "";
@@ -365,7 +370,7 @@ function render() {
 }
 
 function shell() {
-  return `<div class="site">${topbar()}<main class="page" id="main" tabindex="-1">${screen()}</main>${bottomNav()}${siteFoot()}</div>`;
+  return `<div class="site">${topbar()}<main class="page" id="main" tabindex="-1">${verifyBanner()}${screen()}</main>${bottomNav()}${siteFoot()}</div>`;
 }
 
 let hashSynced = false;
@@ -404,6 +409,7 @@ const ICONS = {
   spark: '<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/>',
   upload: '<path d="M12 15V4.5M7.5 9 12 4.5 16.5 9"/><path d="M5 15.5v3a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-3"/>',
   doc: '<path d="M7 3.5h7l4 4v13H7z"/><path d="M14 3.5v4h4"/>',
+  mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>',
   lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   groups: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 15.2A4.5 4.5 0 0 1 20.5 19"/>'
@@ -488,6 +494,7 @@ function topbar() {
             </div>
             <button type="button" role="menuitem" data-act="tab" data-tab="you">${icon("user", 18)}<span>${esc(H("menuProfile"))}</span></button>
             <button type="button" role="menuitem" data-act="tab" data-tab="spaces">${icon("groups", 18)}<span>${esc(H("menuGroups"))}</span></button>
+            ${signed ? `<button type="button" role="menuitem" data-act="open-settings">${icon("lock", 18)}<span>${esc(A("settings"))}</span></button>` : ""}
             ${mod ? `<button type="button" role="menuitem" data-act="mod">${icon("shield", 18)}<span>${esc(L("modQueue"))}</span></button>` : ""}
             <div class="menu-sep" role="separator"></div>
             <div class="menu-label" role="presentation">${icon("globe", 16)}<span>${esc(L("language"))}</span></div>
@@ -583,7 +590,14 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "End") { event.preventDefault(); items[items.length - 1]?.focus(); }
 });
 
+function handleEmailLink(link) {
+  if (link.kind === "reset") { resetToken = link.token; openAuth("reset"); return; }
+  confirmEmail(link.token);
+}
+
 function applyHashRoute() {
+  const emailLink = takeEmailLink(); // a #verify= / #reset= link opened in a tab that already has the app
+  if (emailLink) { handleEmailLink(emailLink); return; }
   if (!state.meId) return;
   const route = routeFromHash(location.hash);
   if (!route) return;
@@ -640,6 +654,7 @@ function siteFoot() {
 function screen() {
   const route = state.route || { name: "home" };
   if (route.name === "auth") return authScreen();
+  if (route.name === "settings") return settingsScreen();
   if (route.name === "post") return postScreen(route.id);
   if (route.name === "space") return spaceScreen(route.id);
   if (route.name === "search") return searchScreen();
@@ -858,29 +873,66 @@ function publicPage(page) {
   return `${backButton(L("back"), 'data-act="public-home"')}<article class="narrow legal-page"><h1>${esc(title)}</h1>${paras.map((para) => `<p>${esc(para)}</p>`).join("")}</article>`;
 }
 
-/* Sign up / sign in (one screen; used signed-out and from inside the app). */
+/* Sign up / sign in / forgot / reset (one screen; used signed-out and from inside the app). */
 function authScreen() {
   const f = authForm;
-  const signup = f.mode === "signup";
+  const mode = f.mode;
+  const signup = mode === "signup";
   const back = state.meId ? backButton(L("back"), 'data-act="auth-cancel"') : backButton(L("back"), 'data-act="public-home"');
+  const head = (title, lead) => `${back}
+  <section class="auth-card narrow" aria-labelledby="auth-h">
+    <p class="kicker">${logoMark(18)} ${esc(L("appName"))}</p>
+    <h1 id="auth-h">${esc(title)}</h1>
+    ${lead ? `<p class="lede">${esc(lead)}</p>` : ""}`;
+  const error = f.error ? `<p class="danger" role="alert">${esc(f.error)}</p>` : "";
+  const toSignIn = `<p class="auth-switch"><button type="button" class="link-btn" data-act="auth-mode" data-mode="signin">${esc(A("backToSignIn"))}</button></p>`;
+  const foot = `<p class="note">${icon("lock", 14)} ${esc(T("heroPrivacy"))}</p></section>`;
+  if (mode === "forgot-sent") {
+    return `${head(A("forgotSentTitle"), "")}
+    <p class="auth-sent" role="status">${icon("mail", 18)}<span>${esc(A("forgotSent", { email: f.email }))}</span></p>
+    ${toSignIn}${foot}`;
+  }
+  if (mode === "forgot") {
+    return `${head(A("forgotTitle"), A("forgotLead"))}
+    <form class="stack auth-form" data-form="auth" novalidate>
+      <label class="field">${esc(A("email"))}
+        <input id="auth-email" type="email" autocomplete="email" required value="${esc(f.email)}" placeholder="you@email.com">
+      </label>
+      ${error}
+      <button class="btn block" type="submit" data-act="auth-submit" ${f.busy ? "disabled" : ""}>${esc(f.busy ? A("working") : A("forgotSend"))}</button>
+    </form>
+    ${toSignIn}${foot}`;
+  }
+  if (mode === "reset") {
+    return `${head(A("resetTitle"), A("resetLead"))}
+    <form class="stack auth-form" data-form="auth" novalidate>
+      <label class="field">${esc(A("newPassword"))}
+        <input id="auth-password" type="password" autocomplete="new-password" required minlength="10">
+        <span class="muted">${esc(A("passwordHelp"))}</span>
+      </label>
+      <label class="field">${esc(A("confirmPassword"))}
+        <input id="auth-password2" type="password" autocomplete="new-password" required minlength="10">
+      </label>
+      ${error}
+      <button class="btn block" type="submit" data-act="auth-submit" ${f.busy || !resetToken ? "disabled" : ""}>${esc(f.busy ? A("working") : A("resetSave"))}</button>
+    </form>
+    ${toSignIn}${foot}`;
+  }
   const chips = LAUNCH_SPACES.map((id) => {
     const on = f.spaces.includes(id);
     return `<button type="button" class="chip${on ? " on" : ""}" data-act="auth-space" data-id="${esc(id)}" aria-pressed="${on}">${esc(spaceById(id)?.forms[0] || id)}</button>`;
   }).join("");
-  return `${back}
-  <section class="auth-card narrow" aria-labelledby="auth-h">
-    <p class="kicker">${logoMark(18)} ${esc(L("appName"))}</p>
-    <h1 id="auth-h">${esc(signup ? A("authTitleSignup") : A("authTitleSignin"))}</h1>
-    <p class="lede">${esc(signup ? A("authLeadSignup") : A("authLeadSignin"))}</p>
+  return `${head(signup ? A("authTitleSignup") : A("authTitleSignin"), signup ? A("authLeadSignup") : A("authLeadSignin"))}
     <form class="stack auth-form" data-form="auth" novalidate>
       <label class="field">${esc(A("email"))}
         <input id="auth-email" type="email" autocomplete="email" required value="${esc(f.email)}" placeholder="you@email.com">
         ${signup ? `<span class="muted">${esc(L("emailHelp"))}</span>` : ""}
       </label>
       <label class="field">${esc(A("password"))}
-        <input id="auth-password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" required minlength="8">
+        <input id="auth-password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" required${signup ? ' minlength="10"' : ""}>
         ${signup ? `<span class="muted">${esc(A("passwordHelp"))}</span>` : ""}
       </label>
+      ${signup ? "" : `<p class="forgot-row"><button type="button" class="link-btn" data-act="auth-mode" data-mode="forgot">${esc(A("forgotLink"))}</button></p>`}
       ${signup ? `<label class="field">${esc(A("handle"))}
         <input id="auth-handle" type="text" autocapitalize="off" autocomplete="username" required value="${esc(f.handle)}" maxlength="20">
         <span class="muted">${esc(A("handleHelp"))}</span>
@@ -891,13 +943,190 @@ function authScreen() {
       </fieldset>
       <label class="check"><input id="auth-rules" type="checkbox" ${f.rules ? "checked" : ""}>${esc(A("agreeRules"))}</label>
       <label class="check"><input id="auth-advice" type="checkbox" ${f.advice ? "checked" : ""}>${esc(A("agreeAdvice"))}</label>` : ""}
-      ${f.error ? `<p class="danger" role="alert">${esc(f.error)}</p>` : ""}
+      ${error}
       <button class="btn block" type="submit" data-act="auth-submit" ${f.busy ? "disabled" : ""}>${esc(f.busy ? A("working") : signup ? A("signUp") : A("signIn"))}</button>
       ${signup ? `<p class="muted small-print">${esc(A("agreeTerms"))} <button type="button" class="link-btn" data-act="page" data-page="terms">${esc(A("terms"))}</button> · <button type="button" class="link-btn" data-act="page" data-page="privacy">${esc(L("privacy"))}</button></p>` : ""}
     </form>
     <p class="auth-switch">${esc(signup ? A("haveAccount") : A("needAccount"))} <button type="button" class="link-btn" data-act="auth-mode" data-mode="${signup ? "signin" : "signup"}">${esc(signup ? A("signIn") : A("signUp"))}</button></p>
-    <p class="note">${icon("lock", 14)} ${esc(T("heroPrivacy"))}</p>
-  </section>`;
+    ${foot}`;
+}
+
+/* Signed in but email not confirmed: reading and tools work, writing waits for the link. */
+function unverified() {
+  const user = account();
+  return Boolean(user && !user.emailVerified);
+}
+
+function needVerified() {
+  if (!unverified()) return false;
+  toast = A("verifyToPost");
+  render();
+  return true;
+}
+
+function verifyBanner() {
+  if (!unverified()) return "";
+  const user = account();
+  return `<div class="verify-banner" role="status">
+    <span class="verify-ico">${icon("mail", 20)}</span>
+    <div class="verify-text"><strong>${esc(A("verifyBannerTitle"))}</strong><span>${esc(A("verifyBannerBody", { email: user.email }))}</span></div>
+    <div class="verify-actions">
+      <button type="button" class="btn-secondary" data-act="verify-resend" ${verifyUi.busy ? "disabled" : ""}>${esc(verifyUi.busy ? A("working") : A("verifyResend"))}</button>
+      <button type="button" class="link-btn" data-act="open-settings">${esc(A("verifyWrong"))}</button>
+    </div>
+  </div>`;
+}
+
+async function resendVerify() {
+  if (verifyUi.busy) return;
+  verifyUi.busy = true;
+  render();
+  const res = await api("/api/verify/resend", { method: "POST" });
+  verifyUi.busy = false;
+  if (!res.ok) { failToast(res); return; }
+  if (res.data.already) { await refreshSession(); toast = A("verifyDone"); render(); return; }
+  toast = A("verifyResent");
+  render();
+}
+
+/* Links from emails land on #verify=TOKEN or #reset=TOKEN. The token is read once, kept in memory and wiped from the address bar. */
+function takeEmailLink() {
+  const match = /^#(verify|reset)=([A-Za-z0-9_-]{20,200})$/.exec(location.hash || "");
+  if (!match) return null;
+  try { history.replaceState(null, "", `${location.pathname}${location.search}`); } catch { /* sandboxed */ }
+  return { kind: match[1], token: match[2] };
+}
+
+async function confirmEmail(token) {
+  const res = await api("/api/verify", { method: "POST", body: { token } });
+  if (!res.ok) { failToast(res); return; }
+  await refreshSession();
+  if (res.data.kind === "email_change" && account()) toast = A("emailChangedDone", { email: account().email });
+  else toast = account() ? A("verifyDone") : A("verifyDoneSignIn");
+  if (!account()) openAuth("signin");
+  render();
+}
+
+/* Account settings: email, password, devices, delete. Bilingual; every action re-checks the password on the server. */
+function settingsScreen() {
+  const user = account();
+  if (!user) {
+    return `${backButton()}<section class="auth-card narrow"><h1>${esc(A("settings"))}</h1><p class="lede">${esc(A("settingsSignedOut"))}</p>
+      <div class="row"><button class="btn" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button><button class="btn-secondary" data-act="auth" data-mode="signup">${esc(A("signUp"))}</button></div></section>`;
+  }
+  const msg = (key) => {
+    const m = settingsUi.msg[key];
+    return m ? `<p class="${m.ok ? "ok-note" : "danger"}" role="${m.ok ? "status" : "alert"}">${esc(m.text)}</p>` : "";
+  };
+  const busy = (key) => settingsUi.busy === key;
+  const status = user.emailVerified
+    ? `<span class="pill ok">${icon("check", 14)} ${esc(A("verified"))}</span>`
+    : `<span class="pill warn">${esc(A("unverified"))}</span>`;
+  return `${backButton()}
+  <div class="settings narrow">
+    <div class="page-head"><h1>${esc(A("settings"))}</h1><p class="lede">${esc(A("settingsLead"))}</p></div>
+
+    <section class="settings-card" aria-labelledby="set-email">
+      <h2 id="set-email">${esc(A("emailSection"))}</h2>
+      <p class="settings-email"><strong>${esc(user.email)}</strong> ${status}</p>
+      ${user.emailVerified ? "" : `<p class="muted">${esc(A("verifyBannerBody", { email: user.email }))} <button type="button" class="link-btn" data-act="verify-resend">${esc(A("verifyResend"))}</button></p>`}
+      ${user.pendingEmail ? `<p class="pending-note">${esc(A("pendingNote", { email: user.pendingEmail }))} <button type="button" class="link-btn" data-act="verify-resend">${esc(A("verifyResend"))}</button></p>` : ""}
+      <form class="stack settings-form" data-form="settings-email" novalidate>
+        <label class="field">${esc(A("newEmail"))}<input id="set-new-email" type="email" autocomplete="email" value="${esc(settingsUi.newEmail)}" placeholder="you@email.com"></label>
+        <label class="field">${esc(A("currentPassword"))}<input id="set-email-pw" type="password" autocomplete="current-password"></label>
+        ${msg("email")}
+        <button class="btn-secondary" type="submit" ${busy("email") ? "disabled" : ""}>${esc(busy("email") ? A("working") : A("changeEmail"))}</button>
+      </form>
+    </section>
+
+    <section class="settings-card" aria-labelledby="set-password">
+      <h2 id="set-password">${esc(A("passwordSection"))}</h2>
+      <form class="stack settings-form" data-form="settings-password" novalidate>
+        <label class="field">${esc(A("currentPassword"))}<input id="set-current" type="password" autocomplete="current-password"></label>
+        <label class="field">${esc(A("newPassword"))}<input id="set-new" type="password" autocomplete="new-password" minlength="10"><span class="muted">${esc(A("passwordHelp"))}</span></label>
+        <label class="field">${esc(A("confirmPassword"))}<input id="set-new2" type="password" autocomplete="new-password" minlength="10"></label>
+        ${msg("password")}
+        <button class="btn-secondary" type="submit" ${busy("password") ? "disabled" : ""}>${esc(busy("password") ? A("working") : A("changePassword"))}</button>
+      </form>
+    </section>
+
+    <section class="settings-card" aria-labelledby="set-sessions">
+      <h2 id="set-sessions">${esc(A("sessionsSection"))}</h2>
+      <p class="muted">${esc(A("sessionsBody"))}</p>
+      ${msg("sessions")}
+      <button class="btn-secondary" data-act="logout-all" ${busy("sessions") ? "disabled" : ""}>${esc(busy("sessions") ? A("working") : A("logoutAll"))}</button>
+    </section>
+
+    <section class="settings-card danger-zone" aria-labelledby="set-delete">
+      <h2 id="set-delete">${esc(A("deleteSection"))}</h2>
+      <p class="muted">${esc(L("deleteHelp"))}</p>
+      <form class="stack settings-form" data-form="settings-delete" novalidate>
+        <label class="field">${esc(A("currentPassword"))}<input id="set-delete-pw" type="password" autocomplete="current-password"></label>
+        <label class="check"><input id="set-delete-ok" type="checkbox">${esc(A("deleteConfirm"))}</label>
+        ${msg("delete")}
+        <button class="btn danger-btn" type="submit" ${busy("delete") ? "disabled" : ""}>${esc(busy("delete") ? A("working") : A("deleteButton"))}</button>
+      </form>
+    </section>
+    <p class="note">${esc(L("disclaimer"))}</p>
+  </div>`;
+}
+
+async function settingsAction(kind) {
+  if (settingsUi.busy) return;
+  const val = (id) => document.getElementById(id)?.value || "";
+  const fail = (code) => { settingsUi.msg[kind] = { ok: false, text: A(errorKey(code)) }; settingsUi.busy = ""; render(); };
+  settingsUi.msg = {};
+  let path = "";
+  let body = {};
+  if (kind === "email") {
+    settingsUi.newEmail = val("set-new-email").trim().toLowerCase();
+    if (!emailOk(settingsUi.newEmail)) return fail("email");
+    if (!val("set-email-pw")) return fail("current");
+    path = "/api/account/email";
+    body = { email: settingsUi.newEmail, password: val("set-email-pw") };
+  } else if (kind === "password") {
+    if (!val("set-current")) return fail("current");
+    if (val("set-new").length < 10) return fail("password");
+    if (val("set-new") !== val("set-new2")) return fail("mismatch");
+    path = "/api/account/password";
+    body = { current: val("set-current"), password: val("set-new") };
+  } else if (kind === "sessions") {
+    path = "/api/account/logout-all";
+  } else if (kind === "delete") {
+    if (!val("set-delete-pw")) return fail("current");
+    if (!document.getElementById("set-delete-ok")?.checked) return fail("confirm");
+    path = "/api/account/delete";
+    body = { password: val("set-delete-pw"), confirm: true };
+  }
+  settingsUi.busy = kind;
+  render();
+  const res = await api(path, { method: "POST", body });
+  settingsUi.busy = "";
+  if (!res.ok) return fail(res.error === "login" ? "current" : res.error);
+  if (kind === "email") {
+    if (res.data.user) session.user = res.data.user;
+    settingsUi.msg.email = { ok: true, text: A("changeEmailSent", { email: settingsUi.newEmail }) };
+    settingsUi.newEmail = "";
+  } else if (kind === "password") {
+    settingsUi.msg.password = { ok: true, text: A("passwordChanged") };
+  } else if (kind === "sessions") {
+    adoptAccount(null);
+    feeds.clear();
+    postDetails.clear();
+    toast = A("loggedOutAll");
+    state.route = { name: "home" };
+    save();
+    refreshCommunity();
+  } else if (kind === "delete") {
+    session.user = null;
+    feeds.clear();
+    postDetails.clear();
+    for (const folder of Object.values(state.folders?.[state.meId] || {})) for (const doc of folder?.docs || []) deleteText(doc.id).catch(() => {});
+    apply(deleteAccount(state), () => { toast = A("deleted"); publicView = "home"; });
+    refreshCommunity();
+    return;
+  }
+  render();
 }
 
 /* Signed-out landing: a few real community posts (nothing invented; hidden when there are none). */
@@ -1188,7 +1417,7 @@ function postScreen(id) {
     </section>
     <section class="reply-box">
       <h2>${esc(L("writeReply"))}</h2>
-      ${account() ? `<div class="composer">
+      ${unverified() ? `<div class="composer guest-reply"><p class="muted">${esc(A("verifyToReplyNote", { email: account().email }))}</p><div class="row"><button class="btn-secondary" data-act="verify-resend">${esc(A("verifyResend"))}</button></div></div>` : account() ? `<div class="composer">
         <label class="field" for="reply">${esc(L("commentPlaceholder"))}</label>
         <textarea id="reply" placeholder="${esc(L("commentPlaceholder"))}" maxlength="3000"></textarea>
         <button class="btn block" data-act="reply" data-id="${esc(post.id)}">${esc(L("send"))}</button>
@@ -2451,7 +2680,7 @@ function youScreen() {
   const mine = mineEntry.posts;
   const saved = notBlocked(savedEntry.posts);
   return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(acct ? user.username : A("guest"))}</h1>${acct ? `<div class="kicker">${esc(levelName(lang(), acct.reputation || 0))}</div><div class="muted">${esc(L("reputation"))} ${acct.reputation || 0} · ${esc(A("accountEmail", { email: acct.email }))}</div>` : ""}</div></div>
-    ${acct ? `<div class="row"><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button>` : ""}</div>` : guestCard()}
+    ${acct ? `<div class="row"><button class="btn-secondary" data-act="open-settings">${esc(A("settings"))}</button><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button>` : ""}</div>` : guestCard()}
     <h2>${esc(L("caseProfiles"))}</h2>
     <div class="stack">${user.profiles.length ? user.profiles.map((profile) => `<div class="card">${esc(badge(lang(), profile))}</div>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
     <h2>${esc(L("yourPosts"))}</h2>
@@ -2472,8 +2701,8 @@ function youScreen() {
       <button class="text-link" data-act="page" data-page="about">${esc(L("about"))}</button>
       <a class="text-link" href="mailto:support@casecircle.app">${esc(L("contact"))}</a>
     </div>
-    <p class="muted delete-help">${esc(L("deleteHelp"))}</p>
-    <button class="btn danger-btn" data-act="delete">${esc(L("deleteAccount"))}</button>`;
+    ${acct ? `<button class="text-link" data-act="open-settings">${esc(A("settings"))} · ${esc(A("deleteSection"))}</button>` : `<p class="muted delete-help">${esc(L("deleteHelp"))}</p>
+    <button class="btn danger-btn" data-act="delete">${esc(A("deleteLocalOnly"))}</button>`}`;
 }
 
 function pageScreen(page) {
@@ -2590,6 +2819,18 @@ document.addEventListener("click", (event) => {
   if (act === "auth-cancel") { state.route = authReturn || { name: "home" }; authReturn = null; save(); render(); return; }
   if (act === "auth-submit") { event.preventDefault(); submitAuth(); return; }
   if (act === "logout") { closeAccountMenu(false); logout(); return; }
+  if (act === "open-settings") {
+    closeAccountMenu(false);
+    if (!state.meId) { openAuth("signin"); return; }
+    settingsUi = { busy: "", msg: {}, newEmail: "" };
+    state.route = { name: "settings" };
+    save();
+    render();
+    window.scrollTo?.(0, 0);
+    return;
+  }
+  if (act === "verify-resend") { resendVerify(); return; }
+  if (act === "logout-all") { settingsAction("sessions"); return; }
   if (act === "feed-retry") { refreshCommunity(); return; }
   if (act === "public-home") {
     publicView = "home";
@@ -2914,7 +3155,7 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (act === "reply") {
-    if (needAccount()) return;
+    if (needAccount() || needVerified()) return;
     const field = document.querySelector("#reply");
     const body = (field?.value || "").trim();
     if (body.length < 8) { toast = L("tooShort"); render(); return; }
@@ -3061,6 +3302,7 @@ document.addEventListener("input", (event) => {
   if (event.target.id === "auth-handle") authForm.handle = event.target.value;
   if (event.target.id === "auth-rules") authForm.rules = event.target.checked;
   if (event.target.id === "auth-advice") authForm.advice = event.target.checked;
+  if (event.target.id === "set-new-email") settingsUi.newEmail = event.target.value;
   if (event.target.id === "ask-title") ask.title = event.target.value;
   if (event.target.id === "ask-body") ask.body = event.target.value;
   if (event.target.id === "ask-stage") ask.stage = event.target.value;
@@ -3079,7 +3321,9 @@ document.addEventListener("input", (event) => {
 
 /* Enter in the sign-in form submits it. */
 document.addEventListener("submit", (event) => {
-  if (event.target?.dataset?.form === "auth") { event.preventDefault(); submitAuth(); }
+  const form = event.target?.dataset?.form;
+  if (form === "auth") { event.preventDefault(); submitAuth(); }
+  if (form?.startsWith("settings-")) { event.preventDefault(); settingsAction(form.slice(9)); }
 });
 
 function syncAuthForm() {
@@ -3093,11 +3337,12 @@ async function submitAuth() {
   if (authForm.busy) return;
   syncAuthForm();
   const password = document.querySelector("#auth-password")?.value || "";
+  if (authForm.mode === "forgot" || authForm.mode === "reset") { submitRecovery(password); return; }
   const signup = authForm.mode === "signup";
   const email = authForm.email.trim().toLowerCase();
   let problem = "";
   if (!emailOk(email)) problem = "email";
-  else if (password.length < 8) problem = signup ? "password" : "login";
+  else if (signup ? password.length < 10 : !password) problem = signup ? "password" : "login";
   else if (signup && usernameIssue(authForm.handle, new Set())) problem = usernameIssue(authForm.handle, new Set());
   else if (signup && (!authForm.rules || !authForm.advice)) problem = "agree";
   if (problem) { authForm.error = A(errorKey(problem)); render(); return; }
@@ -3125,6 +3370,31 @@ async function submitAuth() {
   window.scrollTo?.(0, 0);
 }
 
+async function submitRecovery(password) {
+  const forgot = authForm.mode === "forgot";
+  const email = authForm.email.trim().toLowerCase();
+  let problem = "";
+  if (forgot && !emailOk(email)) problem = "email";
+  if (!forgot && !resetToken) problem = "token";
+  else if (!forgot && password.length < 10) problem = "password";
+  else if (!forgot && password !== (document.querySelector("#auth-password2")?.value || "")) problem = "mismatch";
+  if (problem) { authForm.error = A(errorKey(problem)); render(); return; }
+  authForm.busy = true;
+  authForm.error = "";
+  render();
+  const res = forgot
+    ? await api("/api/password/forgot", { method: "POST", body: { email } })
+    : await api("/api/password/reset", { method: "POST", body: { token: resetToken, password } });
+  authForm.busy = false;
+  if (!res.ok) { authForm.error = A(errorKey(res.error)); render(); return; }
+  if (forgot) { authForm.mode = "forgot-sent"; authForm.email = email; render(); return; }
+  resetToken = "";
+  if (account()) { adoptAccount(null); feeds.clear(); postDetails.clear(); }
+  authForm = blankAuth("signin");
+  toast = A("resetDone");
+  render();
+}
+
 async function logout() {
   await api("/api/logout", { method: "POST" });
   adoptAccount(null);
@@ -3139,23 +3409,15 @@ async function logout() {
 }
 
 async function deleteEverything() {
+  if (account()) { state.route = { name: "settings" }; settingsUi = { busy: "", msg: {}, newEmail: "" }; render(); return; } // password + confirm live there
   if (!confirm(L("deleteHelp"))) return;
-  if (account()) {
-    const password = prompt(A("deletePassword")) || "";
-    if (!password) return;
-    const res = await api("/api/account/delete", { method: "POST", body: { password } });
-    if (!res.ok) { failToast(res); return; }
-    session.user = null;
-    feeds.clear();
-    postDetails.clear();
-  }
   for (const folder of Object.values(state.folders?.[state.meId] || {})) for (const doc of folder?.docs || []) deleteText(doc.id).catch(() => {});
   apply(deleteAccount(state), () => { toast = A("deleted"); publicView = "home"; });
   refreshCommunity();
 }
 
 async function publishAsk() {
-  if (needAccount()) return;
+  if (needAccount() || needVerified()) return;
   ask.title = document.querySelector("#ask-title")?.value ?? ask.title;
   ask.body = document.querySelector("#ask-body")?.value ?? ask.body;
   ask.stage = document.querySelector("#ask-stage")?.value ?? ask.stage;

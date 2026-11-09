@@ -25,7 +25,13 @@ services:
         value: "1"
       - key: CASECIRCLE_ADMIN_EMAILS
         sync: false
-      - key: CASECIRCLE_PUBLIC_ORIGIN
+      - key: CASECIRCLE_PUBLIC_ORIGIN   # e.g. https://casecircle.app — builds the links in emails
+        sync: false
+      - key: CASECIRCLE_EMAIL_PROVIDER
+        value: resend
+      - key: CASECIRCLE_EMAIL_FROM      # e.g. CaseCircle <hello@mail.casecircle.app> (domain verified in Resend)
+        sync: false
+      - key: RESEND_API_KEY
         sync: false
       - key: CASECIRCLE_LLM_API_KEY
         sync: false

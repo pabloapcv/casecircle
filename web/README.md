@@ -113,13 +113,17 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 
 `community.py` (stdlib + `sqlite3`) owns accounts, posts, replies, votes, saves, reports, moderation and the waitlist.
 
-- **Accounts:** email + password (`hashlib.scrypt`, n=2^14, r=8, p=1, 16-byte random salt per user; Python builds without OpenSSL scrypt, such as macOS system Python, fall back to PBKDF2-SHA256 with 600,000 iterations, tagged in the stored hash), public handle (3–20 letters/numbers/_; reserved words like `uscis`, `admin` refused), chosen case groups and optional case profile. Sessions are random 256-bit tokens stored as SHA-256 hashes, sent as an `HttpOnly; SameSite=Lax` cookie (`Secure` behind HTTPS), 30 days.
+- **Accounts:** email + password (`hashlib.scrypt`, n=2^14, r=8, p=1, 16-byte random salt per user; Python builds without OpenSSL scrypt, such as macOS system Python, fall back to PBKDF2-SHA256 with 600,000 iterations, tagged in the stored hash), public handle (3–20 letters/numbers/_; reserved words like `uscis`, `admin` refused), chosen case groups and optional case profile. Passwords need 10–200 characters and are refused when they're on a built-in list of common passwords, use only one or two distinct characters, or equal the email / handle. Sessions are random 256-bit tokens stored as SHA-256 hashes, sent as an `HttpOnly; SameSite=Lax` cookie (`Secure` behind HTTPS); they expire after **30 days idle** (sliding, refreshed at most hourly), and a new token is issued on every sign-in and password change (the old one is deleted). Password, token and hash comparisons are constant-time; sign-in errors never say whether the email exists.
+- **Email confirmation:** sign-up emails a confirmation link (`#verify=TOKEN`, single use, 24 h). Until it's clicked the account can read, save, vote and use every tool, but posting and replying return `403 unverified`; the app shows a banner with a **Resend link** button (3/hour). Accounts that existed before this change start unconfirmed; `CASECIRCLE_ADMIN_EMAILS` accounts always count as confirmed.
+- **Forgot password:** sign-in → *Forgot password?* always answers the same neutral message whether or not the email exists (3 emails/hour per address, 10 requests/hour per IP). The link (`#reset=TOKEN`, single use, 1 h) opens *Choose a new password*; saving it signs the account out everywhere, confirms the email (the link proved ownership) and emails a "password changed" notice. Tokens are 256-bit random values stored only as SHA-256 hashes; a new link revokes the previous unused one; email links use the URL fragment so tokens never reach server logs or `Referer`.
+- **Account settings** (account menu → *Account settings*, `#settings`): change email (current password; the new address must confirm a link before it replaces the old one, and the old address gets a notice), change password (current password; signs out other devices), sign out of all devices, delete account (password + confirmation box).
+- **Sign-in lockout:** after 5 wrong passwords for the same email from the same IP, sign-in waits 30 s, then doubles per further failure up to 15 min (`429 rate`, `retryAfter`). Unknown emails behave identically.
 - **Reading is open** to everyone (signed-out visitors get a device-only "guest" so the tools work too). Posting, replying, voting, saving and reporting need an account; the UI shows a sign-in prompt instead.
 - **CSRF:** every state-changing request must carry `X-CaseCircle: 1` (cannot be sent cross-site without a CORS preflight, which is never granted) and, when the browser sends one, a same-origin `Origin`.
-- **Rate limits (in memory, per IP or per user):** sign-up 5/h per IP, sign-in 10/15 min per IP and per email, posts 1/30 s and 20/day, replies 1/8 s and 200/day, votes/saves 60/min, reports 20/h, waitlist 5/h per IP.
+- **Rate limits (in memory, per IP or per user):** sign-up 5/h per IP, sign-in 10/15 min per IP and per email (plus the lockout above), email/token endpoints 30/15 min per IP, account changes 10/15 min per user, posts 1/30 s and 20/day, replies 1/8 s and 200/day, votes/saves 60/min, reports 20/h, waitlist 5/h per IP.
 - **Content:** length limits (title 8–140, post 20–5,000, reply 8–3,000 chars), control characters stripped, and the same rules as the client (`logic.js evaluate`) run on the server: receipt numbers, A-numbers, SSNs, passport numbers and abuse are refused; scam phrases are held for review. Text is stored as plain text and the client renders every field through its HTML escaper; the CSP blocks inline scripts.
 - **Moderation:** a post or reply with `CASECIRCLE_REPORT_HIDE_THRESHOLD` (default 3) open reports is hidden automatically. Accounts whose email is in `CASECIRCLE_ADMIN_EMAILS` see **Review queue** (account menu) and can hide, unhide, remove or dismiss reports.
-- **Delete account** (profile → Delete) needs the password; it removes email, password and handle and keeps posts as "Deleted member".
+- **Delete account** (Account settings → Delete) needs the password and `confirm: true`; it removes email, password, handle, sessions and tokens and keeps posts as "Deleted member".
 - The **App Review demo** account and the old browser-only posts are gone from production paths (old local data is dropped on load). The "Public titles" Reddit section is unchanged.
 - Documents are **never** uploaded: the Folder Builder, readiness score and per-document consent flow are unchanged and still work signed out.
 
@@ -128,7 +132,14 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 | `/healthz` | GET | `{ok:true}` after opening the database |
 | `/api/me` | GET / POST | current account (+ group member counts) / update locale, groups, case profiles |
 | `/api/signup`, `/api/login`, `/api/logout` | POST | session cookie |
-| `/api/account/delete` | POST | `{password}` |
+| `/api/account/delete` | POST | `{password, confirm: true}` |
+| `/api/verify` | POST | `{token}` from the `#verify=` link (confirms sign-up or an email change) |
+| `/api/verify/resend` | POST | signed in; re-sends the confirmation link(s) |
+| `/api/password/forgot` | POST | `{email}` → always `{ok: true}` |
+| `/api/password/reset` | POST | `{token, password}` → signs out everywhere |
+| `/api/account/password` | POST | `{current, password}` → new session cookie, other devices signed out |
+| `/api/account/email` | POST | `{email, password}` → sets `pendingEmail`, sends a link to the new address |
+| `/api/account/logout-all` | POST | deletes every session of the account |
 | `/api/handle-check?handle=` | GET | `{issue: null\|taken\|reserved\|invalid}` |
 | `/api/posts` | GET / POST | list: `group`, `groups=a,b`, `type`, `sort=new\|top\|unanswered`, `q`, `author=me`, `saved=1`, `limit`, `offset` / create |
 | `/api/posts/<id>` | GET | post + replies |
@@ -153,12 +164,22 @@ Any host that runs a long-lived Python 3.10+ process with a persistent volume wo
 | `CASECIRCLE_TRUST_PROXY` | yes behind a proxy | `1`: trust `X-Forwarded-For` / `-Proto` / `-Host` (rate limits per real IP, Secure cookie) |
 | `CASECIRCLE_COOKIE_SECURE` | recommended | `1`: always mark the session cookie `Secure` |
 | `CASECIRCLE_ADMIN_EMAILS` | yes | comma-separated emails that get the review queue |
-| `CASECIRCLE_PUBLIC_ORIGIN` | optional | e.g. `https://casecircle.app` (comma-separated) if the proxy rewrites `Host` |
+| `CASECIRCLE_PUBLIC_ORIGIN` | **yes** in production | e.g. `https://casecircle.app` (comma-separated; the first one builds email links, so links never trust the request `Host`) |
+| `CASECIRCLE_EMAIL_PROVIDER` | **yes** in production | `resend`, `smtp` or `console` (default; local only — prints emails to the server log and writes them to `web/data/outbox/`) |
+| `CASECIRCLE_EMAIL_FROM` | **yes** with resend/smtp | e.g. `CaseCircle <hello@mail.casecircle.app>`; the domain must be verified with your provider (SPF + DKIM) |
+| `RESEND_API_KEY` | with `resend` | API key from resend.com (sending access only is enough) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | with `smtp` | any SMTP relay that supports STARTTLS (port default 587) |
+| `CASECIRCLE_OUTBOX_DIR` | no | console mode: where `.txt`/`.html` copies go (default `web/data/outbox/`, gitignored, never served) |
+| `CASECIRCLE_EMAIL_SYNC` | no | `1`: send in the request thread (tests). Default sends on a background thread so response time doesn't reveal whether an account exists |
 | `CASECIRCLE_REPORT_HIDE_THRESHOLD` | no | open reports before auto-hide (default 3) |
 | `CASECIRCLE_LLM_API_KEY`, `CASECIRCLE_LLM_BASE_URL`, `CASECIRCLE_LLM_MODEL` | for real AI | see "Folder chat" above; without a key the AI parts say they're unavailable |
 | `CASECIRCLE_LLM_MOCK` | **never in production** | test-only canned replies |
 
-Security headers on every response: `Content-Security-Policy` (self + Google Fonts + jsDelivr for pdf.js/tesseract.js + tesseract language data + `blob:` workers; one hashed inline handler for the printable summary's Print button), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy`, and HSTS when served over HTTPS. CSS/JS/HTML keep `Cache-Control: no-cache, must-revalidate`. Directory listings, `.py`, dotfiles, `scripts/`, `data/cache/` and database files are never served.
+Security headers on every response: `Content-Security-Policy` (self + Google Fonts + jsDelivr for pdf.js/tesseract.js + tesseract language data + `blob:` workers; one hashed inline handler for the printable summary's Print button), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy`, and HSTS when served over HTTPS. CSS/JS/HTML keep `Cache-Control: no-cache, must-revalidate`. Directory listings, `.py`, dotfiles, `scripts/`, `data/cache/`, `data/outbox/` and database files are never served (paths are percent-decoded before the check).
+
+### Email
+
+`mailer.py` sends five bilingual (en/es) emails, plain text + HTML in the app's light mineral palette: confirm email, confirm new email, reset password, password changed, email changed. Each carries the "not legal advice, not affiliated with USCIS" footer. Outside console mode the log only records the kind, provider and recipient **domain** (`sent verify via resend to *@gmail.com`) — never addresses, links, tokens or keys. Locally, with no settings, open the newest file in `web/data/outbox/` (or the server log) and paste the link into the browser.
 
 Backups: besides Render's daily disk snapshots, copy the database with `sqlite3 /var/data/casecircle.db ".backup /var/data/backup.db"` from the service shell.
 
@@ -179,7 +200,7 @@ The landing page points only to real free/low-cost resources (no paid lead-gen):
 npm test
 ```
 
-That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, and `community_test.py`: accounts, scrypt hashing, sessions, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
+That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, `mailer_test.py`: templates, escaping, console/Resend/SMTP delivery and quiet logs, and `community_test.py`: accounts, scrypt hashing, sessions, email confirmation, forgot/reset, settings, lockout, idle expiry, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
 
 To smoke the UI against the mock (clearly test-only):
 

@@ -76,3 +76,20 @@ describe("auth copy", () => {
     assert.equal(authText("es", "welcomeBack", { name: "ana" }), "Hola, ana.");
   });
 });
+
+describe("auth recovery and settings copy", () => {
+  it("maps every new server error to bilingual copy", () => {
+    for (const code of ["unverified", "password_common", "token", "current", "same_email", "confirm", "mismatch"]) {
+      const key = errorKey(code);
+      assert.notEqual(key, "errServer", code);
+      assert.ok(AUTH_TEXT_KEYS.includes(key), key);
+    }
+  });
+
+  it("states the 10-character minimum and link lifetimes in both languages", () => {
+    assert.match(authText("en", "passwordHelp"), /10 characters/);
+    assert.match(authText("es", "passwordHelp"), /10 caracteres/);
+    assert.match(authText("en", "forgotSent", { email: "a@b.co" }), /If an account exists for a@b\.co/);
+    assert.match(authText("es", "forgotSent", { email: "a@b.co" }), /1 hora/);
+  });
+});

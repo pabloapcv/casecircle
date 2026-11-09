@@ -18,7 +18,7 @@ export const ROUTE_ALIASES = {
   papers: "prepare", prepare: "prepare", folder: "prepare", "gather-papers": "prepare",
   answers: "bot", bot: "bot", "ask-posts": "bot", ask_posts: "bot",
   faq: "questions", questions: "questions", "common-questions": "questions",
-  account: "you", you: "you", profile: "you",
+  account: "you", you: "you", profile: "you", settings: "settings", ajustes: "settings",
   new: "ask", ask: "ask", "new-post": "ask",
   interview: "interview", search: "search",
   pricing: "pricing", price: "pricing", "case-pass": "pricing",
@@ -26,7 +26,7 @@ export const ROUTE_ALIASES = {
   insights: "insights", datos: "insights", data: "insights",
   builder: "prepare", "folder-builder": "prepare"
 };
-export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", ask: "new", interview: "interview", search: "search", pricing: "pricing", insights: "insights" };
+export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", settings: "settings", ask: "new", interview: "interview", search: "search", pricing: "pricing", insights: "insights" };
 export const SECTION_OF = {
   home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", form: "feed",
   interview: "interview",
@@ -34,7 +34,7 @@ export const SECTION_OF = {
   timelines: "wait", "profile-edit": "wait",
   prepare: "papers",
   bot: "answers", questions: "answers",
-  you: "account", mod: "account", pricing: "account"
+  you: "account", settings: "account", mod: "account", pricing: "account"
 };
 
 export function resolveRouteName(name) {

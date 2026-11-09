@@ -41,9 +41,17 @@ from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+import mailer
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 COOKIE = "cc_session"
-SESSION_DAYS = 30
+SESSION_DAYS = 30            # idle expiry: every request (at most hourly) pushes expiry 30 days out
+SESSION_TOUCH_S = 3600
+VERIFY_TTL_S = 24 * 3600
+RESET_TTL_S = 3600
+PASSWORD_MIN = 10
+LOCKOUT_FREE = 5             # failed sign-ins per email+IP before backoff starts
+LOCKOUT_MAX_S = 15 * 60
 MAX_BODY = 32 * 1024
 SCRYPT = {"n": 2 ** 14, "r": 8, "p": 1, "dklen": 64, "maxmem": 64 * 1024 * 1024}
 
@@ -171,6 +179,22 @@ MIGRATIONS: list[str] = [
       created_at TEXT NOT NULL
     );
     """,
+    # 2: email verification, password reset, idle session expiry
+    """
+    ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN pending_email TEXT;
+    ALTER TABLE sessions ADD COLUMN last_seen REAL NOT NULL DEFAULT 0;
+    CREATE TABLE tokens (
+      token_hash TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      email TEXT NOT NULL,
+      expires_at REAL NOT NULL,
+      used_at REAL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX tokens_user ON tokens(user_id, kind);
+    """,
 ]
 
 _write_lock = threading.Lock()
@@ -230,6 +254,11 @@ RATES = {
     "report": (20, 3600),
     "waitlist": (5, 3600),
     "handle": (60, 60),
+    "verify_send": (3, 3600),
+    "forgot_ip": (10, 3600),
+    "forgot_email": (3, 3600),
+    "token": (30, 900),
+    "account": (10, 900),
 }
 
 
@@ -254,6 +283,39 @@ def rate_hit(kind: str, key: str, now: float | None = None) -> bool:
 def reset_rate_limits() -> None:
     with _rate_lock:
         _rate.clear()
+        _failures.clear()
+
+
+# Sign-in lockout: per email+IP, exponential backoff after LOCKOUT_FREE failures (30 s, 60 s, … up to 15 min).
+_failures: dict[str, tuple[int, float]] = {}
+
+
+def lockout_key(email: str, ip: str) -> str:
+    return hashlib.sha256(f"{email}|{ip}".encode()).hexdigest()
+
+
+def locked_for(key: str, now: float | None = None) -> float:
+    stamp = time.time() if now is None else now
+    with _rate_lock:
+        count, last = _failures.get(key, (0, 0.0))
+    if count < LOCKOUT_FREE:
+        return 0.0
+    wait = min(LOCKOUT_MAX_S, 30 * 2 ** (count - LOCKOUT_FREE))
+    return max(0.0, last + wait - stamp)
+
+
+def record_failure(key: str, now: float | None = None) -> None:
+    stamp = time.time() if now is None else now
+    with _rate_lock:
+        count, last = _failures.get(key, (0, 0.0))
+        if stamp - last > 24 * 3600:
+            count = 0
+        _failures[key] = (count + 1, stamp)
+
+
+def clear_failures(key: str) -> None:
+    with _rate_lock:
+        _failures.pop(key, None)
 
 
 # ───────────────────────── validation + moderation ─────────────────────────
@@ -305,10 +367,12 @@ def clean_text(value: Any, max_len: int, multiline: bool = True) -> str:
     return text[: max_len + 1]
 
 
+_EMAIL_RE = re.compile(r'^[^\s@<>(),;:"\[\]\\]+@[^\s@<>(),;:"\[\]\\.]+(\.[^\s@<>(),;:"\[\]\\.]+)+$')
+
+
 def email_ok(value: str) -> bool:
-    parts = value.split("@")
-    return (len(parts) == 2 and len(parts[0]) >= 1 and "." in parts[1] and not parts[1].startswith(".")
-            and not parts[1].endswith(".") and " " not in value and len(value) <= 254)
+    """Plain address only: no display names, spaces, control characters or header tricks (it goes into mail headers)."""
+    return len(value) <= 254 and bool(_EMAIL_RE.match(value))
 
 
 def handle_issue(raw: str) -> str | None:
@@ -381,6 +445,29 @@ def check_password(password: str, pw_hash: str, pw_salt: str) -> bool:
 
 
 _DUMMY = hash_password("not-a-real-password", b"0123456789abcdef")
+
+COMMON_PASSWORDS = {
+    "password", "password1", "password12", "password123", "password1234", "passw0rd", "p@ssw0rd", "p@ssword123",
+    "1234567890", "12345678910", "0123456789", "123456789a", "1q2w3e4r5t", "1qaz2wsx3edc", "qwertyuiop", "qwerty1234",
+    "qwerty12345", "asdfghjkl1", "zxcvbnm123", "iloveyou12", "iloveyou123", "letmein123", "welcome123", "welcome1234",
+    "admin12345", "abc1234567", "abcdefghij", "football12", "baseball12", "princess12", "sunshine12", "superman12",
+    "dragon1234", "monkey1234", "trustno1234", "starwars12", "computer12", "whatever12", "contraseña", "contrasena",
+    "contrasena1", "contrasena123", "teamo12345", "casecircle", "casecircle1", "casecircle123", "greencard1",
+    "greencard123", "citizenship", "uscis12345", "immigration", "changeme123", "11111111111", "0000000000",
+}
+
+
+def password_issue(password: str, email: str = "", handle: str = "") -> str | None:
+    """None when acceptable; otherwise an error code the client maps to copy."""
+    if len(password) < PASSWORD_MIN or len(password) > 200:
+        return "password"
+    lower = password.lower()
+    if lower in COMMON_PASSWORDS or len(set(lower)) <= 2:
+        return "password_common"
+    local = email.split("@")[0].lower() if email else ""
+    if lower in {email.lower(), local, handle.lower()} and lower:
+        return "password_common"
+    return None
 
 
 # ───────────────────────── HTTP helpers ─────────────────────────
@@ -473,15 +560,32 @@ def current_user(conn: sqlite3.Connection, handler: Any) -> sqlite3.Row | None:
     if not token or len(token) > 200:
         return None
     token_hash = hashlib.sha256(token.encode()).hexdigest()
+    now = time.time()
     row = conn.execute(
-        "SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?",
-        (token_hash, time.time()),
+        "SELECT u.*, s.last_seen AS session_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?",
+        (token_hash, now),
     ).fetchone()
+    if row and now - (row["session_seen"] or 0) > SESSION_TOUCH_S:
+        with _write_lock:
+            conn.execute("UPDATE sessions SET last_seen = ?, expires_at = ? WHERE token_hash = ?",
+                         (now, now + SESSION_DAYS * 86400, token_hash))
     return row
 
 
 def is_admin(user: sqlite3.Row | None) -> bool:
     return bool(user) and user["email"].lower() in admin_emails()
+
+
+def is_verified(user: sqlite3.Row | None) -> bool:
+    """Admins count as verified (existing accounts are otherwise unverified until they confirm)."""
+    return bool(user) and (bool(user["email_verified"]) or is_admin(user))
+
+
+def require_verified(user):
+    require_user(user)
+    if not is_verified(user):
+        raise ApiError(403, "unverified")
+    return user
 
 
 def public_user(user: sqlite3.Row) -> dict[str, Any]:
@@ -494,6 +598,8 @@ def public_user(user: sqlite3.Row) -> dict[str, Any]:
         "profiles": json.loads(user["profiles"] or "[]"),
         "reputation": user["reputation"],
         "isAdmin": is_admin(user),
+        "emailVerified": is_verified(user),
+        "pendingEmail": user["pending_email"],
         "createdAt": user["created_at"],
     }
 
@@ -577,12 +683,59 @@ def api_me(conn, handler, user, _q):
 
 
 def create_session(conn: sqlite3.Connection, handler: Any, user_id: int) -> str:
+    """New random session (rotation): the token the browser presented, if any, is dropped first."""
+    old = session_token(handler)
+    if old:
+        conn.execute("DELETE FROM sessions WHERE token_hash = ?", (hashlib.sha256(old.encode()).hexdigest(),))
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    conn.execute("DELETE FROM sessions WHERE expires_at < ?", (time.time(),))
-    conn.execute("INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                 (token_hash, user_id, now_iso(), time.time() + SESSION_DAYS * 86400))
+    now = time.time()
+    conn.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
+    conn.execute("INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen) VALUES (?, ?, ?, ?, ?)",
+                 (token_hash, user_id, now_iso(), now + SESSION_DAYS * 86400, now))
     return session_cookie(handler, token, SESSION_DAYS * 86400)
+
+
+# ───────────────────────── one-time tokens + email links ─────────────────────────
+
+def new_token(conn: sqlite3.Connection, user_id: int, kind: str, email: str, ttl: int) -> str:
+    """Single-use random token; only its SHA-256 is stored. Older unused tokens of the same kind are revoked."""
+    token = secrets.token_urlsafe(32)
+    now = time.time()
+    conn.execute("UPDATE tokens SET used_at = ? WHERE user_id = ? AND kind = ? AND used_at IS NULL", (now, user_id, kind))
+    conn.execute("DELETE FROM tokens WHERE expires_at < ?", (now - 7 * 86400,))
+    conn.execute("INSERT INTO tokens (token_hash, user_id, kind, email, expires_at, created_at) VALUES (?,?,?,?,?,?)",
+                 (hashlib.sha256(token.encode()).hexdigest(), user_id, kind, email, now + ttl, now_iso()))
+    return token
+
+
+def take_token(conn: sqlite3.Connection, token: str, kinds: set[str]) -> sqlite3.Row:
+    """Consume a token atomically (call inside a write transaction). Raises 'token' if unknown, used, or expired."""
+    token = str(token or "")
+    if not token or len(token) > 200:
+        raise ApiError(400, "token")
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    row = conn.execute("SELECT * FROM tokens WHERE token_hash = ?", (digest,)).fetchone()
+    if not row or row["kind"] not in kinds or row["used_at"] is not None or row["expires_at"] <= time.time():
+        raise ApiError(400, "token")
+    conn.execute("UPDATE tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL", (time.time(), digest))
+    if conn.execute("SELECT changes()").fetchone()[0] != 1:
+        raise ApiError(400, "token")
+    return row
+
+
+def public_base(handler: Any) -> str:
+    """Base URL for links in emails. Production must set CASECIRCLE_PUBLIC_ORIGIN (never trust Host for links)."""
+    configured = [o.strip().rstrip("/") for o in os.environ.get("CASECIRCLE_PUBLIC_ORIGIN", "").split(",") if o.strip()]
+    if configured:
+        return configured[0]
+    host = handler.headers.get("Host", "") or f"127.0.0.1:{getattr(handler, 'server_port', 8766)}"
+    return f"{'https' if is_https(handler) else 'http'}://{host}"
+
+
+def send_verify(conn, handler, user_id: int, email: str, handle: str, locale: str, kind: str = "verify") -> None:
+    token = new_token(conn, user_id, kind, email, VERIFY_TTL_S)
+    mailer.send(email, kind, locale, f"{public_base(handler)}/#verify={token}", handle=handle)
 
 
 def api_signup(conn, handler, user, data):
@@ -593,11 +746,12 @@ def api_signup(conn, handler, user, data):
     handle = clean_text(data.get("handle"), 20, False)
     if not email_ok(email):
         raise ApiError(400, "email")
-    if len(password) < 8 or len(password) > 200:
-        raise ApiError(400, "password")
     issue = handle_issue(handle)
     if issue:
         raise ApiError(400, issue)
+    pw_problem = password_issue(password, email, handle)
+    if pw_problem:
+        raise ApiError(400, pw_problem)
     if not data.get("agreeRules") or not data.get("agreeNotAdvice"):
         raise ApiError(400, "agree")
     locale = "es" if data.get("locale") == "es" else "en"
@@ -613,21 +767,26 @@ def api_signup(conn, handler, user, data):
             "INSERT INTO users (email, handle, pw_hash, pw_salt, locale, spaces, profiles, created_at) VALUES (?,?,?,?,?,?,?,?)",
             (email, handle, pw_hash, pw_salt, locale, json.dumps(spaces), json.dumps(profiles), now_iso()))
         cookie = create_session(conn, handler, cur.lastrowid)
+        send_verify(conn, handler, cur.lastrowid, email, handle, locale)
     row = conn.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()
     return 201, {"user": public_user(row)}, [cookie]
 
 
 def api_login(conn, handler, user, data):
     email = clean_text(data.get("email"), 254, False).lower()
+    key = lockout_key(email, client_ip(handler))
+    wait = locked_for(key)
+    if wait > 0:
+        raise ApiError(429, "rate", retryAfter=int(wait) + 1)
     if rate_hit("login", client_ip(handler)) or rate_hit("login", f"email:{email}"):
         raise ApiError(429, "rate")
     password = str(data.get("password") or "")[:200]
     row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    if not row:
-        check_password(password, *_DUMMY)  # same work either way
+    ok = check_password(password, row["pw_hash"], row["pw_salt"]) if row else (check_password(password, *_DUMMY) and False)
+    if not ok:
+        record_failure(key)  # same path for unknown emails: no account enumeration
         raise ApiError(401, "login")
-    if not check_password(password, row["pw_hash"], row["pw_salt"]):
-        raise ApiError(401, "login")
+    clear_failures(key)
     with _write_lock:
         cookie = create_session(conn, handler, row["id"])
     return 200, {"user": public_user(row)}, [cookie]
@@ -665,6 +824,10 @@ def api_update_me(conn, handler, user, data):
 
 def api_delete_account(conn, handler, user, data):
     require_user(user)
+    if rate_hit("account", f"u{user['id']}"):
+        raise ApiError(429, "rate")
+    if data.get("confirm") is not True:
+        raise ApiError(400, "confirm")
     if not check_password(str(data.get("password") or "")[:200], user["pw_hash"], user["pw_salt"]):
         raise ApiError(401, "login")
     with _write_lock:
@@ -766,7 +929,7 @@ def api_get_post(conn, handler, user, post_id: int):
 
 
 def api_create_post(conn, handler, user, data):
-    require_user(user)
+    require_verified(user)
     kind = str(data.get("type") or "")
     if kind not in KINDS:
         raise ApiError(400, "type")
@@ -816,7 +979,7 @@ def api_create_post(conn, handler, user, data):
 
 
 def api_reply(conn, handler, user, post_id: int, data):
-    require_user(user)
+    require_verified(user)
     row = load_post(conn, user, post_id)
     if row["status"] != "live":
         raise ApiError(409, "closed")
@@ -1055,6 +1218,141 @@ def api_waitlist(conn, handler, user, data):
     return 200, {"ok": True}
 
 
+# ───────────────────────── verification, reset, account settings ─────────────────────────
+
+def api_verify_resend(conn, handler, user, data):
+    require_user(user)
+    if is_verified(user) and not user["pending_email"]:
+        return 200, {"ok": True, "already": True}
+    if rate_hit("verify_send", f"u{user['id']}"):
+        raise ApiError(429, "rate")
+    with _write_lock:
+        if user["pending_email"]:
+            send_verify(conn, handler, user["id"], user["pending_email"], user["handle"], user["locale"], "email_change")
+        if not is_verified(user):
+            send_verify(conn, handler, user["id"], user["email"], user["handle"], user["locale"])
+    return 200, {"ok": True}
+
+
+def api_verify(conn, handler, user, data):
+    if rate_hit("token", client_ip(handler)):
+        raise ApiError(429, "rate")
+    with _write_lock:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = take_token(conn, data.get("token"), {"verify", "email_change"})
+            owner = conn.execute("SELECT * FROM users WHERE id = ?", (row["user_id"],)).fetchone()
+            if row["kind"] == "verify":
+                if not owner or owner["email"].lower() != row["email"].lower():
+                    raise ApiError(400, "token")  # the address changed since this link was sent
+                conn.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (owner["id"],))
+            else:
+                if not owner or (owner["pending_email"] or "").lower() != row["email"].lower():
+                    raise ApiError(400, "token")
+                if conn.execute("SELECT 1 FROM users WHERE email = ? AND id != ?", (row["email"], owner["id"])).fetchone():
+                    raise ApiError(409, "email_taken")
+                conn.execute("UPDATE users SET email = ?, pending_email = NULL, email_verified = 1 WHERE id = ?",
+                             (row["email"], owner["id"]))
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+    fresh = conn.execute("SELECT * FROM users WHERE id = ?", (row["user_id"],)).fetchone()
+    signed_in_as_owner = bool(user) and user["id"] == fresh["id"]
+    return 200, {"ok": True, "kind": row["kind"], "user": public_user(fresh) if signed_in_as_owner else None}
+
+
+def api_forgot(conn, handler, user, data):
+    """Always the same answer, whether or not the email has an account (no enumeration)."""
+    if rate_hit("forgot_ip", client_ip(handler)):
+        raise ApiError(429, "rate")
+    email = clean_text(data.get("email"), 254, False).lower()
+    if not email_ok(email):
+        raise ApiError(400, "email")
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    if row and not rate_hit("forgot_email", email):
+        with _write_lock:
+            token = new_token(conn, row["id"], "reset", row["email"], RESET_TTL_S)
+        mailer.send(row["email"], "reset", row["locale"], f"{public_base(handler)}/#reset={token}", handle=row["handle"])
+    return 200, {"ok": True}
+
+
+def api_reset(conn, handler, user, data):
+    if rate_hit("token", client_ip(handler)):
+        raise ApiError(429, "rate")
+    password = str(data.get("password") or "")
+    with _write_lock:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = take_token(conn, data.get("token"), {"reset"})
+            owner = conn.execute("SELECT * FROM users WHERE id = ?", (row["user_id"],)).fetchone()
+            if not owner or owner["email"].lower() != row["email"].lower():
+                raise ApiError(400, "token")
+            problem = password_issue(password, owner["email"], owner["handle"])
+            if problem:
+                raise ApiError(400, problem)
+            pw_hash, pw_salt = hash_password(password)
+            # the link proves the inbox, so the address counts as verified
+            conn.execute("UPDATE users SET pw_hash = ?, pw_salt = ?, email_verified = 1 WHERE id = ?", (pw_hash, pw_salt, owner["id"]))
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (owner["id"],))
+            conn.execute("UPDATE tokens SET used_at = ? WHERE user_id = ? AND kind = 'reset' AND used_at IS NULL", (time.time(), owner["id"]))
+            conn.execute("COMMIT")
+        except Exception:  # rollback also un-consumes the token, so a too-weak password can be retried with the same link
+            conn.execute("ROLLBACK")
+            raise
+    clear_failures(lockout_key(owner["email"], client_ip(handler)))
+    mailer.send(owner["email"], "password_changed", owner["locale"], handle=owner["handle"])
+    return 200, {"ok": True}, [session_cookie(handler, "", 0)]
+
+
+def api_change_password(conn, handler, user, data):
+    require_user(user)
+    if rate_hit("account", f"u{user['id']}"):
+        raise ApiError(429, "rate")
+    if not check_password(str(data.get("current") or "")[:200], user["pw_hash"], user["pw_salt"]):
+        raise ApiError(401, "current")
+    password = str(data.get("password") or "")
+    problem = password_issue(password, user["email"], user["handle"])
+    if problem:
+        raise ApiError(400, problem)
+    pw_hash, pw_salt = hash_password(password)
+    with _write_lock:
+        conn.execute("UPDATE users SET pw_hash = ?, pw_salt = ? WHERE id = ?", (pw_hash, pw_salt, user["id"]))
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user["id"],))  # every other device signs out
+        conn.execute("UPDATE tokens SET used_at = ? WHERE user_id = ? AND kind = 'reset' AND used_at IS NULL", (time.time(), user["id"]))
+        cookie = create_session(conn, handler, user["id"])  # fresh session for this browser
+    mailer.send(user["email"], "password_changed", user["locale"], handle=user["handle"])
+    return 200, {"ok": True}, [cookie]
+
+
+def api_change_email(conn, handler, user, data):
+    require_user(user)
+    if rate_hit("account", f"u{user['id']}"):
+        raise ApiError(429, "rate")
+    if not check_password(str(data.get("password") or "")[:200], user["pw_hash"], user["pw_salt"]):
+        raise ApiError(401, "current")
+    email = clean_text(data.get("email"), 254, False).lower()
+    if not email_ok(email):
+        raise ApiError(400, "email")
+    if email == user["email"].lower():
+        raise ApiError(400, "same_email")
+    if conn.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+        raise ApiError(409, "email_taken")
+    with _write_lock:
+        conn.execute("UPDATE users SET pending_email = ? WHERE id = ?", (email, user["id"]))
+        send_verify(conn, handler, user["id"], email, user["handle"], user["locale"], "email_change")
+    mailer.send(user["email"], "email_changed", user["locale"], handle=user["handle"], new_email=email)
+    fresh = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    return 200, {"user": public_user(fresh)}
+
+
+def api_logout_all(conn, handler, user, data):
+    require_user(user)
+    with _write_lock:
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user["id"],))
+    return 200, {"ok": True}, [session_cookie(handler, "", 0)]
+
+
 # ───────────────────────── router ─────────────────────────
 
 GET_ROUTES = {
@@ -1074,6 +1372,13 @@ POST_ROUTES = {
     "/api/report": api_report,
     "/api/mod": api_mod,
     "/api/waitlist": api_waitlist,
+    "/api/verify": api_verify,
+    "/api/verify/resend": api_verify_resend,
+    "/api/password/forgot": api_forgot,
+    "/api/password/reset": api_reset,
+    "/api/account/password": api_change_password,
+    "/api/account/email": api_change_email,
+    "/api/account/logout-all": api_logout_all,
 }
 POST_ITEM = re.compile(r"^/api/posts/(p?\d{1,12})(?:/(replies|save|helpful))?$")
 

@@ -1,4 +1,4 @@
-"""Who can use the extras (Interview practice, Civics practice, AI document check, folder chat).
+"""Who can use the extras (Interview practice, Civics practice, AI document check, folder chat, Tailor with AI).
 
 One server-side check, ``has_extras``: admin (or the owner) OR inside the free trial OR a paid pass.
 The trial starts when an account is created (older accounts start it the first time they load /api/me).
@@ -6,9 +6,8 @@ The trial starts when an account is created (older accounts start it the first t
 nothing in this file takes or fakes a payment.
 
 ``GATED_FEATURES`` is the single list that decides which product features lock after the trial.
-To gate another feature later (checklist, Check the wait, community, general interview tips, or
-the AI checklist tailor at ``folder_plan``), add its id here and lock that endpoint/UI. Features
-not in the set stay free.
+To gate another feature later (checklist, Check the wait, community, or general interview tips),
+add its id here and lock that endpoint/UI. Features not in the set stay free.
 """
 from __future__ import annotations
 
@@ -28,14 +27,14 @@ FEATURES = (
     "civics",
     "folder_chat",
     "folder_check",
-    "folder_plan",         # AI tailor of the checklist — not gated yet
+    "folder_plan",         # AI tailor of the checklist (Tailor with AI)
     "checklist",           # folder checklist / marks / on-device documents
     "processing_times",    # Check the wait
     "community",
     "interview_tips",      # general (free) interview tips
 )
 
-GATED_FEATURES = frozenset({"civics", "folder_chat", "folder_check", "interview"})
+GATED_FEATURES = frozenset({"civics", "folder_chat", "folder_check", "folder_plan", "interview"})
 
 
 def trial_days() -> int:

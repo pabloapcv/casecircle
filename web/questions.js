@@ -453,8 +453,8 @@ const pricingCopy = {
   ],
   passTitle: ["Case Pass", "Case Pass"],
   passBody: [
-    "One-time, per case, for 12 months: Interview practice, Civics practice, the AI document check, folder chat, printable bilingual checklist, and wait alerts.",
-    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, la revisión de documentos con IA, el chat de la carpeta, lista bilingüe imprimible y alertas de espera."
+    "One-time, per case, for 12 months: Interview practice, Civics practice, the AI document check, folder chat, Tailor with AI, printable bilingual checklist, and wait alerts.",
+    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, la revisión de documentos con IA, el chat de la carpeta, Ajustar con IA, lista bilingüe imprimible y alertas de espera."
   ],
   passComing: ["Coming soon — Join the waitlist", "Próximamente — Únete a la lista de espera"],
   waitlistHelp: ["No checkout yet. Leave your email and we will write once when Case Pass is ready. We never charge you from this page.", "Aún no hay pago. Deja tu correo y te escribiremos una vez cuando Case Pass esté listo. Nunca te cobramos desde esta página."],

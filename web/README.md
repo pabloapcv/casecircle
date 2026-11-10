@@ -84,7 +84,7 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 `#papers` (Folder Builder) is a guided chat:
 
 1. Pick a form (I-485, I-130, I-751, N-400, I-765, I-131) or describe the case. The description is read **on the device** (`builder.js → inferFromDescription`) and ID numbers are masked before it is stored.
-2. Short follow-up questions (`builder.js → QUESTIONS`) turn the `prepare.js` checklists into a personal list (`buildPlan`). Every item that is added or left out carries a reason. Optional **Tailor with AI** (`POST /api/folder-plan`) sends only the answers, the masked description and the checklist labels; the server never lets the model remove a required item.
+2. Short follow-up questions (`builder.js → QUESTIONS`) turn the `prepare.js` checklists into a personal list (`buildPlan`). Every item that is added or left out carries a reason. Optional **Tailor with AI** (`POST /api/folder-plan`, gated after the trial) sends only the answers, the masked description and the checklist labels; the server never lets the model remove a required item.
 3. Add documents per line: PDF (pdf.js), JPG/PNG (tesseract.js OCR), or pasted text. Both libraries are lazy-loaded from jsDelivr. Text is extracted **in the browser**; the extracted text is kept in IndexedDB (`casecircle-docs`), the file itself only in memory. **Files are never uploaded.**
 4. **Check with AI** opens a per-document consent step: what is sent (that document's extracted text only, after masking), to which provider/model (from `GET /api/ai-status`), and a masked, editable preview. `redact.js` masks A-numbers, SSNs, USCIS receipt numbers and passport-like numbers; the server masks again (`folder_check.mask`). `POST /api/folder-check` returns `{status: matches|possible_issue|mismatch, summary, findings[{code, severity, message, fix}], facts}`; input and output are validated and the prompt lives only in `folder_check.py`.
 5. **Folder readiness** (`readiness.js`, deterministic, 0–100): required items 40 · consistency 20 · dates 20 · evidence depth 20, plus the top 3 fixes ranked by the points they add. It is **not** an approval probability: "This scores how complete and consistent your folder is. It can't predict USCIS's decision." Name consistency across documents is checked on the device.
@@ -103,7 +103,7 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 | --- | --- | --- |
 | `/api/ai-status` | GET | `{available, mock, provider, host, model}` — never a key |
 | `/api/folder-check` | POST | per-document check; consent required; 30/min per client |
-| `/api/folder-plan` | POST | optional AI tailoring of the list |
+| `/api/folder-plan` | POST | optional AI tailoring of the list; gated after the trial |
 | `/api/folder-chat` | GET/POST | folder side chat (SSE) |
 | `/api/processing-times` | GET | official times, cached daily, or `source: "none"` |
 
@@ -125,7 +125,7 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 - **Moderation:** a post or reply with `CASECIRCLE_REPORT_HIDE_THRESHOLD` (default 3) open reports is hidden automatically. Accounts whose email is in `CASECIRCLE_ADMIN_EMAILS` see **Review queue** (account menu) and can hide, unhide, remove or dismiss reports.
 - **Delete account** (Account settings → Delete) needs the password and `confirm: true`; it removes email, password, handle, sessions and tokens and keeps posts as "Deleted member".
 - The **App Review demo** account and the old browser-only posts are gone from production paths (old local data is dropped on load). The "Public titles" Reddit section is unchanged.
-- Documents are **never** uploaded: the folder checklist, readiness score and adding documents still work signed out. The AI document check and folder chat need a signed-in account in the free trial or with a Case Pass (`POST` returns `401 signin` or `402 extras_locked`).
+- Documents are **never** uploaded: the folder checklist, readiness score and adding documents still work signed out. The AI document check, folder chat, and Tailor with AI need a signed-in account in the free trial or with a Case Pass (`POST` returns `401 signin` or `402 extras_locked`).
 
 | Endpoint | Method | Notes |
 | --- | --- | --- |
@@ -222,11 +222,11 @@ On screens 1100px and wider, Feed, a case group, and a post show a right sidebar
 
 Free for everyone: the folder checklist (marks, on-device documents, readiness score), Check the wait, the community, common questions, and general interview tips.
 
-Extras (server-gated, listed in `entitlements.GATED_FEATURES` — add an id there and in `extras-text.js` to gate another feature later): **Interview practice** (mock interview prompts from the sections of your forms, a what-to-bring checklist matched to your folder, tips with official citations), **Civics practice** (official 2025 and 2008 USCIS banks, practice test with the real pass/stop rules, study by topic, flashcards, reading/writing vocabulary), the **AI document check**, and **folder chat**. The AI checklist tailor (`POST /api/folder-plan`) is not gated yet.
+Extras (server-gated, listed in `entitlements.GATED_FEATURES` — add an id there and in `extras-text.js` to gate another feature later): **Interview practice** (mock interview prompts from the sections of your forms, a what-to-bring checklist matched to your folder, tips with official citations), **Civics practice** (official 2025 and 2008 USCIS banks, practice test with the real pass/stop rules, study by topic, flashcards, reading/writing vocabulary), the **AI document check**, **folder chat**, and **Tailor with AI** (`POST /api/folder-plan`).
 
 - One check, `entitlements.has_extras(user, admin=…)` / `entitlements.user_gate(user, feature, admin=…)`: admin (`CASECIRCLE_ADMIN_EMAILS`, or the owner address once verified) **or** inside the trial **or** `users.pass_until` in the future. Features not in `GATED_FEATURES` stay open, including when signed out.
 - Trial: starts at sign-up (`users.trial_started_at`); accounts older than the trial start it on their next `/api/me`. Length `CASECIRCLE_TRIAL_DAYS` (default 3). `/api/me` returns `user.extras` with `access`, `reason` (`admin` / `trial` / `paid` / `expired` / `signin`), `daysLeft`, and `gatedFeatures`.
-- `GET /api/extras`, `/api/extras/civics?version=2025|2008`, `/api/extras/interview?form=i-485|i-130|i-751|n-400`, `POST /api/folder-check`, and `POST /api/folder-chat` return `401 signin` or `402 extras_locked` when not entitled. Content for interview/civics lives in `data/premium/`, which is never served statically. `GET /api/folder-chat` and `GET /api/ai-status` (provider availability) stay open.
+- `GET /api/extras`, `/api/extras/civics?version=2025|2008`, `/api/extras/interview?form=i-485|i-130|i-751|n-400`, `POST /api/folder-check`, `POST /api/folder-chat`, and `POST /api/folder-plan` return `401 signin` or `402 extras_locked` when not entitled. Content for interview/civics lives in `data/premium/`, which is never served statically. `GET /api/folder-chat` and `GET /api/ai-status` (provider availability) stay open.
 - After the trial the extras point to the Case Pass waitlist. There is no checkout. A payment provider can later call `entitlements.grant_pass(conn, user_id, until)` from a verified webhook.
 - `scripts/build_civics.py <dir with the official USCIS files>` regenerates `data/premium/civics.json` (check `UPDATES` against uscis.gov/citizenship/testupdates first).
 - `data/form-editions.json` is the accepted-editions table used by the document check; update it from each form's official page.

@@ -1,15 +1,15 @@
-/* UI copy for the extras (Interview practice, Civics practice, AI document check, folder chat) and the free trial. [English, Spanish]. */
+/* UI copy for the extras (Interview practice, Civics practice, AI document check, folder chat, Tailor with AI) and the free trial. [English, Spanish]. */
 const copy = {
   extrasKicker: ["Extra", "Extra"],
   trialDaysLeft: ["Free trial: {days} day left", "Prueba gratis: queda {days} día"],
   trialDaysLeftPlural: ["Free trial: {days} days left", "Prueba gratis: quedan {days} días"],
-  trialBody: ["Interview practice, Civics practice, the AI document check, and folder chat are open during your trial. The folder checklist, Check the wait, and the community stay free.", "La práctica de entrevista, la de educación cívica, la revisión de documentos con IA y el chat de la carpeta están abiertos durante tu prueba. La lista de la carpeta, Ver la espera y la comunidad siguen gratis."],
+  trialBody: ["Interview practice, Civics practice, the AI document check, folder chat, and Tailor with AI are open during your trial. The folder checklist, Check the wait, and the community stay free.", "La práctica de entrevista, la de educación cívica, la revisión de documentos con IA, el chat de la carpeta y Ajustar con IA están abiertos durante tu prueba. La lista de la carpeta, Ver la espera y la comunidad siguen gratis."],
   adminAccess: ["Extras: full access (admin)", "Extras: acceso completo (admin)"],
   paidAccess: ["Extras: Case Pass active", "Extras: Case Pass activo"],
   lockedSigninTitle: ["Sign in to start your free trial", "Inicia sesión para empezar tu prueba gratis"],
-  lockedSigninBody: ["Interview practice, Civics practice, the AI document check, and folder chat are extras. New accounts get {days} days free — no card, no charge.", "La práctica de entrevista, la de educación cívica, la revisión de documentos con IA y el chat de la carpeta son extras. Las cuentas nuevas tienen {days} días gratis — sin tarjeta y sin cobro."],
+  lockedSigninBody: ["Interview practice, Civics practice, the AI document check, folder chat, and Tailor with AI are extras. New accounts get {days} days free — no card, no charge.", "La práctica de entrevista, la de educación cívica, la revisión de documentos con IA, el chat de la carpeta y Ajustar con IA son extras. Las cuentas nuevas tienen {days} días gratis — sin tarjeta y sin cobro."],
   lockedExpiredTitle: ["Your free trial has ended", "Tu prueba gratis terminó"],
-  lockedExpiredBody: ["Interview practice, Civics practice, the AI document check, and folder chat will be part of Case Pass. There is no checkout yet — join the waitlist and we'll email you once when it's ready. The folder checklist, Check the wait, and the community stay free.", "La práctica de entrevista, la de educación cívica, la revisión de documentos con IA y el chat de la carpeta serán parte de Case Pass. Aún no hay pago — únete a la lista de espera y te escribiremos una vez cuando esté listo. La lista de la carpeta, Ver la espera y la comunidad siguen gratis."],
+  lockedExpiredBody: ["Interview practice, Civics practice, the AI document check, folder chat, and Tailor with AI will be part of Case Pass. There is no checkout yet — join the waitlist and we'll email you once when it's ready. The folder checklist, Check the wait, and the community stay free.", "La práctica de entrevista, la de educación cívica, la revisión de documentos con IA, el chat de la carpeta y Ajustar con IA serán parte de Case Pass. Aún no hay pago — únete a la lista de espera y te escribiremos una vez cuando esté listo. La lista de la carpeta, Ver la espera y la comunidad siguen gratis."],
   signIn: ["Sign in or create an account", "Inicia sesión o crea una cuenta"],
   joinWaitlist: ["See Case Pass and join the waitlist", "Ver Case Pass y unirse a la lista"],
   loading: ["Loading…", "Cargando…"],
@@ -91,7 +91,7 @@ const copy = {
   officialFiles: ["Official files", "Archivos oficiales"],
   question: ["Question", "Pregunta"],
   pricingTrial: ["New accounts: all extras are free for {days} days. No card needed.", "Cuentas nuevas: todos los extras son gratis por {days} días. Sin tarjeta."],
-  pricingGated: ["Extras after the trial, via Case Pass: Interview practice (mock interview, what-to-bring checklist tied to your folder, cited tips), Civics practice (2025 and 2008 tests, topics, flashcards, vocabulary), the AI document check, and folder chat.", "Extras después de la prueba, con Case Pass: práctica de entrevista (entrevista de práctica, lista de qué llevar ligada a tu carpeta, consejos con fuentes), práctica de educación cívica (exámenes 2025 y 2008, temas, tarjetas, vocabulario), la revisión de documentos con IA y el chat de la carpeta."]
+  pricingGated: ["Extras after the trial, via Case Pass: Interview practice (mock interview, what-to-bring checklist tied to your folder, cited tips), Civics practice (2025 and 2008 tests, topics, flashcards, vocabulary), the AI document check, folder chat, and Tailor with AI.", "Extras después de la prueba, con Case Pass: práctica de entrevista (entrevista de práctica, lista de qué llevar ligada a tu carpeta, consejos con fuentes), práctica de educación cívica (exámenes 2025 y 2008, temas, tarjetas, vocabulario), la revisión de documentos con IA, el chat de la carpeta y Ajustar con IA."]
 };
 
 export function extrasText(lang, key, values = {}) {
@@ -107,8 +107,8 @@ export function trialLabel(lang, days) {
 export const EXTRAS_KEYS = Object.keys(copy);
 
 /* Must match entitlements.GATED_FEATURES. Add an id here and in entitlements.py to gate another feature later.
-   checklist, processing_times, community, interview_tips, and folder_plan stay free until Pablo confirms. */
-export const GATED_FEATURES = Object.freeze(["civics", "folder_chat", "folder_check", "interview"]);
+   checklist, processing_times, community, and interview_tips stay free. */
+export const GATED_FEATURES = Object.freeze(["civics", "folder_chat", "folder_check", "folder_plan", "interview"]);
 
 export function isFeatureOpen(status, feature) {
   return !GATED_FEATURES.includes(feature) || Boolean(status && status.access);

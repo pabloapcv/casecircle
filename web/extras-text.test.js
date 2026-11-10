@@ -18,16 +18,22 @@ test("every extras string exists in English and Spanish and they differ where th
   assert.match(extrasText("en", "trialBody"), /folder checklist/);
   assert.match(extrasText("en", "lockedExpiredBody"), /no checkout yet/i);
   assert.match(extrasText("en", "pricingTrial"), /all extras are free/);
+  assert.match(extrasText("en", "trialBody"), /Tailor with AI/);
+  assert.match(extrasText("es", "trialBody"), /Ajustar con IA/);
   assert.match(extrasText("en", "pricingGated"), /AI document check/);
   assert.match(extrasText("en", "pricingGated"), /folder chat/);
+  assert.match(extrasText("en", "pricingGated"), /Tailor with AI/);
+  assert.match(extrasText("es", "pricingGated"), /Ajustar con IA/);
+  assert.match(extrasText("en", "lockedExpiredBody"), /Tailor with AI/);
 });
 
 test("gated feature list and isFeatureOpen", () => {
-  assert.deepEqual([...GATED_FEATURES].sort(), ["civics", "folder_chat", "folder_check", "interview"]);
+  assert.deepEqual([...GATED_FEATURES].sort(), ["civics", "folder_chat", "folder_check", "folder_plan", "interview"]);
   assert.equal(isFeatureOpen({ access: false }, "checklist"), true);
   assert.equal(isFeatureOpen({ access: false }, "processing_times"), true);
   assert.equal(isFeatureOpen({ access: false }, "community"), true);
-  assert.equal(isFeatureOpen({ access: false }, "folder_plan"), true);
+  assert.equal(isFeatureOpen({ access: false }, "folder_plan"), false);
+  assert.equal(isFeatureOpen({ access: true }, "folder_plan"), true);
   assert.equal(isFeatureOpen({ access: false }, "folder_chat"), false);
   assert.equal(isFeatureOpen({ access: true }, "folder_check"), true);
 });

@@ -793,7 +793,7 @@ def handle_check(handler: Any, port: int) -> None:
 
 
 def handle_plan(handler: Any, port: int) -> None:
-    _handle(handler, port, validate_plan, run_plan)
+    _handle(handler, port, validate_plan, run_plan, feature="folder_plan")
 
 
 def handle_status(handler: Any, port: int) -> None:

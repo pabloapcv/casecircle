@@ -57,24 +57,26 @@ class TrialRulesTest(unittest.TestCase):
         self.assertFalse(entitlements.has_extras(lapsed))
 
     def test_gated_feature_list_and_user_gate(self):
-        self.assertEqual(entitlements.gated_feature_list(), ["civics", "folder_chat", "folder_check", "interview"])
+        self.assertEqual(entitlements.gated_feature_list(), ["civics", "folder_chat", "folder_check", "folder_plan", "interview"])
         self.assertTrue(entitlements.feature_is_gated("folder_chat"))
         self.assertFalse(entitlements.feature_is_gated("checklist"))
         self.assertFalse(entitlements.feature_is_gated("processing_times"))
         self.assertFalse(entitlements.feature_is_gated("community"))
         self.assertFalse(entitlements.feature_is_gated("interview_tips"))
-        self.assertFalse(entitlements.feature_is_gated("folder_plan"))
+        self.assertTrue(entitlements.feature_is_gated("folder_plan"))
         signed_out = entitlements.user_gate(None, "folder_chat")
         self.assertEqual(signed_out[0], 401)
         self.assertEqual(signed_out[1]["error"], "signin")
         self.assertIn("folder_chat", signed_out[1]["extras"]["gatedFeatures"])
         self.assertIsNone(entitlements.user_gate(None, "checklist"))
-        self.assertIsNone(entitlements.user_gate(None, "folder_plan"))
+        self.assertEqual(entitlements.user_gate(None, "folder_plan")[0], 401)
         expired = row(trial_started_at=1.0)
         refused = entitlements.user_gate(expired, "folder_check")
         self.assertEqual((refused[0], refused[1]["error"], refused[1]["extras"]["reason"]), (402, "extras_locked", "expired"))
+        self.assertEqual(entitlements.user_gate(expired, "folder_plan")[0], 402)
         self.assertTrue(entitlements.has_feature(expired, "checklist"))
         self.assertFalse(entitlements.has_feature(expired, "folder_chat"))
+        self.assertFalse(entitlements.has_feature(expired, "folder_plan"))
         self.assertTrue(entitlements.has_feature(expired, "folder_check", admin=True))
 
     def test_js_gated_list_matches_python(self):
@@ -150,7 +152,7 @@ class ExtrasApiTest(ct.CommunityTest):
 
 
 class AiFeatureGateTest(ct.CommunityTest):
-    """POST /api/folder-chat and /api/folder-check use the same trial/pass gate as /api/extras/*."""
+    """POST /api/folder-chat, /api/folder-check, and /api/folder-plan use the same trial/pass gate as /api/extras/*."""
 
     def setUp(self):
         os.environ["CASECIRCLE_LLM_MOCK"] = "1"
@@ -190,15 +192,15 @@ class AiFeatureGateTest(ct.CommunityTest):
 
     def test_signed_out_ai_posts_are_401_and_ungated_stay_open(self):
         anon = Client(self.base)
-        for path, body in (("/api/folder-chat", self.chat_payload()), ("/api/folder-check", self.check_payload())):
+        for path, body in (("/api/folder-chat", self.chat_payload()), ("/api/folder-check", self.check_payload()), ("/api/folder-plan", self.plan_payload())):
             status, payload, _ = anon.post(path, body)
             self.assertEqual(status, 401, path)
             self.assertEqual(payload["error"], "signin")
             self.assertEqual(payload["extras"]["reason"], "signin")
             self.assertIn("folder_chat", payload["extras"]["gatedFeatures"])
             self.assertIn("folder_check", payload["extras"]["gatedFeatures"])
-        # folder-plan, Check the wait, and chat/AI status stay available signed out
-        self.assertEqual(anon.post("/api/folder-plan", self.plan_payload())[0], 200)
+            self.assertIn("folder_plan", payload["extras"]["gatedFeatures"])
+        # Check the wait and chat/AI status stay available signed out
         self.assertEqual(anon.get("/api/processing-times?form=I-485")[0], 200)
         self.assertEqual(anon.get("/api/folder-chat")[0], 200)
         self.assertEqual(anon.get("/api/ai-status")[0], 200)
@@ -218,12 +220,12 @@ class AiFeatureGateTest(ct.CommunityTest):
             body = response.read().decode()
         self.assertIn("Test-only mock reply", body)
         self.assertEqual(user.post("/api/folder-check", self.check_payload())[0], 200)
+        self.assertEqual(user.post("/api/folder-plan", self.plan_payload())[0], 200)
         self.expire("gater@example.com")
-        for path, body in (("/api/folder-chat", self.chat_payload()), ("/api/folder-check", self.check_payload())):
+        for path, body in (("/api/folder-chat", self.chat_payload()), ("/api/folder-check", self.check_payload()), ("/api/folder-plan", self.plan_payload())):
             status, payload, _ = user.post(path, body)
             self.assertEqual((status, payload["error"], payload["extras"]["reason"]), (402, "extras_locked", "expired"), path)
-        # checklist tailor and Check the wait stay free after the trial
-        self.assertEqual(user.post("/api/folder-plan", self.plan_payload())[0], 200)
+        # Check the wait stays free after the trial
         self.assertEqual(user.get("/api/processing-times?form=I-485")[0], 200)
 
     def test_admin_and_pass_keep_ai_access_after_trial(self):
@@ -231,16 +233,19 @@ class AiFeatureGateTest(ct.CommunityTest):
         admin.signup("Boss", email="boss@example.com")
         self.expire("boss@example.com")
         self.assertEqual(admin.post("/api/folder-check", self.check_payload())[0], 200)
+        self.assertEqual(admin.post("/api/folder-plan", self.plan_payload())[0], 200)
 
         user = Client(self.base)
         user.signup("Payer")
         self.expire("payer@example.com")
         self.assertEqual(user.post("/api/folder-check", self.check_payload())[0], 402)
+        self.assertEqual(user.post("/api/folder-plan", self.plan_payload())[0], 402)
         conn = community.connect()
         uid = conn.execute("SELECT id FROM users WHERE email = ?", ("payer@example.com",)).fetchone()[0]
         entitlements.grant_pass(conn, uid, time.time() + 86400)
         conn.close()
         self.assertEqual(user.post("/api/folder-check", self.check_payload())[0], 200)
+        self.assertEqual(user.post("/api/folder-plan", self.plan_payload())[0], 200)
 
 
 # CommunityTest's own tests are run by community_test.py; don't run them twice here.

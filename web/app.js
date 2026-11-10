@@ -2069,12 +2069,16 @@ function builderIntake(spaceId, folder, plan) {
   } else if (builderUi.tailoring === spaceId) {
     parts.push(botBubble(T("builderTailoring")));
   } else if (!b.skippedAi) {
-    const ready = aiStatus.loaded && aiStatus.available;
-    const actions = ready
-      ? `<div class="answer-chips"><button class="btn small" data-act="builder-tailor" data-space="${esc(spaceId)}">${icon("spark", 14)} ${esc(T("builderTailorBtn"))}</button><button class="chip" data-act="builder-tailor-skip" data-space="${esc(spaceId)}">${esc(T("builderTailorSkip"))}</button></div>
-         <p class="hint">${esc(aiStatus.mock ? T("consentToDemo") : T("consentToProvider", { provider: aiStatus.provider, host: aiStatus.host, model: aiStatus.model }))}</p>`
-      : "";
-    parts.push(botBubble(aiStatus.loaded && !aiStatus.available ? T("builderTailorUnavailable") : T("builderTailorAsk"), actions));
+    if (!isFeatureOpen(extrasStatus(), "folder_plan")) {
+      parts.push(extrasLocked());
+    } else {
+      const ready = aiStatus.loaded && aiStatus.available;
+      const actions = ready
+        ? `<div class="answer-chips"><button class="btn small" data-act="builder-tailor" data-space="${esc(spaceId)}">${icon("spark", 14)} ${esc(T("builderTailorBtn"))}</button><button class="chip" data-act="builder-tailor-skip" data-space="${esc(spaceId)}">${esc(T("builderTailorSkip"))}</button></div>
+           <p class="hint">${esc(aiStatus.mock ? T("consentToDemo") : T("consentToProvider", { provider: aiStatus.provider, host: aiStatus.host, model: aiStatus.model }))}</p>`
+        : "";
+      parts.push(botBubble(aiStatus.loaded && !aiStatus.available ? T("builderTailorUnavailable") : T("builderTailorAsk"), actions));
+    }
   }
   if (b.aiError) parts.push(botBubble(b.aiError));
   parts.push(botBubble(T("builderNextUp")));
@@ -2280,6 +2284,7 @@ function answerBuilder(spaceId, question, value) {
 }
 
 async function tailorPlan(spaceId) {
+  if (!isFeatureOpen(extrasStatus(), "folder_plan")) { render(); return; }
   const folder = builderOf(spaceId);
   const plan = buildPlan(spaceId, folder.builder.answers);
   const masked = maskIdentifiers(folder.builder.description || "").text.slice(0, 1500);

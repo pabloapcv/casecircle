@@ -32,11 +32,11 @@ describe("folder scoring and RFE helper", () => {
     assert.match(parsed.items[0].text, /identifier/i);
   });
 
-  it("flags an I-693 that may have expired", () => {
+  it("does not invent an I-693 expiry countdown (Policy Manual: a signed I-693 no longer expires on a timer)", () => {
     const filed = new Date();
     filed.setMonth(filed.getMonth() - 26);
     const flags = calculateRiskFlags("en", { spaceId: "i-485", filed: filed.toISOString(), stage: "filed" }, { marks: {} });
-    assert.ok(flags.some((flag) => /I-693 medical may have expired/i.test(flag.message)));
+    assert.ok(!flags.some((flag) => /I-693/i.test(flag.message)));
   });
 });
 

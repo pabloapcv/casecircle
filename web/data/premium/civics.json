@@ -1,0 +1,4043 @@
+{
+ "checked": "2026-11-10",
+ "updatesPage": "https://www.uscis.gov/citizenship/testupdates",
+ "updatesPageReviewed": "2025-09-18",
+ "studyPage": "https://www.uscis.gov/citizenship/find-study-materials-and-resources/study-for-the-test",
+ "versions": {
+  "2025": {
+   "label": "2025 civics test",
+   "filedOnOrAfter": "2025-10-20",
+   "bank": 128,
+   "asked": 20,
+   "pass": 12,
+   "failAt": 9,
+   "source": "https://www.uscis.gov/sites/default/files/document/questions-and-answers/2025-Civics-Test-128-Questions-and-Answers.pdf",
+   "edition": "M-1778 (09/25)",
+   "spanish": null,
+   "questions": [
+    {
+     "n": 1,
+     "q": "What is the form of government of the United States?",
+     "answers": [
+      "Republic",
+      "Constitution-based federal republic",
+      "Representative democracy"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 2,
+     "q": "What is the supreme law of the land?",
+     "answers": [
+      "(U.S.) Constitution"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 3,
+     "q": "Name one thing the U.S. Constitution does.",
+     "answers": [
+      "Forms the government",
+      "Defines powers of government",
+      "Defines the parts of government",
+      "Protects the rights of the people"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 4,
+     "q": "The U.S. Constitution starts with the words “We the People.” What does “We the People” mean?",
+     "answers": [
+      "Self-government",
+      "Popular sovereignty",
+      "Consent of the governed",
+      "People should govern themselves",
+      "(Example of) social contract"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 5,
+     "q": "How are changes made to the U.S. Constitution?",
+     "answers": [
+      "Amendments",
+      "The amendment process"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 6,
+     "q": "What does the Bill of Rights protect?",
+     "answers": [
+      "(The basic) rights of Americans",
+      "(The basic) rights of people living in the United States"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 7,
+     "q": "How many amendments does the U.S. Constitution have?",
+     "answers": [
+      "Twenty-seven (27)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 8,
+     "q": "Why is the Declaration of Independence important?",
+     "answers": [
+      "It says America is free from British control.",
+      "It says all people are created equal.",
+      "It identifies inherent rights.",
+      "It identifies individual freedoms."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 9,
+     "q": "What founding document said the American colonies were free from Britain?",
+     "answers": [
+      "Declaration of Independence"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 10,
+     "q": "Name two important ideas from the Declaration of Independence and the U.S. Constitution.",
+     "answers": [
+      "Equality",
+      "Liberty",
+      "Social contract",
+      "Natural rights",
+      "Limited government",
+      "Self-government"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 11,
+     "q": "The words “Life, Liberty, and the pursuit of Happiness” are in what founding document?",
+     "answers": [
+      "Declaration of Independence"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 12,
+     "q": "What is the economic system of the United States?",
+     "answers": [
+      "Capitalism",
+      "Free market economy"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 13,
+     "q": "What is the rule of law?",
+     "answers": [
+      "Everyone must follow the law.",
+      "Leaders must obey the law.",
+      "Government must obey the law.",
+      "No one is above the law."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 14,
+     "q": "Many documents influenced the U.S. Constitution. Name one.",
+     "answers": [
+      "Declaration of Independence",
+      "Articles of Confederation",
+      "Federalist Papers",
+      "Anti-Federalist Papers",
+      "Virginia Declaration of Rights",
+      "Fundamental Orders of Connecticut",
+      "Mayflower Compact",
+      "Iroquois Great Law of Peace"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 15,
+     "q": "There are three branches of government. Why?",
+     "answers": [
+      "So one part does not become too powerful",
+      "Checks and balances",
+      "Separation of powers"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 16,
+     "q": "Name the three branches of government.",
+     "answers": [
+      "Legislative, executive, and judicial",
+      "Congress, president, and the courts"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 17,
+     "q": "The President of the United States is in charge of which branch of government?",
+     "answers": [
+      "Executive branch"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 18,
+     "q": "What part of the federal government writes laws?",
+     "answers": [
+      "(U.S.) Congress",
+      "(U.S. or national) legislature",
+      "Legislative branch"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 19,
+     "q": "What are the two parts of the U.S. Congress?",
+     "answers": [
+      "Senate and House (of Representatives)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 20,
+     "q": "Name one power of the U.S. Congress.",
+     "answers": [
+      "Writes laws",
+      "Declares war",
+      "Makes the federal budget"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 21,
+     "q": "How many U.S. senators are there?",
+     "answers": [
+      "One hundred (100)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 22,
+     "q": "How long is a term for a U.S. senator?",
+     "answers": [
+      "Six (6) years"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 23,
+     "q": "Who is one of your state’s U.S. senators now?",
+     "answers": [
+      "Answers will vary. [District of Columbia residents and residents of U.S. territories should answer that D.C. (or the territory where the applicant lives) has no U.S. senators.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.senate.gov"
+    },
+    {
+     "n": 24,
+     "q": "How many voting members are in the House of Representatives?",
+     "answers": [
+      "Four hundred thirty-five (435)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 25,
+     "q": "How long is a term for a member of the House of Representatives?",
+     "answers": [
+      "Two (2) years"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 26,
+     "q": "Why do U.S. representatives serve shorter terms than U.S. senators?",
+     "answers": [
+      "To more closely follow public opinion"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 27,
+     "q": "How many senators does each state have?",
+     "answers": [
+      "Two (2)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 28,
+     "q": "Why does each state have two senators?",
+     "answers": [
+      "Equal representation (for small states)",
+      "The Great Compromise (Connecticut Compromise)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 29,
+     "q": "Name your U.S. representative.",
+     "answers": [
+      "Answers will vary. [Residents of territories with nonvoting Delegates or Resident Commissioners may provide the name of that Delegate or Commissioner. Also acceptable is any statement that the territory has no (voting) representatives in Congress.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.house.gov"
+    },
+    {
+     "n": 30,
+     "q": "What is the name of the Speaker of the House of Representatives now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the Speaker of the House of Representatives."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "Mike Johnson",
+      "Johnson",
+      "James Michael Johnson (birth name)"
+     ]
+    },
+    {
+     "n": 31,
+     "q": "Who does a U.S. senator represent?",
+     "answers": [
+      "Citizens of their state",
+      "People of their state"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 32,
+     "q": "Who elects U.S. senators?",
+     "answers": [
+      "Citizens from their state"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 33,
+     "q": "Who does a member of the House of Representatives represent?",
+     "answers": [
+      "Citizens in their (congressional) district",
+      "Citizens in their district",
+      "People from their (congressional) district",
+      "People in their district"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 34,
+     "q": "Who elects members of the House of Representatives?",
+     "answers": [
+      "Citizens from their (congressional) district"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 35,
+     "q": "Some states have more representatives than other states. Why?",
+     "answers": [
+      "(Because of) the state’s population",
+      "(Because) they have more people",
+      "(Because) some states have more people"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 36,
+     "q": "The President of the United States is elected for how many years?",
+     "answers": [
+      "Four (4) years"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 37,
+     "q": "The President of the United States can serve only two terms. Why?",
+     "answers": [
+      "(Because of) the 22nd Amendment",
+      "To keep the president from becoming too powerful"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 38,
+     "q": "What is the name of the President of the United States now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the President of the United States."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "Donald J. Trump",
+      "Donald Trump",
+      "Trump"
+     ]
+    },
+    {
+     "n": 39,
+     "q": "What is the name of the Vice President of the United States now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the Vice President of the United States."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "JD Vance",
+      "Vance"
+     ]
+    },
+    {
+     "n": 40,
+     "q": "If the president can no longer serve, who becomes president?",
+     "answers": [
+      "The Vice President (of the United States)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 41,
+     "q": "Name one power of the president.",
+     "answers": [
+      "Signs bills into law",
+      "Vetoes bills",
+      "Enforces laws",
+      "Commander in Chief (of the military)",
+      "Chief diplomat",
+      "Appoints federal judges"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 42,
+     "q": "Who is Commander in Chief of the U.S. military?",
+     "answers": [
+      "The President (of the United States)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 43,
+     "q": "Who signs bills to become laws?",
+     "answers": [
+      "The President (of the United States)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 44,
+     "q": "Who vetoes bills?",
+     "answers": [
+      "The President (of the United States)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 45,
+     "q": "Who appoints federal judges?",
+     "answers": [
+      "The President (of the United States)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 46,
+     "q": "The executive branch has many parts. Name one.",
+     "answers": [
+      "President (of the United States)",
+      "Cabinet",
+      "Federal departments and agencies"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 47,
+     "q": "What does the President’s Cabinet do?",
+     "answers": [
+      "Advises the President (of the United States)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 48,
+     "q": "What are two Cabinet-level positions?",
+     "answers": [
+      "Attorney General",
+      "Secretary of Agriculture",
+      "Secretary of Commerce",
+      "Secretary of Education",
+      "Secretary of Energy",
+      "Secretary of Health and Human Services",
+      "Secretary of Homeland Security",
+      "Secretary of Housing and Urban Development",
+      "Secretary of the Interior",
+      "Secretary of Labor",
+      "Secretary of State",
+      "Secretary of Transportation",
+      "Secretary of the Treasury",
+      "Secretary of Veterans Affairs",
+      "Secretary of War (Defense)",
+      "Vice-President",
+      "Administrator of the Environmental Protection Agency",
+      "Administrator of the Small Business Administration",
+      "Director of the Central Intelligence Agency",
+      "Director of the Office of Management and Budget",
+      "Director of National Intelligence",
+      "United States Trade Representative"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 49,
+     "q": "Why is the Electoral College important?",
+     "answers": [
+      "It decides who is elected president.",
+      "It provides a compromise between the popular election of the president and congressional selection."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 50,
+     "q": "What is one part of the judicial branch?",
+     "answers": [
+      "Supreme Court",
+      "Federal Courts"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 51,
+     "q": "What does the judicial branch do?",
+     "answers": [
+      "Reviews laws",
+      "Explains laws",
+      "Resolves disputes (disagreements) about the law",
+      "Decides if a law goes against the (U.S.) Constitution"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 52,
+     "q": "What is the highest court in the United States?",
+     "answers": [
+      "Supreme Court"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 53,
+     "q": "How many seats are on the Supreme Court?",
+     "answers": [
+      "Nine (9)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 54,
+     "q": "How many Supreme Court justices are usually needed to decide a case?",
+     "answers": [
+      "Five (5)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 55,
+     "q": "How long do Supreme Court justices serve?",
+     "answers": [
+      "(For) life",
+      "Lifetime appointment",
+      "(Until) retirement"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 56,
+     "q": "Supreme Court justices serve for life. Why?",
+     "answers": [
+      "To be independent (of politics)",
+      "To limit outside (political) influence"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 57,
+     "q": "Who is the Chief Justice of the United States now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the Chief Justice of the United States."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "John Roberts",
+      "John G. Roberts, Jr.",
+      "Roberts"
+     ]
+    },
+    {
+     "n": 58,
+     "q": "Name one power that is only for the federal government.",
+     "answers": [
+      "Print paper money",
+      "Mint coins",
+      "Declare war",
+      "Create an army",
+      "Make treaties",
+      "Set foreign policy"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 59,
+     "q": "Name one power that is only for the states.",
+     "answers": [
+      "Provide schooling and education",
+      "Provide protection (police)",
+      "Provide safety (fire departments)",
+      "Give a driver’s license",
+      "Approve zoning and land use"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 60,
+     "q": "What is the purpose of the 10th Amendment?",
+     "answers": [
+      "(It states that the) powers not given to the federal government belong to the states or to the people."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 61,
+     "q": "Who is the governor of your state now?",
+     "answers": [
+      "Answers will vary. [District of Columbia residents should answer that D.C. does not have a governor.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.usa.gov/states-and-territories"
+    },
+    {
+     "n": 62,
+     "q": "What is the capital of your state?",
+     "answers": [
+      "Answers will vary. [District of Columbia residents should answer that D.C. is not a state and does not have a capital. Residents of U.S. territories should name the capital of the territory.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.usa.gov/states-and-territories"
+    },
+    {
+     "n": 63,
+     "q": "There are four amendments to the U.S. Constitution about who can vote. Describe one of them.",
+     "answers": [
+      "Citizens eighteen (18) and older (can vote).",
+      "You don’t have to pay (a poll tax) to vote.",
+      "Any citizen can vote. (Women and men can vote.)",
+      "A male citizen of any race (can vote)."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 64,
+     "q": "Who can vote in federal elections, run for federal office, and serve on a jury in the United States?",
+     "answers": [
+      "Citizens",
+      "Citizens of the United States",
+      "U.S. citizens"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 65,
+     "q": "What are three rights of everyone living in the United States?",
+     "answers": [
+      "Freedom of expression",
+      "Freedom of speech",
+      "Freedom of assembly",
+      "Freedom to petition the government",
+      "Freedom of religion",
+      "The right to bear arms"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 66,
+     "q": "What do we show loyalty to when we say the Pledge of Allegiance?",
+     "answers": [
+      "The United States",
+      "The flag"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": true,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 67,
+     "q": "Name two promises that new citizens make in the Oath of Allegiance.",
+     "answers": [
+      "Give up loyalty to other countries",
+      "Defend the (U.S.) Constitution",
+      "Obey the laws of the United States",
+      "Serve in the military (if needed)",
+      "Serve (help, do important work for) the nation (if needed)",
+      "Be loyal to the United States"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 68,
+     "q": "How can people become United States citizens?",
+     "answers": [
+      "Be born in the United States, under the conditions set by the 14th Amendment",
+      "Naturalize",
+      "Derive citizenship (under conditions set by Congress)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 69,
+     "q": "What are two examples of civic participation in the United States?",
+     "answers": [
+      "Vote",
+      "Run for office",
+      "Join a political party",
+      "Help with a campaign",
+      "Join a civic group",
+      "Join a community group",
+      "Give an elected official your opinion (on an issue)",
+      "Contact elected officials",
+      "Support or oppose an issue or policy",
+      "Write to a newspaper"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 70,
+     "q": "What is one way Americans can serve their country?",
+     "answers": [
+      "Vote",
+      "Pay taxes",
+      "Obey the law",
+      "Serve in the military",
+      "Run for office",
+      "Work for local, state, or federal government"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 71,
+     "q": "Why is it important to pay federal taxes?",
+     "answers": [
+      "Required by law",
+      "All people pay to fund the federal government",
+      "Required by the (U.S.) Constitution (16th Amendment)",
+      "Civic duty"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 72,
+     "q": "It is important for all men age 18 through 25 to register for the Selective Service. Name one reason why.",
+     "answers": [
+      "Required by law",
+      "Civic duty",
+      "Makes the draft fair, if needed"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 73,
+     "q": "The colonists came to America for many reasons. Name one.",
+     "answers": [
+      "Freedom",
+      "Political liberty",
+      "Religious freedom",
+      "Economic opportunity",
+      "Escape persecution"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 74,
+     "q": "Who lived in America before the Europeans arrived?",
+     "answers": [
+      "American Indians",
+      "Native Americans"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": true,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 75,
+     "q": "What group of people was taken and sold as slaves?",
+     "answers": [
+      "Africans",
+      "People from Africa"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 76,
+     "q": "What war did the Americans fight to win independence from Britain?",
+     "answers": [
+      "American Revolution",
+      "The (American) Revolutionary War",
+      "War for (American) Independence"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 77,
+     "q": "Name one reason why the Americans declared independence from Britain.",
+     "answers": [
+      "High taxes",
+      "Taxation without representation",
+      "British soldiers stayed in Americans’ houses (boarding, quartering)",
+      "They did not have self-government",
+      "Boston Massacre",
+      "Boston Tea Party (Tea Act)",
+      "Stamp Act",
+      "Sugar Act",
+      "Townshend Acts",
+      "Intolerable (Coercive) Acts"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 78,
+     "q": "Who wrote the Declaration of Independence?",
+     "answers": [
+      "(Thomas) Jefferson"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": true,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 79,
+     "q": "When was the Declaration of Independence adopted?",
+     "answers": [
+      "July 4, 1776"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 80,
+     "q": "The American Revolution had many important events. Name one.",
+     "answers": [
+      "(Battle of) Bunker Hill",
+      "Declaration of Independence",
+      "Washington Crossing the Delaware (Battle of Trenton)",
+      "(Battle of) Saratoga",
+      "Valley Forge (Encampment)",
+      "(Battle of) Yorktown (British surrender at Yorktown)"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 81,
+     "q": "There were 13 original states. Name five.",
+     "answers": [
+      "New Hampshire",
+      "Massachusetts",
+      "Rhode Island",
+      "Connecticut",
+      "New York",
+      "New Jersey",
+      "Pennsylvania",
+      "Delaware",
+      "Maryland",
+      "Virginia",
+      "North Carolina",
+      "South Carolina",
+      "Georgia"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 82,
+     "q": "What founding document was written in 1787?",
+     "answers": [
+      "(U.S.) Constitution"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 83,
+     "q": "The Federalist Papers supported the passage of the U.S. Constitution. Name one of the writers.",
+     "answers": [
+      "(James) Madison",
+      "(Alexander) Hamilton",
+      "(John) Jay",
+      "Publius"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 84,
+     "q": "Why were the Federalist Papers important?",
+     "answers": [
+      "They helped people understand the (U.S.) Constitution.",
+      "They supported passing the (U.S.) Constitution."
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 85,
+     "q": "Benjamin Franklin is famous for many things. Name one.",
+     "answers": [
+      "Founded the first free public libraries",
+      "First Postmaster General of the United States",
+      "Helped write the Declaration of Independence",
+      "Inventor",
+      "U.S. diplomat"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 86,
+     "q": "George Washington is famous for many things. Name one.",
+     "answers": [
+      "“Father of Our Country”",
+      "First president of the United States",
+      "General of the Continental Army",
+      "President of the Constitutional Convention"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": true,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 87,
+     "q": "Thomas Jefferson is famous for many things. Name one.",
+     "answers": [
+      "Writer of the Declaration of Independence",
+      "Third president of the United States",
+      "Doubled the size of the United States (Louisiana Purchase)",
+      "First Secretary of State",
+      "Founded the University of Virginia",
+      "Writer of the Virginia Statute on Religious Freedom"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 88,
+     "q": "James Madison is famous for many things. Name one.",
+     "answers": [
+      "“Father of the Constitution”",
+      "Fourth president of the United States",
+      "President during the War of 1812",
+      "One of the writers of the Federalist Papers"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 89,
+     "q": "Alexander Hamilton is famous for many things. Name one.",
+     "answers": [
+      "First Secretary of the Treasury",
+      "One of the writers of the Federalist Papers",
+      "Helped establish the First Bank of the United States",
+      "Aide to General George Washington",
+      "Member of the Continental Congress"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 90,
+     "q": "What territory did the United States buy from France in 1803?",
+     "answers": [
+      "Louisiana Territory",
+      "Louisiana"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 91,
+     "q": "Name one war fought by the United States in the 1800s.",
+     "answers": [
+      "War of 1812",
+      "Mexican-American War",
+      "Civil War",
+      "Spanish-American War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 92,
+     "q": "Name the U.S. war between the North and the South.",
+     "answers": [
+      "The Civil War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 93,
+     "q": "The Civil War had many important events. Name one.",
+     "answers": [
+      "(Battle of) Fort Sumter",
+      "Emancipation Proclamation",
+      "(Battle of) Vicksburg",
+      "(Battle of) Gettysburg",
+      "Sherman’s March",
+      "(Surrender at) Appomattox",
+      "(Battle of) Antietam/Sharpsburg",
+      "Lincoln was assassinated."
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 94,
+     "q": "Abraham Lincoln is famous for many things. Name one.",
+     "answers": [
+      "Freed the slaves (Emancipation Proclamation)",
+      "Saved (or preserved) the Union",
+      "Led the United States during the Civil War",
+      "16th president of the United States",
+      "Delivered the Gettysburg Address"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": true,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 95,
+     "q": "What did the Emancipation Proclamation do?",
+     "answers": [
+      "Freed the slaves",
+      "Freed slaves in the Confederacy",
+      "Freed slaves in the Confederate states",
+      "Freed slaves in most Southern states"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 96,
+     "q": "What U.S. war ended slavery?",
+     "answers": [
+      "The Civil War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 97,
+     "q": "What amendment says all persons born or naturalized in the United States, and subject to the jurisdiction thereof, are U.S. citizens?",
+     "answers": [
+      "14th Amendment"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 98,
+     "q": "When did all men get the right to vote?",
+     "answers": [
+      "After the Civil War",
+      "During Reconstruction",
+      "(With the) 15th Amendment",
+      "1870"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 99,
+     "q": "Name one leader of the women’s rights movement in the 1800s.",
+     "answers": [
+      "Susan B. Anthony",
+      "Elizabeth Cady Stanton",
+      "Sojourner Truth",
+      "Harriet Tubman",
+      "Lucretia Mott",
+      "Lucy Stone"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 100,
+     "q": "Name one war fought by the United States in the 1900s.",
+     "answers": [
+      "World War I",
+      "World War II",
+      "Korean War",
+      "Vietnam War",
+      "(Persian) Gulf War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 101,
+     "q": "Why did the United States enter World War I?",
+     "answers": [
+      "Because Germany attacked U.S. (civilian) ships",
+      "To support the Allied Powers (England, France, Italy, and Russia)",
+      "To oppose the Central Powers (Germany, Austria-Hungary, the Ottoman Empire, and Bulgaria)"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 102,
+     "q": "When did all women get the right to vote?",
+     "answers": [
+      "1920",
+      "After World War I",
+      "(With the) 19th Amendment"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 103,
+     "q": "What was the Great Depression?",
+     "answers": [
+      "Longest economic recession in modern history"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 104,
+     "q": "When did the Great Depression start?",
+     "answers": [
+      "The Great Crash (1929)",
+      "Stock market crash of 1929"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 105,
+     "q": "Who was president during the Great Depression and World War II?",
+     "answers": [
+      "(Franklin) Roosevelt"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 106,
+     "q": "Why did the United States enter World War II?",
+     "answers": [
+      "(Bombing of) Pearl Harbor",
+      "Japanese attacked Pearl Harbor",
+      "To support the Allied Powers (England, France, and Russia)",
+      "To oppose the Axis Powers (Germany, Italy, and Japan)"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 107,
+     "q": "Dwight Eisenhower is famous for many things. Name one.",
+     "answers": [
+      "General during World War II",
+      "President at the end of (during) the Korean War",
+      "34th president of the United States",
+      "Signed the Federal-Aid Highway Act of 1956 (Created the Interstate System)"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 108,
+     "q": "Who was the United States’ main rival during the Cold War?",
+     "answers": [
+      "Soviet Union",
+      "USSR",
+      "Russia"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 109,
+     "q": "During the Cold War, what was one main concern of the United States?",
+     "answers": [
+      "Communism",
+      "Nuclear war"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 110,
+     "q": "Why did the United States enter the Korean War?",
+     "answers": [
+      "To stop the spread of communism"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 111,
+     "q": "Why did the United States enter the Vietnam War?",
+     "answers": [
+      "To stop the spread of communism"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 112,
+     "q": "What did the civil rights movement do?",
+     "answers": [
+      "Fought to end racial discrimination"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 113,
+     "q": "Martin Luther King, Jr. is famous for many things. Name one.",
+     "answers": [
+      "Fought for civil rights",
+      "Worked for equality for all Americans",
+      "Worked to ensure that people would “not be judged by the color of their skin, but by the content of their character”"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": true,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 114,
+     "q": "Why did the United States enter the Persian Gulf War?",
+     "answers": [
+      "To force the Iraqi military from Kuwait"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 115,
+     "q": "What major event happened on September 11, 2001 in the United States?",
+     "answers": [
+      "Terrorists attacked the United States",
+      "Terrorists took over two planes and crashed them into the World Trade Center in New York City",
+      "Terrorists took over a plane and crashed into the Pentagon in Arlington, Virginia",
+      "Terrorists took over a plane originally aimed at Washington, D.C., and crashed in a field in Pennsylvania"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": true,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 116,
+     "q": "Name one U.S. military conflict after the September 11, 2001 attacks.",
+     "answers": [
+      "(Global) War on Terror",
+      "War in Afghanistan",
+      "War in Iraq"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 117,
+     "q": "Name one American Indian tribe in the United States.",
+     "answers": [
+      "Apache",
+      "Blackfeet",
+      "Cayuga",
+      "Cherokee",
+      "Cheyenne",
+      "Chippewa",
+      "Choctaw",
+      "Creek",
+      "Crow",
+      "Hopi",
+      "Huron",
+      "Inupiat",
+      "Lakota",
+      "Mohawk",
+      "Mohegan",
+      "Navajo",
+      "Oneida",
+      "Onondaga",
+      "Pueblo",
+      "Seminole",
+      "Seneca",
+      "Shawnee",
+      "Sioux",
+      "Teton",
+      "Tuscarora"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "note": "For a complete list of tribes, please visit bia.gov.",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 118,
+     "q": "Name one example of an American innovation.",
+     "answers": [
+      "Light bulb",
+      "Automobile (cars, internal combustion engine)",
+      "Skyscrapers",
+      "Airplane",
+      "Assembly line",
+      "Landing on the moon",
+      "Integrated circuit (IC)"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 119,
+     "q": "What is the capital of the United States?",
+     "answers": [
+      "Washington, D.C."
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Symbols",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 120,
+     "q": "Where is the Statue of Liberty?",
+     "answers": [
+      "New York (Harbor)",
+      "Liberty Island [Also acceptable are New Jersey, near New York City, and on the Hudson (River).]"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Symbols",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 121,
+     "q": "Why does the flag have 13 stripes?",
+     "answers": [
+      "(Because there were) 13 original colonies",
+      "(Because the stripes) represent the original colonies"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Symbols",
+     "star": true,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 122,
+     "q": "Why does the flag have 50 stars?",
+     "answers": [
+      "(Because there is) one star for each state",
+      "(Because) each star represents a state",
+      "(Because there are) 50 states"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Symbols",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 123,
+     "q": "What is the name of the national anthem?",
+     "answers": [
+      "The Star-Spangled Banner"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Symbols",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 124,
+     "q": "The Nation’s first motto was “E Pluribus Unum.” What does that mean?",
+     "answers": [
+      "Out of many, one",
+      "We all become one"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Symbols",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 125,
+     "q": "What is Independence Day?",
+     "answers": [
+      "A holiday to celebrate U.S. independence (from Britain)",
+      "The country’s birthday"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Holidays",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 126,
+     "q": "Name three national U.S. holidays.",
+     "answers": [
+      "New Year’s Day",
+      "Martin Luther King, Jr. Day",
+      "Presidents Day (Washington’s Birthday)",
+      "Memorial Day",
+      "Juneteenth",
+      "Independence Day",
+      "Labor Day",
+      "Columbus Day",
+      "Veterans Day",
+      "Thanksgiving Day",
+      "Christmas Day"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Holidays",
+     "star": true,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 127,
+     "q": "What is Memorial Day?",
+     "answers": [
+      "A holiday to honor soldiers who died in military service"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Holidays",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    },
+    {
+     "n": 128,
+     "q": "What is Veterans Day?",
+     "answers": [
+      "A holiday to honor people in the (U.S.) military",
+      "A holiday to honor people who have served (in the U.S. military)"
+     ],
+     "topic": "SYMBOLS AND HOLIDAYS",
+     "subtopic": "Holidays",
+     "star": false,
+     "topicEs": "Símbolos y días festivos"
+    }
+   ]
+  },
+  "2008": {
+   "label": "2008 civics test",
+   "filedBefore": "2025-10-20",
+   "bank": 100,
+   "asked": 10,
+   "pass": 6,
+   "failAt": 5,
+   "source": "https://www.uscis.gov/sites/default/files/document/questions-and-answers/OoC_100_Questions_2008_Civics_Test_V1.pdf",
+   "edition": "rev. 08/21",
+   "spanish": {
+    "source": "https://www.uscis.gov/sites/default/files/document/questions-and-answers/100q_Spanish_2021_SPA.docx",
+    "edition": "rev. 01/19"
+   },
+   "questions": [
+    {
+     "n": 1,
+     "q": "What is the supreme law of the land?",
+     "answers": [
+      "the Constitution"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es la ley suprema de la nación?",
+      "answers": [
+       "la Constitución"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 2,
+     "q": "What does the Constitution do?",
+     "answers": [
+      "sets up the government",
+      "defines the government",
+      "protects basic rights of Americans"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Qué hace la Constitución?",
+      "answers": [
+       "establece el gobierno",
+       "define el gobierno",
+       "protege los derechos básicos de los ciudadanos estadounidenses"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 3,
+     "q": "The idea of self-government is in the first three words of the Constitution. What are these words?",
+     "answers": [
+      "We the People"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "Las primeras tres palabras de la Constitución contienen la idea del autogobierno (de que el pueblo se gobierna a sí mismo). ¿Cuáles son estas palabras?",
+      "answers": [
+       "Nosotros, el pueblo"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 4,
+     "q": "What is an amendment?",
+     "answers": [
+      "a change (to the Constitution)",
+      "an addition (to the Constitution)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Qué es una enmienda?",
+      "answers": [
+       "un cambio (a la Constitución)",
+       "una adición (a la Constitución)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 5,
+     "q": "What do we call the first ten amendments to the Constitution?",
+     "answers": [
+      "the Bill of Rights"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Con qué nombre se conocen las primeras diez enmiendas a la Constitución?",
+      "answers": [
+       "la Carta de Derechos"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 6,
+     "q": "What is one right or freedom from the First Amendment?",
+     "answers": [
+      "speech",
+      "religion",
+      "assembly",
+      "press",
+      "petition the government"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": true,
+     "es": {
+      "q": "¿Cuál es un derecho o libertad garantizado por la Primera Enmienda?",
+      "answers": [
+       "expresión",
+       "religión",
+       "reunión",
+       "prensa",
+       "peticionar al gobierno"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 7,
+     "q": "How many amendments does the Constitution have?",
+     "answers": [
+      "twenty-seven (27)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Cuántas enmiendas tiene la Constitución?",
+      "answers": [
+       "veintisiete (27)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 8,
+     "q": "What did the Declaration of Independence do?",
+     "answers": [
+      "announced our independence (from Great Britain)",
+      "declared our independence (from Great Britain)",
+      "said that the United States is free (from Great Britain)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Qué hizo la Declaración de la Independencia?",
+      "answers": [
+       "anunció nuestra independencia (de Gran Bretaña)",
+       "declaró nuestra independencia (de Gran Bretaña)",
+       "declaró que Estados Unidos se independizó (de Gran Bretaña)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 9,
+     "q": "What are two rights in the Declaration of Independence?",
+     "answers": [
+      "life",
+      "liberty",
+      "pursuit of happiness"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿Cuáles son dos derechos en la Declaración de la Independencia?",
+      "answers": [
+       "la vida",
+       "la libertad",
+       "la búsqueda de la felicidad"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 10,
+     "q": "What is freedom of religion?",
+     "answers": [
+      "You can practice any religion, or not practice a religion."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿En qué consiste la libertad de religión?",
+      "answers": [
+       "Se puede practicar cualquier religión o no practicar ninguna."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 11,
+     "q": "What is the economic system in the United States?",
+     "answers": [
+      "capitalist economy",
+      "market economy"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": true,
+     "es": {
+      "q": "¿Cuál es el sistema económico de Estados Unidos?",
+      "answers": [
+       "economía capitalista",
+       "economía de mercado"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 12,
+     "q": "What is the “rule of law”?",
+     "answers": [
+      "Everyone must follow the law.",
+      "Leaders must obey the law.",
+      "Government must obey the law.",
+      "No one is above the law."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Principles of American Democracy",
+     "star": false,
+     "es": {
+      "q": "¿En qué consiste el “estado de derecho” (ley y orden)?",
+      "answers": [
+       "Todos deben obedecer la ley",
+       "Los líderes deben obedecer la ley",
+       "El gobierno debe obedecer la ley",
+       "Nadie está por encima de la ley"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 13,
+     "q": "Name one branch or part of the government.",
+     "answers": [
+      "Congress",
+      "legislative",
+      "President",
+      "executive",
+      "the courts",
+      "judicial"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "Nombre una rama o parte del gobierno.",
+      "answers": [
+       "Congreso",
+       "Poder Legislativo",
+       "presidente",
+       "Poder Ejecutivo",
+       "tribunales",
+       "Poder Judicial"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 14,
+     "q": "What stops one branch of government from becoming too powerful?",
+     "answers": [
+      "checks and balances",
+      "separation of powers"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Qué es lo que evita que una rama del gobierno se vuelva demasiado poderosa?",
+      "answers": [
+       "pesos y contrapesos",
+       "separación de poderes"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 15,
+     "q": "Who is in charge of the executive branch?",
+     "answers": [
+      "the President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién está a cargo de la rama ejecutiva?",
+      "answers": [
+       "el presidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 16,
+     "q": "Who makes federal laws?",
+     "answers": [
+      "Congress",
+      "Senate and House (of Representatives)",
+      "(U.S. or national) legislature"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién crea las leyes federales?",
+      "answers": [
+       "el Congreso",
+       "el Senado y la Cámara (de Representantes)",
+       "la legislatura (nacional o de Estados Unidos)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 17,
+     "q": "What are the two parts of the U.S. Congress?",
+     "answers": [
+      "the Senate and House (of Representatives)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "¿Cuáles son las dos partes que integran el Congreso de Estados Unidos?",
+      "answers": [
+       "el Senado y la Cámara (de Representantes)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 18,
+     "q": "How many U.S. Senators are there?",
+     "answers": [
+      "one hundred (100)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cuántos senadores hay en Estados Unidos?",
+      "answers": [
+       "cien (100)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 19,
+     "q": "We elect a U.S. Senator for how many years?",
+     "answers": [
+      "six (6)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿De cuántos años es el término de elección de un senador de Estados Unidos?",
+      "answers": [
+       "seis (6)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 20,
+     "q": "Who is one of your state’s U.S. Senators now?",
+     "answers": [
+      "Answers will vary. [District of Columbia residents and residents of U.S. territories should answer that D.C. (or the territory where the applicant lives) has no U.S. Senators.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "¿Quién es uno de los senadores actuales del estado donde usted vive?.",
+      "answers": [
+       "Las respuestas variarán. [Los residentes del Distrito de Columbia y los territorios de Estados Unidos deberán contestar que Distrito de Columbia (o el territorio en donde vive el solicitante) no cuenta con senadores en Estados Unidos]."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.senate.gov"
+    },
+    {
+     "n": 21,
+     "q": "The House of Representatives has how many voting members?",
+     "answers": [
+      "four hundred thirty-five (435)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cuántos miembros votantes tiene la Cámara de Representantes?",
+      "answers": [
+       "cuatrocientos treinta y cinco (435)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 22,
+     "q": "We elect a U.S. Representative for how many years?",
+     "answers": [
+      "two (2)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿De cuántos años es el término de elección de un representante de Estados Unidos?",
+      "answers": [
+       "dos (2)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 23,
+     "q": "Name your U.S. Representative.",
+     "answers": [
+      "Answers will vary. [Residents of territories with nonvoting Delegates or Resident Commissioners may provide the name of that Delegate or Commissioner. Also acceptable is any statement that the territory has no (voting) Representatives in Congress.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "Mencione el nombre de su representante de Estados Unidos.",
+      "answers": [
+       "Las respuestas variarán. (Los residentes de territorios con delegados no votantes o los comisionados residentes pueden decir el nombre de dicho delegado o comisionado. Una respuesta que indica que el territorio no tiene representantes votantes en el Congreso también es aceptable)."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.house.gov"
+    },
+    {
+     "n": 24,
+     "q": "Who does a U.S. Senator represent?",
+     "answers": [
+      "all people of the state"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿A quiénes representa un senador de Estados Unidos?",
+      "answers": [
+       "a todas las personas del estado"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 25,
+     "q": "Why do some states have more Representatives than other states?",
+     "answers": [
+      "(because of) the state’s population",
+      "(because) they have more people",
+      "(because) some states have more people"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Por qué tienen algunos estados más representantes que otros?",
+      "answers": [
+       "(debido a) la población del estado",
+       "(debido a que) tienen más gente",
+       "(debido a que) algunos estados tienen más gente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 26,
+     "q": "We elect a President for how many years?",
+     "answers": [
+      "four (4)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Por cuántos años elegimos al presidente?",
+      "answers": [
+       "cuatro (4)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 27,
+     "q": "In what month do we vote for President?",
+     "answers": [
+      "November"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "¿En qué mes votamos por un nuevo presidente?",
+      "answers": [
+       "noviembre"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 28,
+     "q": "What is the name of the President of the United States now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the President of the United States."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "¿Cómo se llama el actual presidente de Estados Unidos?",
+      "answers": [
+       "Visite uscis.gov/es/ciudadania/actualizacionesalexamen para saber el nombre del presidente de Estados Unidos."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "Donald J. Trump",
+      "Donald Trump",
+      "Trump"
+     ]
+    },
+    {
+     "n": 29,
+     "q": "What is the name of the Vice President of the United States now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the Vice President of the United States."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cómo se llama el actual vicepresidente de Estados Unidos?",
+      "answers": [
+       "Visite uscis.gov/es/ciudadania/actualizacionesalexamen para saber el nombre del vicepresidente de Estados Unidos."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "JD Vance",
+      "Vance"
+     ]
+    },
+    {
+     "n": 30,
+     "q": "If the President can no longer serve, who becomes President?",
+     "answers": [
+      "the Vice President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "Si el presidente ya no puede cumplir sus funciones, ¿quién se convierte en presidente?",
+      "answers": [
+       "el vicepresidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 31,
+     "q": "If both the President and the Vice President can no longer serve, who becomes President?",
+     "answers": [
+      "the Speaker of the House"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "Si tanto el presidente como el vicepresidente ya no pueden cumplir sus funciones, ¿quién se convierte en presidente?",
+      "answers": [
+       "el portavoz de la Cámara de Representantes"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 32,
+     "q": "Who is the Commander in Chief of the military?",
+     "answers": [
+      "the President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién es el comandante en jefe de las Fuerzas Armadas?",
+      "answers": [
+       "el presidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 33,
+     "q": "Who signs bills to become laws?",
+     "answers": [
+      "the President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién firma los proyectos de ley para convertirlos en ley?",
+      "answers": [
+       "el presidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 34,
+     "q": "Who vetoes bills?",
+     "answers": [
+      "the President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién veta los proyectos de ley?",
+      "answers": [
+       "el presidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 35,
+     "q": "What does the President’s Cabinet do?",
+     "answers": [
+      "advises the President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Qué hace el gabinete del presidente?",
+      "answers": [
+       "asesora al presidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 36,
+     "q": "What are two Cabinet-level positions?",
+     "answers": [
+      "Secretary of Agriculture",
+      "Secretary of Commerce",
+      "Secretary of Defense",
+      "Secretary of Education",
+      "Secretary of Energy",
+      "Secretary of Health and Human Services",
+      "Secretary of Homeland Security",
+      "Secretary of Housing and Urban Development",
+      "Secretary of the Interior",
+      "Secretary of Labor",
+      "Secretary of State",
+      "Secretary of Transportation",
+      "Secretary of the Treasury",
+      "Secretary of Veterans Affairs",
+      "Attorney General",
+      "Vice President"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cuáles son dos puestos a nivel de gabinete?",
+      "answers": [
+       "secretario de Agricultura",
+       "secretario de Comercio",
+       "secretario de Defensa",
+       "secretario de Educación",
+       "secretario de Energía",
+       "secretario de Salud y Servicios Humanos",
+       "secretario de Seguridad Nacional",
+       "secretario de Vivienda y Desarrollo Urbano",
+       "secretario del Interior",
+       "secretario del Trabajo",
+       "secretario de Estado",
+       "secretario de Transporte",
+       "secretario del Tesoro (de Hacienda)",
+       "secretario de Asuntos de los Veteranos",
+       "procurador general (fiscal general)",
+       "vicepresidente"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 37,
+     "q": "What does the judicial branch do?",
+     "answers": [
+      "reviews laws",
+      "explains laws",
+      "resolves disputes (disagreements)",
+      "decides if a law goes against the Constitution"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Qué hace la Rama Judicial? (El poder judicial)",
+      "answers": [
+       "revisa las leyes",
+       "explica las leyes",
+       "resuelve disputas (desacuerdos)",
+       "decide si una ley va en contra de la Constitución"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 38,
+     "q": "What is the highest court in the United States?",
+     "answers": [
+      "the Supreme Court"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es el tribunal más importante (supremo) de Estados Unidos?",
+      "answers": [
+       "el Tribunal Supremo (Corte Suprema)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 39,
+     "q": "How many justices are on the Supreme Court?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the number of justices on the Supreme Court."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cuántos jueces hay en el Tribunal Suprema?",
+      "answers": [
+       "Visite uscis.gov/es/ciudadania/actualizacionesalexamen para saber el número de jueces en el Tribunal Supremo."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "nine (9)"
+     ]
+    },
+    {
+     "n": 40,
+     "q": "Who is the Chief Justice of the United States now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the Chief Justice of the United States."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién es el juez presidente actual del Tribunal Supremo de Estados Unidos?",
+      "answers": [
+       "Visite uscis.gov/es/ciudadania/actualizacionesalexamen para saber el nombre del juez presidente del Tribunal Supremo de Estados Unidos."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "John Roberts",
+      "John G. Roberts, Jr."
+     ]
+    },
+    {
+     "n": 41,
+     "q": "Under our Constitution, some powers belong to the federal government. What is one power of the federal government?",
+     "answers": [
+      "to print money",
+      "to declare war",
+      "to create an army",
+      "to make treaties"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "De acuerdo con nuestra Constitución, algunos poderes pertenecen al gobierno federal. ¿Cuál es un poder del gobierno federal?",
+      "answers": [
+       "imprimir dinero",
+       "declarar la guerra",
+       "crear un ejército",
+       "acordar tratados"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 42,
+     "q": "Under our Constitution, some powers belong to the states. What is one power of the states?",
+     "answers": [
+      "provide schooling and education",
+      "provide protection (police)",
+      "provide safety (fire departments)",
+      "give a driver’s license",
+      "approve zoning and land use"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "De acuerdo con nuestra Constitución, algunos poderes pertenecen a los estados. ¿Cuál es un poder de los estados?",
+      "answers": [
+       "proporcionar escuelas y educación",
+       "proporcionar protección (policía)",
+       "proporcionar seguridad (cuerpos de bomberos)",
+       "otorgar licencias de conducir",
+       "aprobar la zonificación y uso de la tierra (uso de suelos)"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 43,
+     "q": "Who is the Governor of your state now?",
+     "answers": [
+      "Answers will vary. [District of Columbia residents should answer that D.C. does not have a Governor.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Quién es el gobernador actual de su estado?",
+      "answers": [
+       "Las respuestas variarán. (Los residentes del Distrito de Columbia deben decir “no tenemos gobernador”)."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.usa.gov/states-and-territories"
+    },
+    {
+     "n": 44,
+     "q": "What is the capital of your state?",
+     "answers": [
+      "Answers will vary. [District of Columbia residents should answer that D.C. is not a state and does not have a capital. Residents of U.S. territories should name the capital of the territory.]"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "¿Cuál es la capital de su estado?",
+      "answers": [
+       "Las respuestas variarán. (Los residentes del Distrito de Columbia deben contestar que el Distrito de Columbia no es estado y que no tiene capital. Los residentes de los territorios de Estados Unidos deben dar el nombre de la capital del territorio]."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "find": "https://www.usa.gov/states-and-territories"
+    },
+    {
+     "n": 45,
+     "q": "What are the two major political parties in the United States?",
+     "answers": [
+      "Democratic and Republican"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": true,
+     "es": {
+      "q": "¿Cuáles son los dos principales partidos políticos de Estados Unidos?",
+      "answers": [
+       "Demócrata y Republicano"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 46,
+     "q": "What is the political party of the President now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the political party of the President."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es el partido político del presidente actual?",
+      "answers": [
+       "Visite uscis.gov/es/ciudadania/actualizacionesalexamen para saber el partido político al que pertenece el presidente de Estados Unidos."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "Republican (Party)"
+     ]
+    },
+    {
+     "n": 47,
+     "q": "What is the name of the Speaker of the House of Representatives now?",
+     "answers": [
+      "Visit uscis.gov/citizenship/testupdates for the name of the Speaker of the House of Representatives."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "System of Government",
+     "star": false,
+     "es": {
+      "q": "¿Cómo se llama el portavoz actual de la Cámara de Representantes?",
+      "answers": [
+       "Visite uscis.gov/es/ciudadania/actualizacionesalexamen para saber el nombre del portavoz de la Cámara de Representantes."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense",
+     "changes": true,
+     "current": [
+      "Mike Johnson",
+      "Johnson",
+      "James Michael Johnson (birth name)"
+     ]
+    },
+    {
+     "n": 48,
+     "q": "There are four amendments to the Constitution about who can vote. Describe one of them.",
+     "answers": [
+      "Citizens eighteen (18) and older (can vote).",
+      "You don’t have to pay (a poll tax) to vote.",
+      "Any citizen can vote. (Women and men can vote.)",
+      "A male citizen of any race (can vote)."
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "Existen cuatro enmiendas a la Constitución sobre quién puede votar. Describa una de ellas.",
+      "answers": [
+       "Ciudadanos de dieciocho (18) años en adelante (pueden votar).",
+       "No se exige pagar un impuesto para votar (el impuesto para acudir a las urnas o “poll tax” en inglés).",
+       "Cualquier ciudadano puede votar. (Tanto mujeres como hombres pueden votar).",
+       "Un hombre ciudadano de cualquier raza (puede votar)."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 49,
+     "q": "What is one responsibility that is only for United States citizens?",
+     "answers": [
+      "serve on a jury",
+      "vote in a federal election"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": true,
+     "es": {
+      "q": "¿Cuál es una responsabilidad que corresponde sólo a los ciudadanos de Estados Unidos?",
+      "answers": [
+       "prestar servicio en un jurado",
+       "votar en una elección federal."
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 50,
+     "q": "Name one right only for United States citizens.",
+     "answers": [
+      "vote in a federal election",
+      "run for federal office"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es un derecho que pueden ejercer sólo los ciudadanos de Estados Unidos?",
+      "answers": [
+       "votar en una elección federal",
+       "postularse a un cargo político federal"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 51,
+     "q": "What are two rights of everyone living in the United States?",
+     "answers": [
+      "freedom of expression",
+      "freedom of speech",
+      "freedom of assembly",
+      "freedom to petition the government",
+      "freedom of religion",
+      "the right to bear arms"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "¿Cuáles son dos derechos que pueden ejercer todas las personas que viven en Estados Unidos?",
+      "answers": [
+       "libertad de expresión",
+       "libertad de la palabra",
+       "libertad de reunión",
+       "libertad para peticionar al gobierno",
+       "libertad de religión",
+       "derecho a portar armas"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 52,
+     "q": "What do we show loyalty to when we say the Pledge of Allegiance?",
+     "answers": [
+      "the United States",
+      "the flag"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "¿A qué demostramos nuestra lealtad cuando prestamos el Juramento de Lealtad (Pledge of Allegiance)?",
+      "answers": [
+       "a Estados Unidos",
+       "a la bandera"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 53,
+     "q": "What is one promise you make when you become a United States citizen?",
+     "answers": [
+      "give up loyalty to other countries",
+      "defend the Constitution and laws of the United States",
+      "obey the laws of the United States",
+      "serve in the U.S. military (if needed)",
+      "serve (do important work for) the nation (if needed)",
+      "be loyal to the United States"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es una promesa que usted hace cuando se convierte en ciudadano de Estados Unidos?",
+      "answers": [
+       "renunciar a su lealtad a otros países",
+       "defender la Constitución y las leyes de Estados Unidos",
+       "obedecer las leyes de Estados Unidos",
+       "prestar servicio en las Fuerzas Armadas de Estados Unidos (de ser necesario)",
+       "prestar servicio a (realizar trabajo importante para) la nación (de ser necesario)",
+       "ser leal a Estados Unidos"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 54,
+     "q": "How old do citizens have to be to vote for President?",
+     "answers": [
+      "eighteen (18) and older"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": true,
+     "es": {
+      "q": "¿Cuántos años tienen que tener los ciudadanos para votar por el presidente?",
+      "answers": [
+       "dieciocho (18) años en adelante"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 55,
+     "q": "What are two ways that Americans can participate in their democracy?",
+     "answers": [
+      "vote",
+      "join a political party",
+      "help with a campaign",
+      "join a civic group",
+      "join a community group",
+      "give an elected official your opinion on an issue",
+      "call Senators and Representatives",
+      "publicly support or oppose an issue or policy",
+      "run for office",
+      "write to a newspaper"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "¿Cuáles son dos maneras mediante las cuales los ciudadanos estadounidenses pueden participar en su democracia?",
+      "answers": [
+       "votar",
+       "afiliarse a un partido político",
+       "ayudar en una campaña política",
+       "unirse a un grupo cívico",
+       "unirse a un grupo comunitario",
+       "compartir su opinión acerca de un asunto con un oficial electo",
+       "llamar a senadores y representantes",
+       "apoyar u oponerse públicamente a un asunto o política",
+       "postularse a un cargo político",
+       "enviar una carta o mensaje a un periódico"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 56,
+     "q": "When is the last day you can send in federal income tax forms?",
+     "answers": [
+      "April 15"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": true,
+     "es": {
+      "q": "¿Cuál es la fecha límite para enviar la declaración federal de impuestos sobre ingresos?",
+      "answers": [
+       "el 15 de abril"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 57,
+     "q": "When must all men register for the Selective Service?",
+     "answers": [
+      "at age eighteen (18)",
+      "between eighteen (18) and twenty-six (26)"
+     ],
+     "topic": "AMERICAN GOVERNMENT",
+     "subtopic": "Rights and Responsibilities",
+     "star": false,
+     "es": {
+      "q": "¿Cuándo deben inscribirse todos los hombres en el Servicio Selectivo?",
+      "answers": [
+       "a los dieciocho (18) años",
+       "entre los dieciocho (18) y veintiséis (26) años de edad"
+      ]
+     },
+     "topicEs": "Gobierno estadounidense"
+    },
+    {
+     "n": 58,
+     "q": "What is one reason colonists came to America?",
+     "answers": [
+      "freedom",
+      "political liberty",
+      "religious freedom",
+      "economic opportunity",
+      "practice their religion",
+      "escape persecution"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es una razón por la que los colonos vinieron a América?",
+      "answers": [
+       "libertad",
+       "libertad política",
+       "libertad religiosa",
+       "oportunidad económica",
+       "para practicar su religión",
+       "para huir de la persecución"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 59,
+     "q": "Who lived in America before the Europeans arrived?",
+     "answers": [
+      "American Indians",
+      "Native Americans"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Quiénes vivían en lo que hoy conocemos como Estados Unidos antes de la llegada de los europeos?",
+      "answers": [
+       "indios estadounidenses",
+       "nativos estadounidenses"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 60,
+     "q": "What group of people was taken to America and sold as slaves?",
+     "answers": [
+      "Africans",
+      "people from Africa"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Qué grupo de personas fue traído a Estados Unidos y vendidos como esclavos?",
+      "answers": [
+       "africanos",
+       "gente de África"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 61,
+     "q": "Why did the colonists fight the British?",
+     "answers": [
+      "because of high taxes (taxation without representation)",
+      "because the British army stayed in their houses (boarding, quartering)",
+      "because they didn’t have self-government"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Por qué lucharon los colonos contra los británicos?",
+      "answers": [
+       "debido a los impuestos altos (impuestos sin representación)",
+       "el ejército británico se alojaba en sus casas (alojándose, acuartelándose)",
+       "porque no tenían gobierno propio"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 62,
+     "q": "Who wrote the Declaration of Independence?",
+     "answers": [
+      "(Thomas) Jefferson"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Quién escribió la Declaración de Independencia?",
+      "answers": [
+       "(Thomas) Jefferson"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 63,
+     "q": "When was the Declaration of Independence adopted?",
+     "answers": [
+      "July 4, 1776"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Cuándo fue adoptada la Declaración de Independencia?",
+      "answers": [
+       "el 4 de julio de 1776"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 64,
+     "q": "There were 13 original states. Name three.",
+     "answers": [
+      "New Hampshire",
+      "Massachusetts",
+      "Rhode Island",
+      "Connecticut",
+      "New York",
+      "New Jersey",
+      "Pennsylvania",
+      "Delaware",
+      "Maryland",
+      "Virginia",
+      "North Carolina",
+      "South Carolina",
+      "Georgia"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "Nombre tres de los estados originales.",
+      "answers": [
+       "Nueva Hampshire",
+       "Massachusetts",
+       "Rhode Island",
+       "Connecticut",
+       "Nueva York",
+       "Nueva Jersey",
+       "Pensilvania",
+       "Delaware",
+       "Maryland",
+       "Virginia",
+       "Carolina del Norte",
+       "Carolina del Sur",
+       "Georgia"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 65,
+     "q": "What happened at the Constitutional Convention?",
+     "answers": [
+      "The Constitution was written.",
+      "The Founding Fathers wrote the Constitution."
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Qué ocurrió en la Convención Constitucional?",
+      "answers": [
+       "se redactó la Constitución",
+       "los padres fundadores redactaron la Constitución"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 66,
+     "q": "When was the Constitution written?",
+     "answers": [
+      "1787"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Cuándo fue redactada la Constitución?",
+      "answers": [
+       "1787"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 67,
+     "q": "The Federalist Papers supported the passage of the U.S. Constitution. Name one of the writers.",
+     "answers": [
+      "(James) Madison",
+      "(Alexander) Hamilton",
+      "(John) Jay",
+      "Publius"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "Los escritos conocidos como “Los Documentos Federalistas” respaldaron la aprobación de la Constitución de Estados Unidos. Nombre uno de sus autores.",
+      "answers": [
+       "(James) Madison",
+       "(Alexander) Hamilton",
+       "(John) Jay",
+       "Publius"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 68,
+     "q": "What is one thing Benjamin Franklin is famous for?",
+     "answers": [
+      "U.S. diplomat",
+      "oldest member of the Constitutional Convention",
+      "first Postmaster General of the United States",
+      "writer of “Poor Richard’s Almanac”",
+      "started the first free libraries"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "Mencione una razón por la que es famoso Benjamin Franklin.",
+      "answers": [
+       "diplomático estadounidense",
+       "era el miembro de mayor edad de la Convención Constitucional",
+       "primer director general de la Oficina de Correos de Estados Unidos",
+       "autor de “Poor Richard’s almanac” (Almanaque del Pobre Richard)",
+       "fundó las primeras bibliotecas gratuitas"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 69,
+     "q": "Who is the “Father of Our Country”?",
+     "answers": [
+      "(George) Washington"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": false,
+     "es": {
+      "q": "¿Quién se conoce como el “Padre de Nuestra Nación”?",
+      "answers": [
+       "(George) Washington"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 70,
+     "q": "Who was the first President?",
+     "answers": [
+      "(George) Washington"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Colonial Period and Independence",
+     "star": true,
+     "es": {
+      "q": "¿Quién fue el primer presidente?",
+      "answers": [
+       "(George) Washington"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 71,
+     "q": "What territory did the United States buy from France in 1803?",
+     "answers": [
+      "the Louisiana Territory",
+      "Louisiana"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "es": {
+      "q": "¿Qué territorio compró Estados Unidos a Francia en 1803?",
+      "answers": [
+       "el territorio de Luisiana",
+       "Luisiana"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 72,
+     "q": "Name one war fought by the United States in the 1800s.",
+     "answers": [
+      "War of 1812",
+      "Mexican-American War",
+      "Civil War",
+      "Spanish-American War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "es": {
+      "q": "Mencione una guerra en la que combatió Estados Unidos durante los años 1800.",
+      "answers": [
+       "la Guerra de 1812",
+       "la Guerra entre México y Estados Unidos",
+       "la Guerra Civil",
+       "la Guerra Hispanoestadounidense (Hispanoamericana)"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 73,
+     "q": "Name the U.S. war between the North and the South.",
+     "answers": [
+      "the Civil War",
+      "the War between the States"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "es": {
+      "q": "¿Cuál es el nombre de la guerra entre el Norte y el Sur de Estados Unidos?",
+      "answers": [
+       "la Guerra Civil",
+       "la Guerra entre Estados"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 74,
+     "q": "Name one problem that led to the Civil War.",
+     "answers": [
+      "slavery",
+      "economic reasons",
+      "states’ rights"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "es": {
+      "q": "Mencione un problema que condujo a la Guerra Civil.",
+      "answers": [
+       "esclavitud",
+       "razones económicas",
+       "derechos de los estados"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 75,
+     "q": "What was one important thing that Abraham Lincoln did?",
+     "answers": [
+      "freed the slaves (Emancipation Proclamation)",
+      "saved (or preserved) the Union",
+      "led the United States during the Civil War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": true,
+     "es": {
+      "q": "¿Cuál fue una cosa importante que hizo Abraham Lincoln?",
+      "answers": [
+       "liberó a los esclavos (Proclamación de la Emancipación)",
+       "salvó (o preservó) la Unión",
+       "presidió (dirigió) Estados Unidos durante la Guerra Civil"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 76,
+     "q": "What did the Emancipation Proclamation do?",
+     "answers": [
+      "freed the slaves",
+      "freed slaves in the Confederacy",
+      "freed slaves in the Confederate states",
+      "freed slaves in most Southern states"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "es": {
+      "q": "¿Qué hizo la Proclamación de la Emancipación?",
+      "answers": [
+       "liberó a los esclavos",
+       "liberó a los esclavos de la Confederación",
+       "liberó a los esclavos en los estados de la Confederación",
+       "liberó a los esclavos en la mayoría de los estados del sur"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 77,
+     "q": "What did Susan B. Anthony do?",
+     "answers": [
+      "fought for women’s rights",
+      "fought for civil rights"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "1800s",
+     "star": false,
+     "es": {
+      "q": "¿Qué hizo Susan B. Anthony?",
+      "answers": [
+       "luchó por los derechos de la mujer",
+       "luchó por los derechos civiles"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 78,
+     "q": "Name one war fought by the United States in the 1900s.",
+     "answers": [
+      "World War I",
+      "World War II",
+      "Korean War",
+      "Vietnam War",
+      "(Persian) Gulf War"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": true,
+     "es": {
+      "q": "Mencione una guerra del siglo XX en la que combatió Estados Unidos.",
+      "answers": [
+       "la Primera Guerra Mundial",
+       "la Segunda Guerra Mundial",
+       "la Guerra de Corea",
+       "la Guerra de Vietnam",
+       "la Guerra del Golfo (Pérsico)"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 79,
+     "q": "Who was President during World War I?",
+     "answers": [
+      "(Woodrow) Wilson"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "¿Quién era el presidente durante la Primera Guerra Mundial?",
+      "answers": [
+       "(Woodrow) Wilson"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 80,
+     "q": "Who was President during the Great Depression and World War II?",
+     "answers": [
+      "(Franklin) Roosevelt"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "¿Quién era presidente durante la Gran Depresión y la Segunda Guerra Mundial?",
+      "answers": [
+       "(Franklin) Roosevelt"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 81,
+     "q": "Who did the United States fight in World War II?",
+     "answers": [
+      "Japan, Germany, and Italy"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "¿Contra qué países peleó Estados Unidos en la Segunda Guerra Mundial?",
+      "answers": [
+       "Japón, Alemania e Italia"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 82,
+     "q": "Before he was President, Eisenhower was a general. What war was he in?",
+     "answers": [
+      "World War II"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "Antes de ser presidente, Eisenhower era general. ¿En qué guerra participó?",
+      "answers": [
+       "Segunda Guerra Mundial"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 83,
+     "q": "During the Cold War, what was the main concern of the United States?",
+     "answers": [
+      "Communism"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "Durante la Guerra Fría, ¿cuál era la principal preocupación de Estados Unidos?",
+      "answers": [
+       "comunismo"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 84,
+     "q": "What movement tried to end racial discrimination?",
+     "answers": [
+      "civil rights (movement)"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "¿Qué movimiento trató de poner fin a la discriminación racial?",
+      "answers": [
+       "(el movimiento de) derechos civiles"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 85,
+     "q": "What did Martin Luther King, Jr. do?",
+     "answers": [
+      "fought for civil rights",
+      "worked for equality for all Americans"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": true,
+     "es": {
+      "q": "¿Qué hizo Martin Luther King, Jr.?",
+      "answers": [
+       "luchó por los derechos civiles",
+       "trabajó por la igualdad de todos los ciudadanos estadounidenses"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 86,
+     "q": "What major event happened on September 11, 2001, in the United States?",
+     "answers": [
+      "Terrorists attacked the United States."
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "¿Qué suceso de gran magnitud ocurrió el 11 de septiembre de 2001 en Estados Unidos?",
+      "answers": [
+       "terroristas atacaron a Estados Unidos."
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 87,
+     "q": "Name one American Indian tribe in the United States. [USCIS Officers will be supplied with a list of federally recognized American Indian tribes.]",
+     "answers": [
+      "Cherokee",
+      "Navajo",
+      "Sioux",
+      "Chippewa",
+      "Choctaw",
+      "Pueblo",
+      "Apache",
+      "Iroquois",
+      "Creek",
+      "Blackfeet",
+      "Seminole",
+      "Cheyenne",
+      "Arawak",
+      "Shawnee",
+      "Mohegan",
+      "Huron",
+      "Oneida",
+      "Lakota",
+      "Crow",
+      "Teton",
+      "Hopi",
+      "Inuit"
+     ],
+     "topic": "AMERICAN HISTORY",
+     "subtopic": "Recent American History and Other Important Historical Information",
+     "star": false,
+     "es": {
+      "q": "Mencione una tribu de indios estadounidenses en Estados Unidos.",
+      "answers": [
+       "Cherokee",
+       "Navajo",
+       "Sioux",
+       "Chippewa",
+       "Choctaw",
+       "Pueblo",
+       "Apache",
+       "Iroquois",
+       "Creek",
+       "Blackfeet",
+       "Seminole",
+       "Cheyenne",
+       "Arawak",
+       "Shawnee",
+       "Mohegan",
+       "Huron",
+       "Oneida",
+       "Lakota",
+       "Crow",
+       "Teton",
+       "Hopi",
+       "Inuit"
+      ]
+     },
+     "topicEs": "Historia estadounidense"
+    },
+    {
+     "n": 88,
+     "q": "Name one of the two longest rivers in the United States.",
+     "answers": [
+      "Missouri (River)",
+      "Mississippi (River)"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": false,
+     "es": {
+      "q": "Mencione uno de los dos ríos más largos en Estados Unidos.",
+      "answers": [
+       "(el Río) Missouri",
+       "(el Río) Mississippi"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 89,
+     "q": "What ocean is on the West Coast of the United States?",
+     "answers": [
+      "Pacific (Ocean)"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": false,
+     "es": {
+      "q": "¿Qué océano está en la costa oeste de Estados Unidos?",
+      "answers": [
+       "(el Océano) Pacífico"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 90,
+     "q": "What ocean is on the East Coast of the United States?",
+     "answers": [
+      "Atlantic (Ocean)"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": false,
+     "es": {
+      "q": "¿Qué océano está en la costa este de Estados Unidos?",
+      "answers": [
+       "(el Océano) Atlántico"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 91,
+     "q": "Name one U.S. territory.",
+     "answers": [
+      "Puerto Rico",
+      "U.S. Virgin Islands",
+      "American Samoa",
+      "Northern Mariana Islands",
+      "Guam"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": false,
+     "es": {
+      "q": "Dé el nombre de un territorio de Estados Unidos.",
+      "answers": [
+       "Puerto Rico",
+       "Islas Vírgenes de Estados Unidos",
+       "Samoa Estadounidense",
+       "Islas Marianas del Norte",
+       "Guam"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 92,
+     "q": "Name one state that borders Canada.",
+     "answers": [
+      "Maine",
+      "New Hampshire",
+      "Vermont",
+      "New York",
+      "Pennsylvania",
+      "Ohio",
+      "Michigan",
+      "Minnesota",
+      "North Dakota",
+      "Montana",
+      "Idaho",
+      "Washington",
+      "Alaska"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": false,
+     "es": {
+      "q": "Mencione un estado que tiene frontera con Canadá.",
+      "answers": [
+       "Maine",
+       "Nueva Hampshire",
+       "Vermont",
+       "Nueva York",
+       "Pensilvania",
+       "Ohio",
+       "Michigan",
+       "Minnesota",
+       "Dakota del Norte",
+       "Montana",
+       "Idaho",
+       "Washington",
+       "Alaska"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 93,
+     "q": "Name one state that borders Mexico.",
+     "answers": [
+      "California",
+      "Arizona",
+      "New Mexico",
+      "Texas"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": false,
+     "es": {
+      "q": "Mencione un estado que tiene frontera con México.",
+      "answers": [
+       "California",
+       "Arizona",
+       "Nuevo México",
+       "Texas"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 94,
+     "q": "What is the capital of the United States?",
+     "answers": [
+      "Washington, D.C."
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": true,
+     "es": {
+      "q": "¿Cuál es la capital de Estados Unidos?",
+      "answers": [
+       "Washington, Distrito de Columbia"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 95,
+     "q": "Where is the Statue of Liberty?",
+     "answers": [
+      "New York (Harbor)",
+      "Liberty Island [Also acceptable are New Jersey, near New York City, and on the Hudson (River).]"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Geography",
+     "star": true,
+     "es": {
+      "q": "¿Dónde está la Estatua de la Libertad?",
+      "answers": [
+       "(el puerto de) Nueva York",
+       "Liberty Island"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 96,
+     "q": "Why does the flag have 13 stripes?",
+     "answers": [
+      "because there were 13 original colonies",
+      "because the stripes represent the original colonies"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Symbols",
+     "star": false,
+     "es": {
+      "q": "¿Por qué hay 13 franjas en la bandera?",
+      "answers": [
+       "porque representan las 13 colonias originales",
+       "porque las franjas representan las colonias originales"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 97,
+     "q": "Why does the flag have 50 stars?",
+     "answers": [
+      "because there is one star for each state",
+      "because each star represents a state",
+      "because there are 50 states"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Symbols",
+     "star": true,
+     "es": {
+      "q": "¿Por qué hay 50 estrellas en la bandera?",
+      "answers": [
+       "porque hay una estrella por cada estado",
+       "porque cada estrella representa un estado",
+       "porque hay 50 estados"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 98,
+     "q": "What is the name of the national anthem?",
+     "answers": [
+      "The Star-Spangled Banner"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Symbols",
+     "star": false,
+     "es": {
+      "q": "¿Cómo se llama el himno nacional?",
+      "answers": [
+       "The Star-Spangled Banner"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 99,
+     "q": "When do we celebrate Independence Day?",
+     "answers": [
+      "July 4"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Holidays",
+     "star": true,
+     "es": {
+      "q": "¿Cuándo celebramos el Día de la Independencia?",
+      "answers": [
+       "el 4 de julio"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    },
+    {
+     "n": 100,
+     "q": "Name two national U.S. holidays.",
+     "answers": [
+      "New Year’s Day",
+      "Martin Luther King, Jr. Day",
+      "Presidents’ Day",
+      "Memorial Day",
+      "Juneteenth",
+      "Independence Day",
+      "Labor Day",
+      "Columbus Day",
+      "Veterans Day",
+      "Thanksgiving",
+      "Christmas"
+     ],
+     "topic": "INTEGRATED CIVICS",
+     "subtopic": "Holidays",
+     "star": false,
+     "es": {
+      "q": "Mencione dos días feriados nacionales de Estados Unidos.",
+      "answers": [
+       "Día de Año Nuevo",
+       "Día de Martin Luther King, Jr.",
+       "Día de los Presidentes",
+       "Día de la Recordación",
+       "Día de la Independencia",
+       "Día del Trabajo",
+       "Día de la Raza (Cristóbal Colón)",
+       "Día de los Veteranos",
+       "Día de Acción de Gracias",
+       "Día de Navidad",
+       "Día de la Liberación (Juneteenth)"
+      ]
+     },
+     "topicEs": "Educación cívica integrada"
+    }
+   ]
+  }
+ },
+ "senior": {
+  "asked": 10,
+  "pass": 6,
+  "note": "65/20: 65 or older and a permanent resident for 20+ years — 10 questions from the 20 starred ones; 6 correct passes; test may be taken in the language of your choice."
+ },
+ "vocab": {
+  "reading": {
+   "source": "https://www.uscis.gov/sites/default/files/document/guides/reading_vocab.pdf",
+   "edition": "rev. 08/08",
+   "groups": {
+    "People": [
+     "Abraham Lincoln",
+     "George Washington"
+    ],
+    "Civics": [
+     "American flag",
+     "Bill of Rights",
+     "capital",
+     "citizen",
+     "city",
+     "Congress",
+     "country",
+     "Father of Our Country",
+     "government",
+     "President",
+     "right",
+     "Senators",
+     "state/states",
+     "White House"
+    ],
+    "Places": [
+     "America",
+     "United States",
+     "U.S."
+    ],
+    "Holidays": [
+     "Presidents’ Day",
+     "Memorial Day",
+     "Flag Day",
+     "Independence Day",
+     "Labor Day",
+     "Columbus Day",
+     "Thanksgiving"
+    ],
+    "Question words": [
+     "How",
+     "What",
+     "When",
+     "Where",
+     "Who",
+     "Why"
+    ],
+    "Verbs": [
+     "can",
+     "come",
+     "do/does",
+     "elects",
+     "have/has",
+     "is/are/was/be",
+     "lives/lived",
+     "meet",
+     "name",
+     "pay",
+     "vote",
+     "want"
+    ],
+    "Other (function)": [
+     "a",
+     "for",
+     "here",
+     "in",
+     "of",
+     "on",
+     "the",
+     "to",
+     "we"
+    ],
+    "Other (content)": [
+     "colors",
+     "dollar bill",
+     "first",
+     "largest",
+     "many",
+     "most",
+     "north",
+     "one",
+     "people",
+     "second",
+     "south"
+    ]
+   }
+  },
+  "writing": {
+   "source": "https://www.uscis.gov/sites/default/files/document/guides/writing_vocab.pdf",
+   "edition": "rev. 08/08",
+   "groups": {
+    "People": [
+     "Adams",
+     "Lincoln",
+     "Washington"
+    ],
+    "Civics": [
+     "American Indians",
+     "capital",
+     "citizens",
+     "Civil War",
+     "Congress",
+     "Father of Our Country",
+     "flag",
+     "free",
+     "freedom of speech",
+     "President",
+     "right",
+     "Senators",
+     "state/states",
+     "White House"
+    ],
+    "Places": [
+     "Alaska",
+     "California",
+     "Canada",
+     "Delaware",
+     "Mexico",
+     "New York City",
+     "United States",
+     "Washington",
+     "Washington, D.C."
+    ],
+    "Months": [
+     "February",
+     "May",
+     "June",
+     "July",
+     "September",
+     "October",
+     "November"
+    ],
+    "Holidays": [
+     "Presidents’ Day",
+     "Memorial Day",
+     "Flag Day",
+     "Independence Day",
+     "Labor Day",
+     "Columbus Day",
+     "Thanksgiving"
+    ],
+    "Verbs": [
+     "can",
+     "come",
+     "elect",
+     "have/has",
+     "is/was/be",
+     "lives/lived",
+     "meets",
+     "pay",
+     "vote",
+     "want"
+    ],
+    "Other (function)": [
+     "and",
+     "during",
+     "for",
+     "here",
+     "in",
+     "of",
+     "on",
+     "the",
+     "to",
+     "we"
+    ],
+    "Other (content)": [
+     "blue",
+     "dollar bill",
+     "fifty/50",
+     "first",
+     "largest",
+     "most",
+     "north",
+     "one",
+     "one hundred/100",
+     "people",
+     "red",
+     "second",
+     "south",
+     "taxes",
+     "white"
+    ]
+   }
+  }
+ }
+}

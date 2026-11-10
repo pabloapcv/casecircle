@@ -1,6 +1,8 @@
 import { evaluate, spaceById } from "./logic.js";
 
 const feesUrl = "https://www.uscis.gov/forms/filing-fees";
+export const FEE_SCHEDULE_URL = "https://www.uscis.gov/g-1055";
+const consularUrl = "https://travel.state.gov/content/travel/en/us-visas/immigrate/the-immigrant-visa-process.html";
 const legalUrl = "https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/legal-services";
 
 const text = {
@@ -59,6 +61,9 @@ const text = {
   ],
   chatLoading: ["Waiting for the language model…", "Esperando al modelo de lenguaje…"],
   chatEmpty: ["Ask a follow-up about this packet. Checklist progress is not an approval or a judgment.", "Haz una pregunta sobre este paquete. El avance de la lista no es una aprobación ni un juicio."],
+  chatAskLabel: ["Ask what to put in this folder", "Pregunta qué poner en esta carpeta"],
+  chatFollowLabel: ["Ask a follow-up about this packet", "Haz otra pregunta sobre este paquete"],
+  chatHint: ["Don't type receipt, A-, Social Security, or passport numbers. Checklist progress is not an approval or a judgment.", "No escribas números de recibo, A, Seguro Social ni pasaporte. El avance de la lista no es una aprobación ni un juicio."],
   chatError: ["The language model did not respond. You can retry. Nothing was filed.", "El modelo de lenguaje no respondió. Puedes reintentar. No se presentó nada."],
   chatBlocked: ["That question cannot be sent. Leave identifiers out.", "Esa pregunta no se puede enviar. Deja los identificadores fuera."],
   chatMockNote: ["Test-only mock reply. This is not a language-model answer.", "Respuesta de prueba solamente. No es una respuesta de un modelo de lenguaje."],
@@ -89,7 +94,7 @@ function base(form, url, extra) {
     sections: [
       section("forms", "Form, fee, and edition", "Formulario, tarifa y edición", [
         line("edition", `Download ${form} and its instructions from the official form page. Use that edition, not a copy saved from a blog or a chat.`, `Descarga el ${form} y sus instrucciones de la página oficial. Usa esa edición, no una copia de un blog o un chat.`),
-        line("fee", "Check the current fee on the USCIS fee page the same day you file. Fees change, and a wrong fee can get a packet rejected.", "Revisa la tarifa vigente en la página de USCIS el mismo día que presentes. Las tarifas cambian, y una tarifa incorrecta puede rechazar el paquete."),
+        line("fee", "Check the current fee on the USCIS fee page the same day you file. Fees change, and a wrong fee can get a packet rejected. If you mail it, pay with Form G-1450 (card) or Form G-1650 (U.S. bank account). USCIS no longer takes checks or money orders unless you qualify for Form G-1651.", "Revisa la tarifa vigente en la página de USCIS el mismo día que presentes. Las tarifas cambian, y una tarifa incorrecta puede rechazar el paquete. Si lo envías por correo, paga con el G-1450 (tarjeta) o el G-1650 (cuenta bancaria de EE. UU.). USCIS ya no acepta cheques ni giros, salvo que califiques para el G-1651."),
         line("blanks", "Answer every question on the form. If a question does not apply, follow the instructions for that blank. Do not leave out a fact to make the case look simpler.", "Responde cada pregunta. Si una no aplica, sigue las instrucciones para ese espacio. No omitas un hecho para que el caso parezca más simple."),
         line("sign", "Sign where the form asks, with the date. An unsigned form is a common reason a packet comes back.", "Firma donde el formulario lo pide, con la fecha. Un formulario sin firma es una razón común de devolución.")
       ]),
@@ -133,7 +138,7 @@ const packets = {
   "i-485": base("I-485", "https://www.uscis.gov/i-485", [
     section("basis", "Why you can adjust", "Por qué puedes ajustar", [
       line("underlying", "The folder needs the underlying petition or category the instructions name, such as a copy of the I-130 receipt or approval if that is your basis. Keep the receipt number off this website.", "La carpeta necesita la petición o categoría que nombran las instrucciones, como una copia del recibo o la aprobación del I-130 si esa es tu base. Deja el número de recibo fuera de este sitio."),
-      line("i693", "A medical exam on Form I-693 is done by a civil surgeon. The envelope stays sealed. Do not open it, and do not upload it here.", "El examen médico del I-693 lo hace un médico civil. El sobre permanece cerrado. No lo abras y no lo subas aquí."),
+      line("i693", "A civil surgeon completes Form I-693, and it is filed with the I-485. If you mail it, keep the envelope sealed. If you file online, USCIS asks you to open it, upload the form, and keep the original and envelope until a decision. Do not upload it to CaseCircle.", "Un médico civil completa el Formulario I-693, y se presenta junto con el I-485. Si lo envías por correo, deja el sobre cerrado. Si presentas en línea, USCIS te pide abrirlo, subir el formulario y guardar el original y el sobre hasta la decisión. No lo subas a CaseCircle."),
       line("i864", "If the category needs an affidavit of support, gather the sponsor's tax transcripts and the household information the I-864 instructions list. The sponsor has to qualify. A letter that invents income does not.", "Si la categoría pide una declaración de apoyo, reúne las transcripciones de impuestos del patrocinador y los datos del hogar que lista el I-864. El patrocinador tiene que calificar. Una carta que invente ingresos no sirve."),
       line("status", "Copy the passport biographic page and the current status documents the instructions ask for. Do not type the passport number here.", "Copia la página biográfica del pasaporte y los documentos de estatus que piden las instrucciones. No escribas el número de pasaporte aquí.")
     ]),
@@ -161,14 +166,15 @@ const packets = {
     section("travel", "Travel document", "Documento de viaje", [
       line("which", "Advance parole, a reentry permit, and a refugee travel document are different. Pick the one the instructions say matches your status. The wrong one does not become the right one at the airport.", "El advance parole, el permiso de reingreso y el documento de viaje de refugiado son distintos. Elige el que las instrucciones indican para tu estatus. El equivocado no se convierte en el correcto en el aeropuerto."),
       line("wait", "Do not travel on a pending advance parole unless a lawyer has told you that your specific status allows it. Leaving can abandon some applications.", "No viajes con un advance parole pendiente a menos que un abogado te haya dicho que tu estatus específico lo permite. Salir puede abandonar algunas solicitudes."),
-      line("purpose", "Explain the travel with the facts. A document is not a green card and it is not a promise that you can reenter.", "Explica el viaje con los hechos. Un documento no es la residencia y no es una promesa de que puedes volver a entrar.")
+      line("purpose", "Explain the travel with the facts. A document is not a green card and it is not a promise that you can reenter.", "Explica el viaje con los hechos. Un documento no es la residencia y no es una promesa de que puedes volver a entrar."),
+      line("hr1", "Some travel and parole documents carry an extra H.R. 1 parole fee that is due when parole is approved and cannot be waived. Read the I-131 rows of Form G-1055 for your document before you file.", "Algunos documentos de viaje y de parole tienen una tarifa extra de H.R. 1 que se paga al aprobarse y no se puede exonerar. Lee las filas del I-131 en el G-1055 para tu documento antes de presentar.")
     ])
   ])
 };
 
 const topics = [
   { test: /translat|traduc/i, title: { en: "Translations", es: "Traducciones" }, body: { en: "Put a full English translation with every document that is not in English, and a signed certificate from the translator. The translator does not have to be a lawyer. The translation has to be complete.", es: "Pon una traducción completa al inglés con cada documento que no esté en inglés, y un certificado firmado del traductor. El traductor no tiene que ser abogado. La traducción tiene que estar completa." } },
-  { test: /fee|tarifa|pago|payment/i, title: { en: "The fee", es: "La tarifa" }, body: { en: "Use the fee on the official fee page on the day you file. Do not send a fee you saw in a group chat. A fee waiver, if you qualify, is a separate form with its own evidence.", es: "Usa la tarifa de la página oficial el día que presentes. No envíes una tarifa que viste en un chat. Una exención, si calificas, es otro formulario con sus propias pruebas." }, href: feesUrl, link: { en: "USCIS filing fees", es: "Tarifas de USCIS" } },
+  { test: /fee|tarifa|pago|payment/i, title: { en: "The fee", es: "La tarifa" }, body: { en: "Use the fee on the official fee page on the day you file. Do not send a fee you saw in a group chat. A fee waiver, if you qualify, is a separate form with its own evidence. By mail, pay with Form G-1450 (card) or G-1650 (U.S. bank account); checks and money orders need a Form G-1651 exemption.", es: "Usa la tarifa de la página oficial el día que presentes. No envíes una tarifa que viste en un chat. Una exención, si calificas, es otro formulario con sus propias pruebas. Por correo, paga con el G-1450 (tarjeta) o el G-1650 (cuenta bancaria de EE. UU.); los cheques y giros requieren la exención del G-1651." }, href: feesUrl, link: { en: "USCIS filing fees", es: "Tarifas de USCIS" } },
   { test: /lawyer|attorney|abogad|acreditad|representative/i, title: { en: "When to get a lawyer", es: "Cuándo buscar un abogado" }, body: { en: "Get a lawyer or an accredited representative if you have a prior removal, a criminal record, a missed deadline, a waiver, or any fact you do not know how to disclose. CaseCircle cannot review your file.", es: "Busca un abogado o un representante acreditado si tienes una deportación previa, un récord penal, un plazo vencido, un perdón, o un hecho que no sabes cómo revelar. CaseCircle no puede revisar tu expediente." }, href: legalUrl, link: { en: "Find legal services", es: "Buscar servicios legales" } },
   { test: /rfe|evidence request|pedido de evidencia/i, title: { en: "A request for evidence", es: "Un pedido de evidencia" }, body: { en: "Read the notice for the deadline and the exact documents it names. Answer that list. Do not send a new theory of the case. Keep a copy, and do not post the notice here.", es: "Lee el aviso: el plazo y los documentos exactos que nombra. Responde esa lista. No envíes una teoría nueva del caso. Guarda una copia y no publiques el aviso aquí." } },
   { test: /interview|entrevista|civics|civic/i, title: { en: "The interview", es: "La entrevista" }, body: { en: "Bring originals that match what you filed. Answer with what happened. Study the public civics materials if the form has a civics test. Do not memorize a script that is not true.", es: "Lleva originales que coincidan con lo que presentaste. Responde con lo que pasó. Estudia los materiales públicos de civismo si el formulario tiene examen. No memorices un guion que no sea cierto." } }
@@ -185,7 +191,9 @@ export function packetFor(spaceId) {
   const space = spaceById(spaceId);
   const form = space?.forms[0] || "the form";
   const slug = String(form).toLowerCase();
-  return base(form, `https://www.uscis.gov/${slug}`, [
+  // The DS-260 is a State Department form; uscis.gov/ds-260 does not exist.
+  const url = spaceId === "consular" ? consularUrl : `https://www.uscis.gov/${slug}`;
+  return base(form, url, [
     section("evidence", "What the instructions ask for", "Lo que piden las instrucciones", [
       line("list", "Read the evidence list in the current instructions and make one paper tab for each required item. This checklist is a starting order, not a substitute for that list.", "Lee la lista de pruebas en las instrucciones vigentes y haz una pestaña de papel por cada requisito. Esta lista es un orden inicial, no un reemplazo de esa lista."),
       line("identity", "Include the identity and status copies the instructions name. Keep document numbers out of CaseCircle.", "Incluye las copias de identidad y estatus que nombran las instrucciones. Deja los números de documentos fuera de CaseCircle."),
@@ -269,25 +277,8 @@ export function calculateRiskFlags(lang, profile, folder) {
     const filed = new Date(profile.filed);
     const monthsSinceFiling = Math.round((now - filed) / (30 * 24 * 60 * 60 * 1000));
     
-    if (profile.spaceId === "i-485" && monthsSinceFiling > 6 && profile.stage === "filed") {
-      const i693ExpiryMonths = 24 - monthsSinceFiling;
-      if (i693ExpiryMonths <= 6 && i693ExpiryMonths > 0) {
-        flags.push({
-          type: "warning",
-          message: lang === "es" 
-            ? `Tu I-693 médico puede expirar en ~${i693ExpiryMonths} meses si fue hecho al presentar`
-            : `Your I-693 medical may expire in ~${i693ExpiryMonths} months if done at filing`
-        });
-      } else if (i693ExpiryMonths <= 0) {
-        flags.push({
-          type: "error",
-          message: lang === "es"
-            ? "Tu I-693 médico puede haber expirado. Puede necesitar otro examen."
-            : "Your I-693 medical may have expired. May need another exam."
-        });
-      }
-    }
-    
+    // No I-693 countdown: an I-693 signed on or after Nov. 1, 2023 stays valid while the application it was filed
+    // with is pending (USCIS Policy Manual Vol. 8, Part B, Ch. 4). Only older exams have a 2-year window.
     if (monthsSinceFiling > 18 && profile.stage !== "approved" && profile.stage !== "oath") {
       flags.push({
         type: "warning",
@@ -389,7 +380,7 @@ export const formChecklists = {
       { id: "i485-passport", en: "Passport copy (bio page)", es: "Copia de pasaporte (página biográfica)" },
       { id: "i485-birth", en: "Birth certificate + translation", es: "Acta de nacimiento + traducción" },
       { id: "i485-i94", en: "I-94 arrival record", es: "Registro de llegada I-94" },
-      { id: "i485-i693", en: "I-693 medical (sealed)", es: "I-693 médico (sellado)" }
+      { id: "i485-i693", en: "I-693 medical (sealed if mailing, uploaded if filing online)", es: "I-693 médico (sellado si lo envías por correo, subido si presentas en línea)" }
     ],
     conditional: [
       { id: "i485-i130", en: "I-130 approval or receipt (family-based)", es: "Aprobación o recibo de I-130 (basado en familia)", condition: "family" },
@@ -406,7 +397,7 @@ export const formChecklists = {
   "i-765": {
     required: [
       { id: "i765-form", en: "Form I-765 completed and signed", es: "Formulario I-765 completado y firmado" },
-      { id: "i765-fee", en: "Filing fee or included with I-485", es: "Tarifa o incluido con I-485" },
+      { id: "i765-fee", en: "Filing fee from the current USCIS fee schedule. If your I-485 was filed on or after Apr. 1, 2024, the I-765 has its own fee. It is not included.", es: "Tarifa según la tabla vigente de USCIS. Si tu I-485 se presentó desde el 1 de abril de 2024, el I-765 tiene su propia tarifa. No está incluida." },
       { id: "i765-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" },
       { id: "i765-id", en: "Copy of ID document", es: "Copia de documento de identidad" }
     ],
@@ -420,15 +411,16 @@ export const formChecklists = {
     required: [
       { id: "n400-form", en: "Form N-400 completed and signed", es: "Formulario N-400 completado y firmado" },
       { id: "n400-fee", en: "Filing fee", es: "Tarifa de presentación" },
-      { id: "n400-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" },
       { id: "n400-gc", en: "Copy of green card (front and back)", es: "Copia de tarjeta verde (frente y dorso)" }
     ],
     conditional: [
       { id: "n400-trips", en: "List of trips outside US", es: "Lista de viajes fuera de EEUU", condition: "travel" },
-      { id: "n400-taxes", en: "Tax transcripts for required years", es: "Transcripciones de impuestos de años requeridos", condition: "taxes" },
+      { id: "n400-taxes", en: "IRS tax transcripts (3-year path, trips over 6 months, or taxes owed)", es: "Transcripciones de impuestos del IRS (vía de 3 años, viajes de más de 6 meses o impuestos adeudados)", condition: "taxes" },
+      { id: "n400-marital", en: "Marriage certificate and proof that any prior marriage ended (if you are or were married)", es: "Acta de matrimonio y prueba de que terminó cualquier matrimonio anterior (si estás o estuviste casado)", condition: "marital" },
       { id: "n400-arrest", en: "Court records if any arrests", es: "Registros judiciales si hay arrestos", condition: "arrests" }
     ],
     optional: [
+      { id: "n400-photos", en: "2 passport-style photos, only if you live outside the U.S. (see the N-400 instructions)", es: "2 fotos tamaño pasaporte, solo si vives fuera de EE. UU. (ver las instrucciones del N-400)" },
       { id: "n400-civics", en: "Civics study materials", es: "Materiales de estudio de civismo" }
     ]
   },
@@ -468,11 +460,11 @@ export const formChecklists = {
   "i-131": {
     required: [
       { id: "i131-form", en: "Form I-131 completed and signed", es: "Formulario I-131 completado y firmado" },
-      { id: "i131-fee", en: "Filing fee (or included with a pending I-485 if the instructions say so)", es: "Tarifa (o incluida con un I-485 pendiente si las instrucciones lo dicen)" },
-      { id: "i131-id", en: "Copy of a government photo ID", es: "Copia de una identificación con foto" },
-      { id: "i131-photos", en: "2 passport-style photos", es: "2 fotos tamaño pasaporte" }
+      { id: "i131-fee", en: "Filing fee from the current fee schedule. A pending I-485 filed on or after Apr. 1, 2024 does not cover the I-131. It has its own fee.", es: "Tarifa según la tabla vigente. Un I-485 pendiente presentado desde el 1 de abril de 2024 no cubre el I-131. Tiene su propia tarifa." },
+      { id: "i131-id", en: "Copy of a government photo ID", es: "Copia de una identificación con foto" }
     ],
     conditional: [
+      { id: "i131-photos", en: "2 passport-style photos (advance parole or TPS travel authorization from inside the U.S.)", es: "2 fotos tamaño pasaporte (advance parole o autorización de viaje de TPS desde EE. UU.)", condition: "parole" },
       { id: "i131-pending", en: "Receipt notice of the pending I-485", es: "Recibo del I-485 pendiente", condition: "pending" },
       { id: "i131-gc", en: "Copy of the green card (reentry permit)", es: "Copia de la tarjeta de residencia (permiso de reingreso)", condition: "reentry" },
       { id: "i131-refugee", en: "Proof of refugee or asylee status", es: "Prueba de estatus de refugiado o asilado", condition: "refugee" }

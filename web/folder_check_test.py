@@ -225,3 +225,46 @@ class ProcessingTimesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EditionTableTests(unittest.TestCase):
+    def test_table_has_the_verified_editions(self):
+        table = folder_check.load_editions()
+        self.assertEqual(table["forms"]["I-485"]["accepted"], ["09/18/26"])
+        self.assertIn("01/20/25", table["forms"]["I-485"]["rejected"])
+        for form, row in table["forms"].items():
+            self.assertTrue(row["url"].startswith("https://www.uscis.gov/"), form)
+            self.assertTrue(row["accepted"], form)
+
+    def test_check_edition_verdicts(self):
+        self.assertEqual(folder_check.check_edition("I-485", "09/18/26")[0], "ok")
+        self.assertEqual(folder_check.check_edition("i-485", "1/20/2025")[0], "rejected")
+        self.assertEqual(folder_check.check_edition("I-485", "09/04/26")[0], "unlisted")
+        self.assertEqual(folder_check.check_edition("I-765", "09/15/26")[0], "rejected")
+        self.assertEqual(folder_check.check_edition("I-693", "03/09/23")[0], "ok")
+        self.assertEqual(folder_check.check_edition("I-999", "01/01/20")[0], "unknown_form")
+
+    def test_footer_detection_and_findings(self):
+        self.assertEqual(folder_check.find_edition("Form I-485 Edition 09/18/26 Page 1 of 20", ""), ("I-485", "09/18/26"))
+        self.assertIsNone(folder_check.edition_finding("Form I-485 Edition 09/18/26 Page 1 of 20", "I-485"))
+        old = folder_check.edition_finding("Form I-485 Edition 01/20/25 Page 3 of 20", "I-485")
+        self.assertEqual((old["code"], old["severity"]), ("wrong_edition", "high"))
+        self.assertIn("09/18/26", old["message"])
+        es = folder_check.edition_finding("Form I-485 Edition 01/20/25 Page 3 of 20", "I-485", "es")
+        self.assertIn("Descarga", es["fix"])
+        odd = folder_check.edition_finding("Form I-485 Edition 09/04/26 Page 1 of 20", "I-485")
+        self.assertEqual(odd["severity"], "medium")
+
+    def test_table_overrides_model_edition_findings(self):
+        payload = {"text": "Form N-400 Edition 01/20/25 Page 1 of 14", "form": "N-400", "lang": "en"}
+        model = {"status": "possible_issue", "findings": [{"code": "wrong_edition", "severity": "high", "message": "old", "fix": "x"}]}
+        cleaned = folder_check.apply_edition_table(model, payload)
+        self.assertEqual(cleaned["findings"], [])
+        stale = folder_check.apply_edition_table({"status": "matches", "findings": []},
+                                                 {**payload, "text": "Form I-485 Edition 01/20/25 Page 1 of 20", "form": "I-485"})
+        self.assertEqual(stale["status"], "possible_issue")
+        self.assertEqual(stale["findings"][0]["code"], "wrong_edition")
+
+    def test_prompt_lists_accepted_editions(self):
+        prompt = folder_check.check_system_prompt("en")
+        self.assertIn("09/18/26", prompt)

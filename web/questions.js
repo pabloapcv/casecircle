@@ -166,7 +166,7 @@ const groups = [
       {
         id: "medical-expiration",
         q: ["How long is the immigration medical exam good for?", "¿Cuánto tiempo vale el examen médico de inmigración?"],
-        a: ["The sealed medical form has its own rules, and they change. Read the current Form I-693 page for how long an exam can sit before you file, and do not open the envelope. A clinic's date is not USCIS's date.", "El formulario médico sellado tiene sus propias reglas, y cambian. Lee la página vigente del I-693 para ver cuánto puede esperar un examen antes de presentar, y no abras el sobre. La fecha de una clínica no es la fecha de USCIS."]
+        a: ["Per the USCIS Policy Manual (Vol. 8, Part B, Ch. 4), an I-693 signed by the civil surgeon on or after Nov. 1, 2023 stays valid for as long as the application it was filed with is pending; a later application needs a new exam. An exam signed before Nov. 1, 2023 is valid for 2 years from the signature. By mail, keep the envelope sealed; if you file the I-485 online, USCIS asks you to open it, upload the form, and keep the original and envelope. Check uscis.gov/i-693 before you file.", "Según el Manual de Políticas de USCIS (Vol. 8, Parte B, Cap. 4), un I-693 firmado por el médico civil desde el 1 de noviembre de 2023 vale mientras siga pendiente la solicitud con la que se presentó; una solicitud posterior necesita un examen nuevo. Un examen firmado antes del 1 de noviembre de 2023 vale 2 años desde la firma. Por correo, deja el sobre cerrado; si presentas el I-485 en línea, USCIS te pide abrirlo, subir el formulario y guardar el original y el sobre. Revisa uscis.gov/i-693 antes de presentar."]
       },
       {
         id: "premium-not-adjustment",
@@ -448,13 +448,13 @@ const pricingCopy = {
   freeTitle: ["Free", "Gratis"],
   freePrice: ["$0", "$0"],
   freeBody: [
-    "Feed, Check the wait, checklists, common questions, and a small monthly allowance of Ask-the-posts questions.",
-    "Inicio, Ver la espera, listas, preguntas comunes y un cupo mensual pequeño de Pregunta a las publicaciones."
+    "Folder builder, Check the wait, the community, common questions, general interview tips, and a small monthly allowance of Ask-the-posts questions.",
+    "Armador de carpetas, Ver la espera, la comunidad, preguntas comunes, consejos generales de entrevista y un cupo mensual pequeño de Pregunta a las publicaciones."
   ],
   passTitle: ["Case Pass", "Case Pass"],
   passBody: [
-    "One-time, per case, for 12 months: unlimited folder chat, printable bilingual checklist, interview prep pack, and wait alerts.",
-    "Una sola vez, por caso, por 12 meses: chat de carpeta ilimitado, lista bilingüe imprimible, paquete de entrevista y alertas de espera."
+    "One-time, per case, for 12 months: Interview practice, Civics practice, unlimited folder chat, printable bilingual checklist, and wait alerts.",
+    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, chat de carpeta ilimitado, lista bilingüe imprimible y alertas de espera."
   ],
   passComing: ["Coming soon — Join the waitlist", "Próximamente — Únete a la lista de espera"],
   waitlistHelp: ["No checkout yet. Leave your email and we will write once when Case Pass is ready. We never charge you from this page.", "Aún no hay pago. Deja tu correo y te escribiremos una vez cuando Case Pass esté listo. Nunca te cobramos desde esta página."],
@@ -568,8 +568,8 @@ const interviewTipsData = {
       es: { title: "Responde con la verdad y de manera concisa", body: "Escucha la pregunta, respóndela directamente y detente. No ofrezcas información extra. Si no entiendes, pide aclaración." }
     },
     {
-      en: { title: "If married, both spouses usually attend", body: "For marriage-based cases, expect questions about your relationship: how you met, daily life, finances, and future plans." },
-      es: { title: "Si están casados, ambos esposos usualmente asisten", body: "Para casos basados en matrimonio, espera preguntas sobre su relación: cómo se conocieron, vida diaria, finanzas y planes futuros." }
+      en: { title: "Family-based: the petitioner usually comes too", body: "USCIS generally requires the I-130 petitioner to appear with the applicant at a family-based adjustment interview (USCIS Policy Manual, Vol. 7, Part A, Ch. 5). The officer checks that you understood the questions on your forms and lets you correct answers that were wrong or have changed." },
+      es: { title: "Por familia: el peticionario suele asistir", body: "USCIS generalmente requiere que el peticionario del I-130 se presente con el solicitante en la entrevista de ajuste por familia (Manual de Políticas de USCIS, Vol. 7, Parte A, Cap. 5). El oficial verifica que entendiste las preguntas de tus formularios y te deja corregir respuestas equivocadas o que cambiaron." }
     },
     {
       en: { title: "Dress professionally", body: "Business casual is appropriate. You don't need a suit, but avoid very casual clothing. This shows respect for the process." },
@@ -578,8 +578,8 @@ const interviewTipsData = {
   ],
   "n-400": [
     {
-      en: { title: "Study the civics test materials", body: "You'll be asked up to 10 civics questions and need to answer 6 correctly. USCIS publishes the exact questions—study them." },
-      es: { title: "Estudia los materiales del examen de civismo", body: "Te harán hasta 10 preguntas de civismo y necesitas responder 6 correctamente. USCIS publica las preguntas exactas—estúdialas." }
+      en: { title: "Study the civics test materials", body: "If you filed on or after Oct. 20, 2025, the officer asks up to 20 questions from the 128-question list, and you pass with 12 correct. If you filed before that date, it is up to 10 questions from the 100-question list, and 6 correct passes. USCIS publishes both lists." },
+      es: { title: "Estudia los materiales del examen de civismo", body: "Si presentaste el 20 de octubre de 2025 o después, el oficial hace hasta 20 preguntas de la lista de 128 y apruebas con 12 correctas. Si presentaste antes, son hasta 10 de la lista de 100 y apruebas con 6. USCIS publica ambas listas." }
     },
     {
       en: { title: "Bring your green card and ID", body: "You'll need your green card, state ID or driver's license, and any travel documents. Bring your passport if you have one." },

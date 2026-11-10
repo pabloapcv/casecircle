@@ -709,7 +709,7 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
     grid-template-areas: "nav items chat";
     gap: 24px;
   }
-  .prepare-grid > .chat-panel { position: sticky; top: calc(var(--header-h) + 24px); max-height: calc(100vh - var(--header-h) - 40px); overflow-y: auto; scrollbar-width: thin; }
+  .prepare-grid > .chat-panel { align-self: start; }
 }
 @media (max-width: 699px) {
   .prepare-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "nav" "items" "chat"; }
@@ -729,11 +729,17 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .chat-panel > .footer-note { font-size: 0.75rem; }
 .chat-consent { display: flex; gap: 10px; align-items: flex-start; padding: 0; border: 0; background: none; }
 .chat-consent span { font-size: 0.8125rem; line-height: 1.45; font-weight: 400; }
+/* The panel fits its content: nothing in it may shrink (a shrinking flex child with overflow clips lines). */
+.chat-panel { min-width: 0; overflow-wrap: anywhere; }
+.chat-panel > * { flex-shrink: 0; min-width: 0; }
 .chat-log {
   display: flex; flex-direction: column; gap: 10px;
-  max-height: min(40vh, 300px); overflow: auto;
+  max-height: min(60vh, 480px); min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: 12px; border-radius: var(--radius-card); background: var(--ground);
 }
+.chat-log > * { flex-shrink: 0; }
+/* Below the 3-column layout the panel sits in the page flow: let the conversation grow with the page. */
+@media (max-width: 1099px) { .chat-log { max-height: none; overflow: visible; } }
 .chat-log:empty { display: none; }
 .chat-log > .muted { margin: 0; font-size: 0.875rem; }
 .chat-msg { padding: 0; border: 0; background: none; }
@@ -746,7 +752,9 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .chat-unavailable p { margin: 0; }
 .chat-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .chat-actions .btn, .chat-actions .btn-secondary { flex: 1 1 100%; }
-#chat-q { min-height: 72px; }
+#chat-q { min-height: 88px; width: 100%; resize: vertical; }
+.chat-composer label { font-weight: 600; }
+.chat-hint { margin: 0; font-size: 0.75rem; font-weight: 400; line-height: 1.45; color: var(--secondary); }
 
 /* Checklists (RFE, marriage evidence) */
 .checklist { display: flex; flex-direction: column; }
@@ -987,7 +995,7 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .builder-solo { max-width: 46rem; }
 @media (min-width: 1100px) {
   .builder-grid { grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
-  .builder-grid > .chat-panel { position: sticky; top: calc(var(--header-h) + 24px); max-height: calc(100vh - var(--header-h) - 40px); overflow-y: auto; scrollbar-width: thin; }
+  .builder-grid > .chat-panel { align-self: start; }
 }
 
 /* ───────── Readiness ───────── */
@@ -1254,3 +1262,51 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
   .settings-card { padding: 18px; border-radius: var(--radius-card); }
   .verify-actions { width: 100%; }
 }
+
+/* ───────── Extras: interview practice + civics practice ───────── */
+.extras-notice { margin: 4px 0 16px; padding: 10px 14px; border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--line); color: var(--secondary); font-size: 0.875rem; }
+.extras-section { margin: 8px 0 24px; }
+.extras-banner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0 0 16px; padding: 12px 14px; border-radius: var(--radius-card); background: var(--accent-soft); color: var(--accent-deep); }
+.extras-banner .muted { flex-basis: 100%; font-size: 0.875rem; color: var(--accent-deep); }
+.extras-banner .pill { background: var(--surface); }
+.extras-locked { border: 1px dashed var(--chip-line); }
+.extras-locked .kicker { display: flex; align-items: center; gap: 6px; }
+.extras-body h3 { margin-top: 28px; }
+.check-inline { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; font-size: 0.9375rem; cursor: pointer; }
+.check-inline input { width: 18px; height: 18px; }
+.practice-card { margin: 12px 0; }
+.practice-q, .civics-q { font-size: 1.125rem; font-weight: 600; margin: 6px 0; overflow-wrap: anywhere; }
+.practice-q.other { font-weight: 400; color: var(--secondary); font-size: 1rem; }
+.practice-all { margin: 12px 0; }
+.practice-all summary, .civics-study summary { cursor: pointer; }
+.practice-all li { margin: 10px 0; }
+.bring-list, .cited-tips { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
+.bring-item { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.bring-item .pill { margin-left: 6px; }
+.cited-tip p { margin: 0 0 6px; }
+.civics-picker { margin: 0 0 20px; }
+.civics-picker input[type="date"] { max-width: 220px; }
+.civics-modes { margin-bottom: 12px; }
+.civics-answer ul { margin: 6px 0 10px; padding-left: 20px; }
+.changes-flag { margin: 10px 0; padding: 10px 12px; border-radius: var(--radius-card); background: var(--amber-soft); color: var(--ink); font-size: 0.9375rem; }
+.changes-flag strong:first-child { color: var(--amber); display: block; }
+.changes-flag p { margin: 4px 0; }
+.study-aid { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--ground); }
+.study-aid .kicker { font-size: 0.75rem; }
+.score-line { font-weight: 600; }
+.result-pass { background: var(--accent-soft); }
+.result-fail { background: var(--amber-soft); }
+.topic-chips { margin-bottom: 12px; }
+.civics-study { padding: 12px 16px; }
+.civics-study summary .civics-q { display: inline; }
+.flashcard { min-height: 180px; }
+.vocab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.vocab h4 { margin: 12px 0 4px; font-size: 0.875rem; color: var(--secondary); }
+.vocab-words { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.vocab-words span { padding: 2px 10px; border-radius: var(--radius-chip); border: 1px solid var(--line); background: var(--surface); font-size: 0.875rem; }
+.civics-picker h2 { margin-top: 0; }
+.civics-study summary { list-style: none; position: relative; padding-right: 28px; }
+.civics-study summary::-webkit-details-marker { display: none; }
+.civics-study summary::after { content: "+"; position: absolute; right: 0; top: 0; font-size: 1.25rem; color: var(--accent); }
+.civics-study[open] summary::after { content: "−"; }
+.practice-all summary { font-weight: 600; color: var(--accent-deep); }

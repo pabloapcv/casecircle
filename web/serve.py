@@ -5,6 +5,7 @@ GET  /healthz               health check (also opens the SQLite database)
 GET  /api/folder-chat       chat availability          POST /api/folder-chat   folder chat (SSE)
 GET  /api/ai-status         provider + Demo AI flag    POST /api/folder-check  one document vs one checklist item
 GET  /api/processing-times  official times (cached)    POST /api/folder-plan   tailor the checklist
+GET  /api/extras, /api/extras/civics, /api/extras/interview   extras (signed-in, trial or pass; extras.py)
 /api/me, /api/signup, /api/login, /api/logout, /api/posts…, /api/vote, /api/report, /api/mod…, /api/waitlist
                             accounts + community + waitlist (community.py, SQLite)
 
@@ -19,6 +20,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 import community
+import extras  # noqa: F401  (registers /api/extras* on community.GET_ROUTES)
 import folder_chat
 import mailer
 import folder_check
@@ -75,7 +77,7 @@ class Handler(SimpleHTTPRequestHandler):
             return True  # server code (and its prompts) and dotfiles are never served as static files
         if name.endswith((".db", ".sqlite", ".sqlite3", "-wal", "-shm", "-journal")):
             return True  # the community database
-        if "/data/cache/" in path or "/data/outbox/" in path or "__pycache__" in path or "/." in path or "/scripts/" in path:
+        if "/data/cache/" in path or "/data/premium/" in path or "/data/outbox/" in path or "__pycache__" in path or "/." in path or "/scripts/" in path:
             return True
         return False
 

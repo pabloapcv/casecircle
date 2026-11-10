@@ -32,7 +32,8 @@ const ERROR_KEYS = {
   ssn: "errIdentifiers", passport: "errIdentifiers", abuse: "errAbuse", already: "errAlready", self: "errSelf",
   csrf: "errServer", not_found: "errNotFound", closed: "errClosed", offline: "errOffline",
   password_common: "errPasswordCommon", mismatch: "errMismatch", token: "errToken", current: "errCurrent",
-  same_email: "errSameEmail", confirm: "errConfirm", unverified: "errUnverified"
+  same_email: "errSameEmail", confirm: "errConfirm", unverified: "errUnverified",
+  unconfirmed: "errUnconfirmed"
 };
 
 export function errorKey(code) {
@@ -46,4 +47,21 @@ export function feedKey(params = {}) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
     .join("&");
+}
+
+/* Email links: #verify=TOKEN / #reset=TOKEN (built-in accounts) or Supabase's #access_token=…&type=… fragment. */
+export function parseEmailLink(hash) {
+  const match = /^#(verify|reset)=([A-Za-z0-9_-]{20,200})$/.exec(hash || "");
+  if (match) return { kind: match[1], token: match[2] };
+  if (!/^#(access_token|error|message)=/.test(hash || "")) return null;
+  const params = new URLSearchParams(String(hash).slice(1));
+  if (params.get("error") || params.get("error_code")) return { kind: "error" };
+  if (params.get("message") && !params.get("access_token")) return { kind: "message" };
+  const token = params.get("access_token") || "";
+  const refresh = params.get("refresh_token") || "";
+  const type = params.get("type") || "";
+  if (!/^[A-Za-z0-9._-]{20,4096}$/.test(token)) return null;
+  if (type === "recovery") return { kind: "reset", token };
+  if (!/^[A-Za-z0-9_-]{1,512}$/.test(refresh)) return null;
+  return { kind: "verify", token, refresh, type };
 }

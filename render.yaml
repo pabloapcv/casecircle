@@ -1,4 +1,5 @@
-# CaseCircle web app on Render: one Python web service (stdlib only) + a persistent disk for SQLite.
+# CaseCircle web app on Render: one Python web service (stdlib only). With SUPABASE_URL set, accounts and posts live
+# in Supabase and the disk below is not needed; without it they live in SQLite on the persistent disk.
 # Persistent disks need a paid instance type and keep the service at a single instance (no zero-downtime deploys).
 services:
   - type: web
@@ -23,7 +24,11 @@ services:
         value: "1"
       - key: CASECIRCLE_COOKIE_SECURE
         value: "1"
-      - key: CASECIRCLE_ADMIN_EMAILS
+      - key: SUPABASE_URL              # https://<project-ref>.supabase.co — accounts + data live in Supabase
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY  # sb_publishable_… (public key; never a secret/service-role key)
+        sync: false
+      - key: CASECIRCLE_ADMIN_EMAILS   # SQLite mode only; with Supabase, admin is accounts.is_admin
         sync: false
       - key: CASECIRCLE_PUBLIC_ORIGIN   # e.g. https://casecircle.app — builds the links in emails
         sync: false

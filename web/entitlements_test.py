@@ -10,6 +10,9 @@ import entitlements
 import community_test as ct
 from community_test import Client
 
+for _name in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"):
+    os.environ.pop(_name, None)  # this suite tests the offline SQLite backend
+
 
 def row(**kw):
     base = {"id": 1, "email": "a@example.com", "email_verified": 1, "trial_started_at": None, "pass_until": None}

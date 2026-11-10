@@ -1418,6 +1418,8 @@ POST_ITEM = re.compile(r"^/api/posts/(p?\d{1,12})(?:/(replies|save|helpful))?$")
 
 
 def handles(method: str, path: str) -> bool:
+    if supabase():
+        return supabase().handles(method, path)
     if method == "GET":
         return path in GET_ROUTES or bool(POST_ITEM.match(path) and not POST_ITEM.match(path).group(2))
     if method == "POST":

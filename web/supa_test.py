@@ -61,6 +61,7 @@ class FakeSupabase:
         self.google_on = True
         self.codes = {}       # PKCE auth code -> (email, code_challenge)
         self.rpc_missing = False
+        self.twins = {}       # (user id, form) -> {form, office_id, filed_month, created}
 
     def add_user(self, email, password, handle, confirmed=True, admin=False, trial_age_days=0.0, pass_until=None):
         uid = f"00000000-0000-0000-0000-{len(self.users) + 1:012d}"
@@ -169,6 +170,40 @@ class FakeSupabase:
                 row["profiles"]["handle"] = data["p_handle"]
                 row.update(locale=data["p_locale"], spaces=data["p_spaces"], trial_started_at=iso(datetime.now(timezone.utc)))
                 return 204, b"", {}
+            if table == "twin_optins":
+                if self.rpc_missing:
+                    return out(404, {"code": "PGRST205", "message": "Could not find the table"})
+                uid = supa.jwt_claims(token).get("sub")
+                if method == "POST":
+                    assert q.get("on_conflict") == "user_id,form" and "merge-duplicates" in headers.get("Prefer", "")
+                    assert set(data) == {"form", "office_id", "filed_month"}, data
+                    key = (uid, data["form"])
+                    self.seq += 1
+                    self.twins[key] = {**data, "created": self.twins.get(key, {}).get("created", self.seq)}
+                    return 201, b"", {}
+                if method == "DELETE":
+                    form = q.get("form", "").removeprefix("eq.")
+                    for key in [k for k in self.twins if k[0] == uid and (not form or k[1] == form)]:
+                        del self.twins[key]
+                    return 204, b"", {}
+            if table == "my_case_twins" and method == "POST":
+                if self.rpc_missing:
+                    return out(404, {"code": "PGRST202", "message": "Could not find the function"})
+                uid = supa.jwt_claims(token).get("sub")
+                handle = lambda u: self.accounts[u]["profiles"]["handle"]
+                rows = []
+                for (owner, form), mine in sorted(self.twins.items()):
+                    if owner != uid:
+                        continue
+                    others = sorted(((r["created"], o) for (o, f), r in self.twins.items() if o != uid and f == form
+                                     and r["office_id"] == mine["office_id"] and r["filed_month"] == mine["filed_month"]),
+                                    reverse=True)
+                    n = len(others)   # same buckets as public.my_case_twins()
+                    shown = 0 if n < 2 else n if n < 10 else (n // 10) * 10 if n < 50 else 50
+                    rows.append({"form": form, "office_id": mine["office_id"], "filed_month": mine["filed_month"][:7],
+                                 "others": shown, "plus": (n >= 10 and n % 10 != 0) or n > 50,
+                                 "handles": [handle(o) for _, o in others[:9]] if n >= 2 else []})
+                return out(200, rows)
             if table == "accounts" and method == "DELETE":
                 uid = supa.jwt_claims(token).get("sub")
                 self.accounts.pop(uid, None)
@@ -596,6 +631,82 @@ class SupabaseBackendTest(unittest.TestCase):
             os.environ.pop(name, None)
         status, location, _ = Client(self.base).get_redirect("/api/auth/google")
         self.assertEqual((status, location), (302, "/?signin_error=google_off"))
+
+    # ── Case twins ──
+    def twin(self, client, **extra):
+        body = {"form": "I-485", "officeId": "miami", "month": "2026-03", **extra}
+        return client.call("POST", "/api/twins", body)
+
+    def test_twins_need_an_account(self):
+        anon = Client(self.base)
+        self.assertEqual(anon.call("GET", "/api/twins")[0], 401)
+        self.assertEqual(self.twin(anon)[0], 401)
+        self.assertEqual(anon.call("POST", "/api/twins/off", {})[0], 401)
+
+    def test_twins_counts_hide_a_single_other_and_never_leak_private_fields(self):
+        names = ["ana_m", "ben_k", "cara_v", "dan_p"]
+        clients = []
+        for i, handle in enumerate(names):
+            self.fake.add_user(f"{handle}@example.com", "correct horse 1", handle)
+            clients.append(self.login(f"{handle}@example.com")[0])
+        status, body = self.twin(clients[0])
+        self.assertEqual(status, 200)
+        self.assertEqual(body["cohorts"], [{"form": "I-485", "officeId": "miami", "month": "2026-03", "others": 0,
+                                            "plus": False, "handles": []}])
+        self.twin(clients[1])
+        _, body = clients[0].call("GET", "/api/twins")
+        self.assertEqual((body["cohorts"][0]["others"], body["cohorts"][0]["handles"]), (0, []))   # 1 other: "be the first"
+        self.twin(clients[2])
+        self.twin(clients[3], month="2026-04")   # different month: not a twin
+        _, body = clients[0].call("GET", "/api/twins")
+        cohort = body["cohorts"][0]
+        self.assertEqual(cohort["others"], 2)
+        self.assertEqual(sorted(cohort["handles"]), ["ben_k", "cara_v"])
+        raw = json.dumps(body)
+        for secret in ("@example.com", "00000000-", "password", "2026-03-01"):
+            self.assertNotIn(secret, raw)
+        # Turning it off removes you from everyone else's matches.
+        status, body = clients[2].call("POST", "/api/twins/off", {"form": "I-485"})
+        self.assertEqual((status, body["cohorts"]), (200, []))
+        _, body = clients[0].call("GET", "/api/twins")
+        self.assertEqual((body["cohorts"][0]["others"], body["cohorts"][0]["handles"]), (0, []))
+
+    def test_twins_rough_counts(self):
+        self.assertEqual(supa._twins_payload.__name__, "_twins_payload")
+        self.fake.add_user("me@example.com", "correct horse 1", "me_one")
+        me, _, _ = self.login("me@example.com")
+        self.twin(me)
+        for i in range(23):
+            uid = self.fake.add_user(f"t{i}@example.com", "correct horse 1", f"twin_{i}")
+            self.fake.twins[(uid, "I-485")] = {"form": "I-485", "office_id": "miami", "filed_month": "2026-03-01", "created": i}
+        _, body = me.call("GET", "/api/twins")
+        cohort = body["cohorts"][0]
+        self.assertEqual((cohort["others"], cohort["plus"], len(cohort["handles"])), (20, True, 9))
+
+    def test_twins_validation(self):
+        self.fake.add_user("ana@example.com", "correct horse 1", "ana_m")
+        client, _, _ = self.login()
+        future = datetime.now(timezone.utc) + timedelta(days=40)
+        cases = [({"form": "I 485"}, "twin_form"), ({"form": "<b>"}, "twin_form"), ({"officeId": "unsure"}, "twin_office"),
+                 ({"officeId": "mars"}, "twin_office"), ({"month": "2026-3"}, "twin_month"),
+                 ({"month": f"{future.year}-{future.month:02d}"}, "twin_month"), ({"month": "2026-03-14"}, "twin_month")]
+        for extra, error in cases:
+            status, body = self.twin(client, **extra)
+            self.assertEqual((status, body["error"]), (400, error), extra)
+        self.assertEqual(self.fake.twins, {})
+        status, body = self.twin(client, form="i-485")   # normalised
+        self.assertEqual((status, body["cohorts"][0]["form"]), (200, "I-485"))
+
+    def test_twins_hidden_until_migration_and_for_unfinished_google_signups(self):
+        self.fake.add_user("ana@example.com", "correct horse 1", "ana_m")
+        client, _, _ = self.login()
+        self.fake.rpc_missing = True
+        self.assertEqual(client.call("GET", "/api/twins")[1], {"available": False, "cohorts": []})
+        self.assertEqual(self.twin(client)[0], 503)
+        self.fake.rpc_missing = False
+        google, _, _ = self.google_sign_in("gina@gmail.com")
+        self.assertEqual(google.call("GET", "/api/twins")[0], 401)
+        self.assertEqual(self.twin(google)[0], 401)
 
 
 if __name__ == "__main__":

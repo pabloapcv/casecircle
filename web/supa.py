@@ -1263,10 +1263,92 @@ def api_complete_profile(handler, user, data):
     return 201, {"user": public_user(fresh)}
 
 
+
+# ───────────────────────── Case twins (opt-in cohort matching) ─────────────────────────
+#
+# Rows live in public.twin_optins (RLS: only your own). Counts and handles of the others only come from
+# public.my_case_twins() (SECURITY DEFINER, aggregates only; fewer than 2 others reads as 0). Free for everyone
+# signed in; signed-out visitors just see a teaser in the page.
+
+TWIN_OFFICES = {"vsc", "csc", "nsc", "tsc", "psc", "nbc", "nyc", "los-angeles", "miami", "chicago", "houston",
+                "boston", "seattle", "atlanta", "dallas"}   # logic.js offices, minus "unsure"
+TWIN_FORM_RE = __import__("re").compile(r"^[A-Z]{1,3}-[0-9]{2,4}[A-Z]?$")
+TWIN_MONTH_RE = __import__("re").compile(r"^(20[0-9]{2})-(0[1-9]|1[0-2])$")
+
+
+def _twins_payload(user: dict[str, Any]) -> dict[str, Any]:
+    try:
+        rows = rest("POST", "rpc/my_case_twins", token=tok(user), body={})
+    except cc.ApiError as error:
+        if error.status == 404:   # migration not applied yet: hide the feature
+            return {"available": False, "cohorts": []}
+        raise
+    cohorts = []
+    for row in rows if isinstance(rows, list) else []:
+        others = int(row.get("others") or 0)
+        cohorts.append({
+            "form": str(row.get("form") or ""), "officeId": str(row.get("office_id") or ""),
+            "month": str(row.get("filed_month") or ""),
+            "others": others if others >= 2 else 0,          # never "1 other person"
+            "plus": bool(row.get("plus")) and others >= 2,
+            "handles": [str(h) for h in (row.get("handles") or [])][:9] if others >= 2 else [],
+        })
+    return {"available": True, "cohorts": cohorts}
+
+
+def api_twins(handler, user, _q):
+    cc.require_user(user)
+    return 200, _twins_payload(user)
+
+
+def clean_twin(data: dict[str, Any]) -> tuple[str, str, str]:
+    form = str(data.get("form") or "").strip().upper()[:12]
+    office = str(data.get("officeId") or "").strip().lower()[:24]
+    month = str(data.get("month") or "").strip()[:16]
+    if not TWIN_FORM_RE.match(form):
+        raise cc.ApiError(400, "twin_form")
+    if office not in TWIN_OFFICES:
+        raise cc.ApiError(400, "twin_office")
+    match = TWIN_MONTH_RE.match(month)
+    now = datetime.now(timezone.utc)
+    if not match or (int(match.group(1)), int(match.group(2))) > (now.year, now.month):
+        raise cc.ApiError(400, "twin_month")
+    return form, office, f"{month}-01"
+
+
+def api_twins_on(handler, user, data):
+    cc.require_user(user)
+    if cc.rate_hit("account", f"u{user['id']}"):
+        raise cc.ApiError(429, "rate")
+    form, office, month = clean_twin(data)
+    try:
+        rest("POST", "twin_optins", token=tok(user), params={"on_conflict": "user_id,form"},
+             body={"form": form, "office_id": office, "filed_month": month},
+             prefer="resolution=merge-duplicates,return=minimal")
+    except cc.ApiError as error:
+        if error.status == 404:
+            raise cc.ApiError(503, "server") from None
+        raise
+    return 200, _twins_payload(user)
+
+
+def api_twins_off(handler, user, data):
+    """Removes you from matching (one form, or every form when none is given)."""
+    cc.require_user(user)
+    form = str(data.get("form") or "").strip().upper()[:12]
+    params = {"form": f"eq.{form}"} if form and TWIN_FORM_RE.match(form) else {"user_id": f"eq.{user['id']}"}
+    try:
+        rest("DELETE", "twin_optins", token=tok(user), params=params, prefer="return=minimal")
+    except cc.ApiError as error:
+        if error.status != 404:
+            raise
+    return 200, _twins_payload(user)
+
+
 # ───────────────────────── router ─────────────────────────
 
 GET_ROUTES = {"/api/me": api_me, "/api/posts": api_list_posts, "/api/handle-check": api_handle_check,
-              "/api/mod/queue": api_mod_queue}
+              "/api/mod/queue": api_mod_queue, "/api/twins": api_twins}
 POST_ROUTES = {
     "/api/signup": api_signup, "/api/login": api_login, "/api/logout": api_logout, "/api/me": api_update_me,
     "/api/account/delete": api_delete_account, "/api/posts": api_create_post, "/api/vote": api_vote,
@@ -1274,7 +1356,18 @@ POST_ROUTES = {
     "/api/verify/resend": api_verify_resend, "/api/password/forgot": api_forgot, "/api/password/reset": api_reset,
     "/api/account/password": api_change_password, "/api/account/email": api_change_email,
     "/api/account/logout-all": api_logout_all, "/api/auth/complete-profile": api_complete_profile,
+    "/api/twins": api_twins_on, "/api/twins/off": api_twins_off,
 }
+
+
+def handles(method: str, path: str) -> bool:
+    """Routes this backend serves (its own plus the extras routes registered on community.GET_ROUTES)."""
+    item = cc.POST_ITEM.match(path)
+    if method == "GET":
+        return path in GET_ROUTES or path in cc.GET_ROUTES or bool(item and not item.group(2))
+    if method == "POST":
+        return path in POST_ROUTES or bool(item and item.group(2))
+    return False
 # Routes that see a Google sign-up before it has finished its profile; every other route treats it as signed out.
 UNFINISHED_OK = {("GET", "/api/me"), ("GET", "/api/handle-check"), ("POST", "/api/logout"),
                  ("POST", "/api/auth/complete-profile")}

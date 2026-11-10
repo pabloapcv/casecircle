@@ -270,3 +270,8 @@ Extras (server-gated, listed in `entitlements.GATED_FEATURES` — add an id ther
 - After the trial the extras point to the Case Pass waitlist. There is no checkout. A payment provider can later call `entitlements.grant_pass(conn, user_id, until)` from a verified webhook.
 - `scripts/build_civics.py <dir with the official USCIS files>` regenerates `data/premium/civics.json` (check `UPDATES` against uscis.gov/citizenship/testupdates first).
 - `data/form-editions.json` is the accepted-editions table used by the document check; update it from each form's official page.
+
+## Case twins and approval cards
+
+- **Case twins** (`twins.js`, `/api/twins`, migration `20261110230000_case_twins.sql`): signed-in people opt in with form + USCIS office + filing month (never the day, receipt numbers, A-numbers or email). `public.my_case_twins()` (security definer) returns only rough counts — 0–1 others is shown as "be the first", 2–9 exact, then tens ("10+", "20+"…), capped at "50+" — plus up to 9 public handles. Turning it off deletes the row. Signed-out visitors see a free teaser. Until the migration is applied `/api/twins` is a 404 and the UI hides the section.
+- **Approval cards** (`approval-card.js`): "Mark approved" saves the approval month on the case profile, then a light-mode 1080×1080 PNG is drawn client-side (form, "Approved in N months", optional office, optional first name/handle, "not affiliated with USCIS"). Download, Web Share, WhatsApp, Facebook, and an optional celebration post. Nothing is uploaded to make the card.

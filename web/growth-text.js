@@ -1,0 +1,76 @@
+/* Bilingual copy for Case twins and shareable approval cards. [en, es] */
+const text = {
+  twinsKicker: ["Case twins", "Gemelos de caso"],
+  twinsTitle: ["Find your case twins", "Encuentra a tus gemelos de caso"],
+  twinsLead: ["People on the same form, at the same USCIS office, who filed in the same month. Opt in to see them, and turn it off any time.", "Personas con el mismo formulario, en la misma oficina de USCIS, que presentaron el mismo mes. Actívalo para verlas y apágalo cuando quieras."],
+  twinsTeaserBody: ["See how many people filed the same form at your office in the same month, and talk with them. Free with an account.", "Mira cuántas personas presentaron el mismo formulario en tu oficina el mismo mes y habla con ellas. Gratis con una cuenta."],
+  twinsTeaserCta: ["Sign up and find your case twins", "Regístrate y encuentra a tus gemelos de caso"],
+  twinsAfterWait: ["Want to meet people who filed {form} at {office} in {month}?", "¿Quieres conocer a quienes presentaron {form} en {office} en {month}?"],
+  twinsForm: ["Form", "Formulario"],
+  twinsOffice: ["Field office or service center", "Oficina local o centro de servicio"],
+  twinsOfficePick: ["Choose your office", "Elige tu oficina"],
+  twinsMonth: ["Filing month", "Mes de presentación"],
+  twinsOn: ["Find my case twins", "Encontrar a mis gemelos de caso"],
+  twinsPrivacy: ["We match on form, office and filing month only, never the day, receipt numbers, A-numbers or your email. Other twins see only your public name. Matching isn't a prediction about anyone's case and isn't legal advice.", "Solo usamos formulario, oficina y mes de presentación; nunca el día, números de recibo, números A ni tu correo. Los demás solo ven tu nombre público. No es una predicción sobre ningún caso ni asesoría legal."],
+  twinsCount: ["{n} others filed {form} at {office} in {month}", "{n} personas más presentaron {form} en {office} en {month}"],
+  twinsCountPlus: ["{n}+ others filed {form} at {office} in {month}", "Más de {n} personas presentaron {form} en {office} en {month}"],
+  twinsFirst: ["Be the first: nobody else has matched for {form} at {office} in {month} yet. Your twins will show up here as people join.", "Sé el primero: todavía nadie más coincide en {form} en {office} en {month}. Tus gemelos aparecerán aquí cuando se unan."],
+  twinsHandles: ["Your case twins", "Tus gemelos de caso"],
+  twinsAndMore: ["and more", "y más"],
+  twinsOpenGroup: ["Open the {form} group", "Abrir el grupo de {form}"],
+  twinsStartThread: ["Start a thread for this cohort", "Abrir una conversación para este grupo"],
+  twinsOff: ["Turn off", "Desactivar"],
+  twinsOffDone: ["Case twins is off. You were removed from matching.", "Gemelos de caso desactivado. Ya no apareces en las coincidencias."],
+  twinsOnDone: ["You're in. We'll match you with people on the same form, office and month.", "Listo. Te mostraremos personas con el mismo formulario, oficina y mes."],
+  twinsAddAnother: ["Match another case", "Buscar para otro caso"],
+  twinsLoading: ["Looking for your case twins…", "Buscando a tus gemelos de caso…"],
+  twinsThreadTitle: ["{form} at {office}, filed {month}: case twins check-in", "{form} en {office}, presentado en {month}: grupo de gemelos de caso"],
+  twinsThreadBody: ["Hi! I filed {form} at {office} in {month}. How are your cases going? Let's share updates here (no receipt numbers, A-numbers or exact dates, please).", "¡Hola! Presenté {form} en {office} en {month}. ¿Cómo van sus casos? Compartamos novedades aquí (sin números de recibo, números A ni fechas exactas, por favor)."],
+  errTwinForm: ["Choose a form.", "Elige un formulario."],
+  errTwinOffice: ["Choose your USCIS office (not \"Not sure\").", "Elige tu oficina de USCIS (no \"Aún no lo sé\")."],
+  errTwinMonth: ["Choose the month you filed (not a future month).", "Elige el mes en que presentaste (no un mes futuro)."],
+
+  approvedMark: ["Mark approved", "Marcar como aprobado"],
+  approvedTitle: ["Congratulations on your approval!", "¡Felicidades por tu aprobación!"],
+  approvedLead: ["Pick the month your {form} was approved. We'll update your case and make a card you can share if you want to.", "Elige el mes en que aprobaron tu {form}. Actualizaremos tu caso y te haremos una tarjeta para compartir si quieres."],
+  approvedMonth: ["Approval month", "Mes de aprobación"],
+  approvedSave: ["Save and make my card", "Guardar y crear mi tarjeta"],
+  approvedDone: ["Case marked approved. Congratulations!", "Caso marcado como aprobado. ¡Felicidades!"],
+  errApprovedMonth: ["The approval month can't be before you filed or in the future.", "El mes de aprobación no puede ser antes de presentar ni en el futuro."],
+  cardMake: ["Make approval card", "Crear tarjeta de aprobación"],
+  cardTitle: ["Your approval card", "Tu tarjeta de aprobación"],
+  cardLead: ["You choose what appears. The card never shows receipt numbers, A-numbers, exact dates or your email.", "Tú eliges qué aparece. La tarjeta nunca muestra números de recibo, números A, fechas exactas ni tu correo."],
+  cardName: ["Name on the card", "Nombre en la tarjeta"],
+  cardNameNone: ["No name", "Sin nombre"],
+  cardNameHandle: ["My public name ({handle})", "Mi nombre público ({handle})"],
+  cardNameFirst: ["A first name", "Un nombre de pila"],
+  cardFirstLabel: ["First name (optional)", "Nombre de pila (opcional)"],
+  cardShowOffice: ["Show my office ({office})", "Mostrar mi oficina ({office})"],
+  cardDownload: ["Download image", "Descargar imagen"],
+  cardShare: ["Share…", "Compartir…"],
+  cardWhatsApp: ["Share on WhatsApp", "Compartir en WhatsApp"],
+  cardFacebook: ["Share on Facebook", "Compartir en Facebook"],
+  cardCelebrate: ["Post a celebration to the community", "Publicar la celebración en la comunidad"],
+  cardShareFallback: ["Sharing isn't available here. Download the image and send it from your phone.", "Compartir no está disponible aquí. Descarga la imagen y envíala desde tu teléfono."],
+  cardAlt: ["Approval card preview", "Vista previa de la tarjeta de aprobación"],
+  cardHeadline: ["Approved!", "¡Aprobado!"],
+  cardMonths: ["Approved in {n} months", "Aprobado en {n} meses"],
+  cardMonthsOne: ["Approved in 1 month", "Aprobado en 1 mes"],
+  cardMonthsZero: ["Approved in under a month", "Aprobado en menos de un mes"],
+  cardBy: ["Shared by {name}", "Compartido por {name}"],
+  cardCta: ["Track your wait and meet your case twins", "Sigue tu espera y conoce a tus gemelos de caso"],
+  cardFine: ["CaseCircle is not affiliated with USCIS. Not legal advice. Every case is different.", "CaseCircle no está afiliado a USCIS. No es asesoría legal. Cada caso es diferente."],
+  shareText: ["{headline} {form}: {months}. I tracked my wait with CaseCircle", "{headline} {form}: {months}. Seguí mi espera con CaseCircle"],
+  celebrateTitle: ["Approved! {form} after {n} months", "¡Aprobado! {form} después de {n} meses"],
+  celebrateBody: ["My {form} was approved after {n} months{office}. Thank you all for the support here! Happy to answer questions about my timeline (no receipt numbers or A-numbers, please).", "Aprobaron mi {form} después de {n} meses{office}. ¡Gracias a todos por el apoyo! Con gusto respondo preguntas sobre mi línea de tiempo (sin números de recibo ni números A, por favor)."],
+  celebrateOffice: [" at {office}", " en {office}"]
+};
+
+export function growthText(lang, key, vars = {}) {
+  const entry = text[key];
+  if (!entry) return key;
+  return String(entry[lang === "es" ? 1 : 0]).replace(/\{(\w+)\}/g, (_, name) => (name in vars ? String(vars[name]) : ""));
+}
+
+export const GROWTH_TEXT_KEYS = Object.keys(text);
+export function growthTextEntry(key) { return text[key]; }

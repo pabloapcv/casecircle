@@ -140,9 +140,6 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/folder-plan":
             folder_check.handle_plan(self, self.server_port)
             return
-        if path == "/api/auth/complete-profile" and community.supabase():
-            community.dispatch(self, "POST")
-            return
         if community.handles("POST", path):
             community.dispatch(self, "POST")
             return

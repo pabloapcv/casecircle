@@ -1331,3 +1331,30 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .civics-study summary::after { content: "+"; position: absolute; right: 0; top: 0; font-size: 1.25rem; color: var(--accent); }
 .civics-study[open] summary::after { content: "−"; }
 .practice-all summary { font-weight: 600; color: var(--accent-deep); }
+
+/* ───────── Case twins ───────── */
+.twins-card { margin: 24px 0; padding: 22px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-panel); display: grid; gap: 12px; }
+.twins-card h2 { font-size: 1.375rem; }
+.twins-card .kicker { display: flex; align-items: center; gap: 6px; color: var(--accent-deep); margin: 0; }
+.twins-card.teaser { background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 70%); }
+.twin-sample { display: flex; flex-wrap: wrap; gap: 8px; }
+.twin-sample .chip, .twin-handles .chip { background: var(--surface); border: 1px solid var(--chip-line); border-radius: var(--radius-chip); padding: 4px 12px; font-size: 0.875rem; color: var(--ink); }
+.twin-cohort { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--ground); display: grid; gap: 8px; }
+.twin-line { margin: 0; }
+.twin-h { margin: 0; color: var(--secondary); }
+.twin-handles { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; align-items: center; }
+.twin-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+.twin-form select, .twin-form input { width: 100%; }
+.twin-privacy { color: var(--secondary); margin: 0; display: flex; gap: 6px; align-items: flex-start; }
+
+/* ───────── Case cards + approval card ───────── */
+.case-card { display: grid; gap: 10px; }
+.case-card-main { display: grid; gap: 4px; text-align: left; background: transparent; border: 0; padding: 0; color: var(--ink); cursor: pointer; }
+.case-card-main:hover strong { text-decoration: underline; }
+.approval { max-width: 980px; }
+.approval-grid { display: grid; grid-template-columns: minmax(280px, 460px) 1fr; gap: 28px; align-items: start; }
+.card-preview { margin: 0; }
+.card-preview canvas { width: 100%; height: auto; display: block; border-radius: var(--radius-card-lg); box-shadow: 0 6px 24px rgba(27, 36, 34, 0.10); background: var(--ground); }
+.approval-options fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+.share-buttons .btn, .share-buttons .btn-secondary { width: 100%; }
+@media (max-width: 760px) { .approval-grid { grid-template-columns: 1fr; } }

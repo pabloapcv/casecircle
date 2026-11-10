@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { api, errorKey, feedKey, parseEmailLink } from "./api.js";
+import { api, errorKey, feedKey, googleStartUrl, parseEmailLink, parseSignInReturn } from "./api.js";
 import { AUTH_TEXT_KEYS, authText, authTextEntry } from "./auth-text.js";
 
 function fakeFetch(status, body, seen) {
@@ -117,5 +117,33 @@ describe("email links (built-in and Supabase)", () => {
     assert.match(authText("en", "signupSent", { email: "a@b.co" }), /a@b\.co/);
     assert.match(authText("es", "signupSent", { email: "a@b.co" }), /enlace de confirmación/);
     assert.ok(authTextEntry("errUnconfirmed")[1].length > 10);
+  });
+});
+
+describe("Continue with Google", () => {
+  it("builds the start link with locale and a same-site return path only", () => {
+    assert.equal(googleStartUrl("es", "/#post=p3"), "/api/auth/google?locale=es&next=%2F%23post%3Dp3");
+    assert.equal(googleStartUrl("fr", "//evil.example"), "/api/auth/google?locale=en&next=%2F");
+    assert.equal(googleStartUrl("en", "https://evil.example"), "/api/auth/google?locale=en&next=%2F");
+  });
+
+  it("reads the server's return markers and strips them from the address", () => {
+    assert.equal(parseSignInReturn("", "#feed"), null);
+    assert.equal(parseSignInReturn("?a=1"), null);
+    assert.deepEqual(parseSignInReturn("?signin=google", "#feed"), { kind: "ok", error: "", lang: "", cleanUrl: "#feed" });
+    assert.deepEqual(parseSignInReturn("?x=2&signin=google-new&lang=es"), { kind: "new", error: "", lang: "es", cleanUrl: "?x=2" });
+    assert.deepEqual(parseSignInReturn("?signin_error=google_expired&lang=en"), { kind: "error", error: "google_expired", lang: "en", cleanUrl: "" });
+    assert.equal(parseSignInReturn("?signin_error=<script>").error, "google_failed");
+  });
+
+  it("has a bilingual message for every Google error", () => {
+    for (const code of ["google_cancelled", "google_expired", "google_failed", "google_off", "google_unavailable", "confirm_handle"]) {
+      const key = errorKey(code);
+      assert.notEqual(key, "errServer", code);
+      const [en, es] = authTextEntry(key);
+      assert.ok(en && es && en !== es, key);
+    }
+    assert.equal(authText("es", "continueGoogle"), "Continuar con Google");
+    assert.equal(authText("en", "continueGoogle"), "Continue with Google");
   });
 });

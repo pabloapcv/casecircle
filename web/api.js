@@ -33,7 +33,9 @@ const ERROR_KEYS = {
   csrf: "errServer", not_found: "errNotFound", closed: "errClosed", offline: "errOffline",
   password_common: "errPasswordCommon", mismatch: "errMismatch", token: "errToken", current: "errCurrent",
   same_email: "errSameEmail", confirm: "errConfirm", unverified: "errUnverified",
-  unconfirmed: "errUnconfirmed"
+  unconfirmed: "errUnconfirmed", confirm_handle: "errConfirmHandle",
+  google_cancelled: "errGoogleCancelled", google_expired: "errGoogleExpired", google_failed: "errGoogleFailed",
+  google_off: "errGoogleOff", google_unavailable: "errGoogleUnavailable"
 };
 
 export function errorKey(code) {
@@ -64,4 +66,29 @@ export function parseEmailLink(hash) {
   if (type === "recovery") return { kind: "reset", token };
   if (!/^[A-Za-z0-9_-]{1,512}$/.test(refresh)) return null;
   return { kind: "verify", token, refresh, type };
+}
+
+/* The server's redirect back from Google: ?signin=google|google-new or ?signin_error=<code> (plus &lang=).
+   Returns null when the address has none of them, else what to show and the URL to put back (markers removed). */
+export function parseSignInReturn(search, hash = "") {
+  const params = new URLSearchParams(String(search || "").replace(/^\?/, ""));
+  const signin = params.get("signin") || "";
+  const error = params.get("signin_error") || "";
+  if (!signin && !error) return null;
+  const lang = params.get("lang") === "es" ? "es" : params.get("lang") === "en" ? "en" : "";
+  for (const key of ["signin", "signin_error", "lang"]) params.delete(key);
+  const rest = params.toString();
+  const known = ["google_cancelled", "google_expired", "google_failed", "google_off", "google_unavailable"];
+  return {
+    kind: error ? "error" : signin === "google-new" ? "new" : "ok",
+    error: error ? (known.includes(error) ? error : "google_failed") : "",
+    lang,
+    cleanUrl: `${rest ? `?${rest}` : ""}${hash || ""}`
+  };
+}
+
+/* Link for "Continue with Google": the server keeps the PKCE verifier and comes back to `next`. */
+export function googleStartUrl(lang, next = "/") {
+  const safe = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  return `/api/auth/google?locale=${lang === "es" ? "es" : "en"}&next=${encodeURIComponent(safe)}`;
 }

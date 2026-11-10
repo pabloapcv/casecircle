@@ -6,7 +6,7 @@ import {
   stageLabel, stages, t, ago, usernameIssue, waitComparison,
   normalizeWebState
 } from "./logic.js";
-import { api, errorKey, feedKey, parseEmailLink } from "./api.js";
+import { api, errorKey, feedKey, googleStartUrl, parseEmailLink, parseSignInReturn } from "./api.js";
 import { authText } from "./auth-text.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { buildFolderChatPayload, scanFolderChatPayload } from "./folder-chat.js";
@@ -32,7 +32,7 @@ const WAITLIST_KEY = "casecircle.waitlist.joined";
 const LAUNCH_SPACES = spaces.filter((item) => item.launch).map((item) => item.id);
 let state = load();
 /* Server-backed community: account from /api/me, feeds and posts cached in memory only (never in localStorage). */
-const session = { loaded: false, user: null, groupCounts: {} };
+const session = { loaded: false, user: null, groupCounts: {}, providers: {}, pending: null };
 const feeds = new Map();
 const postDetails = new Map();
 const modQueue = { items: null, loading: false };
@@ -163,10 +163,50 @@ async function refreshSession() {
   session.loaded = true;
   if (res.ok) {
     session.groupCounts = res.data.groupCounts || {};
+    session.providers = res.data.providers || {};
     if (typeof res.data.trialDays === "number") session.trialDays = res.data.trialDays;
-    adoptAccount(res.data.user);
+    const user = res.data.user;
+    if (user?.needsProfile) {
+      /* Signed in with Google for the first time: pick a public name and accept the rules before anything else. */
+      session.pending = user;
+      adoptAccount(null);
+      if (authForm.mode !== "finish") openFinishProfile();
+    } else {
+      session.pending = null;
+      adoptAccount(user);
+    }
   }
   render();
+}
+
+function openFinishProfile() {
+  const keep = authForm.mode === "finish" ? authForm : null;
+  openAuth("finish");
+  if (keep) authForm = keep;
+}
+
+/* Back from Google (?signin=…): strip the markers, then greet, finish the profile or explain the error. */
+function takeSignInReturn() {
+  const back = parseSignInReturn(location.search, location.hash);
+  if (!back) return null;
+  try { history.replaceState(null, "", `${location.pathname}${back.cleanUrl}`); } catch { /* sandboxed */ }
+  if (back.lang) state.lang = back.lang;
+  return back;
+}
+
+function handleSignInReturn(back) {
+  if (!back) return;
+  if (back.kind === "error") {
+    openAuth("signin");
+    authForm.error = A(errorKey(back.error));
+    render();
+    return;
+  }
+  if (back.kind === "ok" && account()) {
+    toast = A("googleSignedIn", { name: account().handle });
+    refreshCommunity();
+    render();
+  }
 }
 
 /* ── community data (server) ── */
@@ -245,6 +285,7 @@ function needAccount() {
 }
 
 function openAuth(mode = "signup") {
+  if (session.pending && !["finish", "reset"].includes(mode)) mode = "finish"; // Google sign-up still has to pick a name
   authForm = { ...blankAuth(mode), spaces: me(state)?.spaces?.length ? [...me(state).spaces].slice(0, 6) : ["i-485"] };
   if (state.meId) {
     if (state.route?.name !== "auth") authReturn = state.route;
@@ -315,6 +356,11 @@ function esc(value) {
 }
 
 function boot() {
+  if (/^\?code=[^&]+$/.test(location.search) && location.pathname === "/") {
+    location.replace(`/auth/callback${location.search}`); // Supabase fell back to the site URL: finish there
+    return;
+  }
+  const signInReturn = takeSignInReturn();
   const emailLink = takeEmailLink();
   const linked = routeFromHash(location.hash);
   if (!state.meId && linked && ["post", "space", "home"].includes(linked.name)) ensureLocalMember(); // shared links open read-only
@@ -328,7 +374,10 @@ function boot() {
   ensureData();
   if (emailLink && emailLink.kind !== "verify") handleEmailLink(emailLink);
   render();
-  refreshSession().then(() => { if (emailLink?.kind === "verify") confirmEmail(emailLink); });
+  refreshSession().then(() => {
+    if (emailLink?.kind === "verify") confirmEmail(emailLink);
+    handleSignInReturn(signInReturn);
+  });
 }
 
 let restoreFocus = "";
@@ -936,7 +985,38 @@ function authScreen() {
     const on = f.spaces.includes(id);
     return `<button type="button" class="chip${on ? " on" : ""}" data-act="auth-space" data-id="${esc(id)}" aria-pressed="${on}">${esc(spaceById(id)?.forms[0] || id)}</button>`;
   }).join("");
+  const handleField = `<label class="field">${esc(A("handle"))}
+        <input id="auth-handle" type="text" autocapitalize="off" autocomplete="username" required value="${esc(f.handle)}" maxlength="20">
+        <span class="muted">${esc(A("handleHelp"))}</span>
+      </label>
+      <fieldset class="field auth-groups"><legend>${esc(A("groupsLabel"))}</legend>
+        <div class="chips" role="group">${chips}</div>
+        <span class="muted">${esc(A("groupsHelp"))}</span>
+      </fieldset>
+      <label class="check"><input id="auth-rules" type="checkbox" ${f.rules ? "checked" : ""}>${esc(A("agreeRules"))}</label>
+      <label class="check"><input id="auth-advice" type="checkbox" ${f.advice ? "checked" : ""}>${esc(A("agreeAdvice"))}</label>`;
+  const terms = `<p class="muted small-print">${esc(A("agreeTerms"))} <button type="button" class="link-btn" data-act="page" data-page="terms">${esc(A("terms"))}</button> · <button type="button" class="link-btn" data-act="page" data-page="privacy">${esc(L("privacy"))}</button></p>`;
+  if (mode === "finish") {
+    return `<section class="auth-card narrow" aria-labelledby="auth-h">
+    <p class="kicker">${logoMark(18)} ${esc(L("appName"))}</p>
+    <h1 id="auth-h">${esc(A("finishTitle"))}</h1>
+    <p class="lede">${esc(A("finishLead", { email: session.pending?.email || "" }))}</p>
+    <form class="stack auth-form" data-form="auth" novalidate>
+      ${handleField}
+      ${error}
+      <button class="btn block" type="submit" data-act="auth-submit" ${f.busy ? "disabled" : ""}>${esc(f.busy ? A("working") : A("finishSave"))}</button>
+      ${terms}
+    </form>
+    <p class="auth-switch"><button type="button" class="link-btn" data-act="logout">${esc(A("finishCancel"))}</button></p>
+    ${foot}`;
+  }
+  const google = session.providers?.google ? `<div class="auth-alt">
+      <a class="btn-google" href="${esc(googleStartUrl(lang(), googleNext()))}">${googleLogo()}<span>${esc(A("continueGoogle"))}</span></a>
+      ${signup ? `<p class="muted small-print">${esc(A("googleNote"))}</p>` : ""}
+      <p class="auth-or" role="separator"><span>${esc(A("orDivider"))}</span></p>
+    </div>` : "";
   return `${head(signup ? A("authTitleSignup") : A("authTitleSignin"), signup ? A("authLeadSignup") : A("authLeadSignin"))}
+    ${google}
     <form class="stack auth-form" data-form="auth" novalidate>
       <label class="field">${esc(A("email"))}
         <input id="auth-email" type="email" autocomplete="email" required value="${esc(f.email)}" placeholder="you@email.com">
@@ -947,22 +1027,24 @@ function authScreen() {
         ${signup ? `<span class="muted">${esc(A("passwordHelp"))}</span>` : ""}
       </label>
       ${signup ? "" : `<p class="forgot-row"><button type="button" class="link-btn" data-act="auth-mode" data-mode="forgot">${esc(A("forgotLink"))}</button></p>`}
-      ${signup ? `<label class="field">${esc(A("handle"))}
-        <input id="auth-handle" type="text" autocapitalize="off" autocomplete="username" required value="${esc(f.handle)}" maxlength="20">
-        <span class="muted">${esc(A("handleHelp"))}</span>
-      </label>
-      <fieldset class="field auth-groups"><legend>${esc(A("groupsLabel"))}</legend>
-        <div class="chips" role="group">${chips}</div>
-        <span class="muted">${esc(A("groupsHelp"))}</span>
-      </fieldset>
-      <label class="check"><input id="auth-rules" type="checkbox" ${f.rules ? "checked" : ""}>${esc(A("agreeRules"))}</label>
-      <label class="check"><input id="auth-advice" type="checkbox" ${f.advice ? "checked" : ""}>${esc(A("agreeAdvice"))}</label>` : ""}
+      ${signup ? handleField : ""}
       ${error}
       <button class="btn block" type="submit" data-act="auth-submit" ${f.busy ? "disabled" : ""}>${esc(f.busy ? A("working") : signup ? A("signUp") : A("signIn"))}</button>
-      ${signup ? `<p class="muted small-print">${esc(A("agreeTerms"))} <button type="button" class="link-btn" data-act="page" data-page="terms">${esc(A("terms"))}</button> · <button type="button" class="link-btn" data-act="page" data-page="privacy">${esc(L("privacy"))}</button></p>` : ""}
+      ${signup ? terms : ""}
     </form>
     <p class="auth-switch">${esc(signup ? A("haveAccount") : A("needAccount"))} <button type="button" class="link-btn" data-act="auth-mode" data-mode="${signup ? "signin" : "signup"}">${esc(signup ? A("signIn") : A("signUp"))}</button></p>
     ${foot}`;
+}
+
+/* Where Google sends people back to: the screen they were on before opening sign-in. */
+function googleNext() {
+  const back = authReturn && authReturn.name !== "auth" ? hashForRoute(authReturn) : "";
+  return `/${back}`;
+}
+
+/* Google's standard "G" mark (four colours), drawn inline so no third-party request is needed. */
+function googleLogo() {
+  return `<svg class="g-logo" width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>`;
 }
 
 /* Signed in but email not confirmed: reading and tools work, writing waits for the link. */
@@ -1042,7 +1124,11 @@ function settingsScreen() {
   <div class="settings narrow">
     <div class="page-head"><h1>${esc(A("settings"))}</h1><p class="lede">${esc(A("settingsLead"))}</p></div>
 
-    <section class="settings-card" aria-labelledby="set-email">
+    ${user.hasPassword === false ? `<section class="settings-card" aria-labelledby="set-email">
+      <h2 id="set-email">${esc(A("emailSection"))}</h2>
+      <p class="settings-email"><strong>${esc(user.email)}</strong> ${status}</p>
+      <p class="muted">${googleLogo()} ${esc(A("googleOnly"))}</p>
+    </section>` : `<section class="settings-card" aria-labelledby="set-email">
       <h2 id="set-email">${esc(A("emailSection"))}</h2>
       <p class="settings-email"><strong>${esc(user.email)}</strong> ${status}</p>
       ${user.emailVerified ? "" : `<p class="muted">${esc(A("verifyBannerBody", { email: user.email }))} <button type="button" class="link-btn" data-act="verify-resend">${esc(A("verifyResend"))}</button></p>`}
@@ -1064,7 +1150,7 @@ function settingsScreen() {
         ${msg("password")}
         <button class="btn-secondary" type="submit" ${busy("password") ? "disabled" : ""}>${esc(busy("password") ? A("working") : A("changePassword"))}</button>
       </form>
-    </section>
+    </section>`}
 
     <section class="settings-card" aria-labelledby="set-sessions">
       <h2 id="set-sessions">${esc(A("sessionsSection"))}</h2>
@@ -1077,7 +1163,9 @@ function settingsScreen() {
       <h2 id="set-delete">${esc(A("deleteSection"))}</h2>
       <p class="muted">${esc(L("deleteHelp"))}</p>
       <form class="stack settings-form" data-form="settings-delete" novalidate>
-        <label class="field">${esc(A("currentPassword"))}<input id="set-delete-pw" type="password" autocomplete="current-password"></label>
+        ${user.hasPassword === false
+          ? `<label class="field">${esc(A("deleteHandle", { name: user.handle }))}<input id="set-delete-handle" type="text" autocapitalize="off" autocomplete="off"></label>`
+          : `<label class="field">${esc(A("currentPassword"))}<input id="set-delete-pw" type="password" autocomplete="current-password"></label>`}
         <label class="check"><input id="set-delete-ok" type="checkbox">${esc(A("deleteConfirm"))}</label>
         ${msg("delete")}
         <button class="btn danger-btn" type="submit" ${busy("delete") ? "disabled" : ""}>${esc(busy("delete") ? A("working") : A("deleteButton"))}</button>
@@ -1109,10 +1197,11 @@ async function settingsAction(kind) {
   } else if (kind === "sessions") {
     path = "/api/account/logout-all";
   } else if (kind === "delete") {
-    if (!val("set-delete-pw")) return fail("current");
+    const googleOnly = account()?.hasPassword === false;
+    if (googleOnly ? !val("set-delete-handle").trim() : !val("set-delete-pw")) return fail(googleOnly ? "confirm_handle" : "current");
     if (!document.getElementById("set-delete-ok")?.checked) return fail("confirm");
     path = "/api/account/delete";
-    body = { password: val("set-delete-pw"), confirm: true };
+    body = googleOnly ? { handle: val("set-delete-handle").trim(), confirm: true } : { password: val("set-delete-pw"), confirm: true };
   }
   settingsUi.busy = kind;
   render();
@@ -3709,6 +3798,7 @@ async function submitAuth() {
   syncAuthForm();
   const password = document.querySelector("#auth-password")?.value || "";
   if (authForm.mode === "forgot" || authForm.mode === "reset") { submitRecovery(password); return; }
+  if (authForm.mode === "finish") { submitFinish(); return; }
   const signup = authForm.mode === "signup";
   const email = authForm.email.trim().toLowerCase();
   let problem = "";
@@ -3730,6 +3820,38 @@ async function submitAuth() {
   if (signup && res.data.confirm && !res.data.user) { authForm = { ...blankAuth("signup-sent"), email }; render(); return; }
   adoptAccount(res.data.user);
   if (!signup && res.data.user?.locale) state.lang = res.data.user.locale;
+  const next = authReturn && authReturn.name !== "auth" ? authReturn : { name: "home" };
+  authReturn = null;
+  authForm = blankAuth("signin");
+  publicView = "home";
+  state.route = next;
+  toast = A("welcomeBack", { name: res.data.user.handle });
+  save();
+  refreshCommunity();
+  render();
+  window.scrollTo?.(0, 0);
+}
+
+async function submitFinish() {
+  let problem = usernameIssue(authForm.handle, new Set());
+  if (!problem && (!authForm.rules || !authForm.advice)) problem = "agree";
+  if (problem) { authForm.error = A(errorKey(problem)); render(); return; }
+  authForm.busy = true;
+  authForm.error = "";
+  render();
+  const local = me(state);
+  const res = await api("/api/auth/complete-profile", { method: "POST", body: {
+    handle: authForm.handle.trim(), locale: lang(), spaces: authForm.spaces.length ? authForm.spaces : ["i-485"],
+    profiles: local?.profiles || [], agreeRules: true, agreeNotAdvice: true } });
+  authForm.busy = false;
+  if (!res.ok) {
+    if (res.error === "already") { await refreshSession(); return; }
+    authForm.error = A(errorKey(res.error));
+    render();
+    return;
+  }
+  session.pending = null;
+  adoptAccount(res.data.user);
   const next = authReturn && authReturn.name !== "auth" ? authReturn : { name: "home" };
   authReturn = null;
   authForm = blankAuth("signin");
@@ -3769,6 +3891,8 @@ async function submitRecovery(password) {
 
 async function logout() {
   await api("/api/logout", { method: "POST" });
+  session.pending = null;
+  if (authForm.mode === "finish") { authForm = blankAuth("signin"); publicView = "home"; }
   adoptAccount(null);
   feeds.clear();
   postDetails.clear();

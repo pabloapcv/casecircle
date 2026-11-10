@@ -6,6 +6,7 @@ GET  /api/folder-chat       chat availability          POST /api/folder-chat   f
 GET  /api/ai-status         provider + Demo AI flag    POST /api/folder-check  one document vs one checklist item (trial/pass)
 GET  /api/processing-times  official times (cached)    POST /api/folder-plan   tailor the checklist
 GET  /api/extras, /api/extras/civics, /api/extras/interview   extras (signed-in, trial or pass; extras.py)
+GET  /api/auth/google, /auth/callback   "Continue with Google" (Supabase only; server-side PKCE, see supa.py)
 /api/me, /api/signup, /api/login, /api/logout, /api/posts…, /api/vote, /api/report, /api/mod…, /api/waitlist
                             accounts + community + waitlist (supa.py on Supabase when SUPABASE_URL is set; else community.py, SQLite)
 
@@ -108,6 +109,18 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/processing-times":
             processing_times.handle(self, parse_qs(parsed.query))
             return
+        if parsed.path in ("/api/auth/google", "/auth/callback"):
+            supabase = community.supabase()
+            if not supabase:   # SQLite accounts: no Google sign-in
+                self.send_response(302)
+                self.send_header("Location", "/?signin_error=google_off")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            elif parsed.path == "/api/auth/google":
+                supabase.oauth_start(self)
+            else:
+                supabase.oauth_callback(self)
+            return
         if community.handles("GET", parsed.path):
             community.dispatch(self, "GET")
             return
@@ -126,6 +139,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/folder-plan":
             folder_check.handle_plan(self, self.server_port)
+            return
+        if path == "/api/auth/complete-profile" and community.supabase():
+            community.dispatch(self, "POST")
             return
         if community.handles("POST", path):
             community.dispatch(self, "POST")

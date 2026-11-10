@@ -2,7 +2,8 @@
 
 Same JSON API as community.py (which stays as the offline/SQLite backend for local runs and tests), but:
 
-* Sign-in is Supabase Auth (GoTrue REST): sign up, password sign-in, refresh, sign out, password recovery.
+* Sign-in is Supabase Auth (GoTrue REST): sign up, password sign-in, "Continue with Google" (server-side PKCE),
+  refresh, sign out, password recovery.
 * Data lives in Supabase Postgres and is read/written through PostgREST **with the signed-in user's JWT**, so
   Row Level Security (supabase/migrations/*.sql) is the real boundary. The server only holds the public
   publishable key; there is no service-role/secret key anywhere.
@@ -97,7 +98,8 @@ def call(method: str, path: str, *, token: str = "", params: dict[str, str] | li
 
 # PostgREST errors -> the API's error codes. Database triggers raise "cc:<code>" (see the migration).
 _DB_CODES = {"rate": 429, "auth": 403, "not_found": 404, "closed": 409, "invalid": 400, "receipt": 400,
-             "a-number": 400, "ssn": 400, "passport": 400, "abuse": 400}
+             "a-number": 400, "ssn": 400, "passport": 400, "abuse": 400, "taken": 409, "reserved": 400,
+             "already": 409}
 
 
 def _rest_error(status: int, payload: Any) -> cc.ApiError:
@@ -225,6 +227,8 @@ def password_grant(email: str, password: str) -> tuple[int, Any]:
 def reset_for_tests() -> None:
     with _refresh_lock:
         _refreshed.clear()
+    with _settings_lock:
+        _settings_cache.update(at=0.0, google=False)
 
 
 # ───────────────────────── the signed-in user ─────────────────────────
@@ -267,8 +271,28 @@ def fetch_account(token: str) -> tuple[int, dict[str, Any] | None]:
     if status != 200:
         return status, None
     if not data:
+        if is_oauth(claims):   # an OAuth sign-up whose profile rows are missing: finish the profile to create them
+            return 200, pending_user(claims, token)
         return 200, None
     return 200, make_user(data[0], claims, token)
+
+
+def placeholder_handle(user_id: str) -> str:
+    """The handle the database gives a new auth user that signed up without one (private.handle_new_user)."""
+    return "user_" + str(user_id).replace("-", "")[:10]
+
+
+def is_oauth(claims: dict[str, Any]) -> bool:
+    meta = claims.get("app_metadata") if isinstance(claims.get("app_metadata"), dict) else {}
+    providers = meta.get("providers") if isinstance(meta.get("providers"), list) else [meta.get("provider")]
+    return any(p and p != "email" for p in providers)
+
+
+def pending_user(claims: dict[str, Any], token: str) -> dict[str, Any]:
+    return {"id": str(claims.get("sub") or ""), "email": str(claims.get("email") or ""), "handle": "", "reputation": 0,
+            "locale": "en", "spaces": [], "profiles": [], "is_admin": False, "email_verified": False,
+            "trial_started_at": None, "pass_until": None, "created_at": None, "pending_email": None,
+            "token": token, "needs_profile": True}
 
 
 def make_user(row: dict[str, Any], claims: dict[str, Any], token: str) -> dict[str, Any]:
@@ -291,6 +315,9 @@ def make_user(row: dict[str, Any], claims: dict[str, Any], token: str) -> dict[s
         "created_at": iso(row.get("created_at")),
         "pending_email": None,
         "token": token,
+        # Google sign-ups get a placeholder handle from the database trigger until they pick one (and agree to the
+        # rules) in "Finish your profile". Until then they count as signed out everywhere except that step.
+        "needs_profile": (profile.get("handle") or "") == placeholder_handle(row["user_id"]),
     }
 
 
@@ -337,10 +364,20 @@ def _load_user(handler: Any) -> dict[str, Any] | None:
 
 
 def is_admin(user: dict[str, Any] | None) -> bool:
-    return bool(user) and bool(user.get("is_admin"))
+    return bool(user) and bool(user.get("is_admin")) and not user.get("needs_profile")
+
+
+def complete_user(user: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The user, or None while a Google sign-up still has to finish its profile."""
+    return None if user and user.get("needs_profile") else user
 
 
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
+    if user.get("needs_profile"):
+        return {"id": f"u{user['id']}", "email": user["email"], "needsProfile": True, "handle": "", "isAdmin": False,
+                "spaces": [], "profiles": [], "reputation": 0, "locale": user.get("locale") or "en",
+                "emailVerified": True, "pendingEmail": None, "createdAt": user.get("created_at"),
+                "extras": entitlements.extras_status(None, admin=False)}
     return {
         "id": f"u{user['id']}",
         "handle": user["handle"],
@@ -354,12 +391,21 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         "pendingEmail": user.get("pending_email"),
         "createdAt": user["created_at"],
         "extras": entitlements.extras_status(user, admin=is_admin(user)),
+        "needsProfile": False,
+        "hasPassword": has_password(user),
     }
+
+
+def has_password(user: dict[str, Any]) -> bool:
+    """False for accounts that only ever signed in with Google (settings then hides the password-based actions)."""
+    meta = jwt_claims(user.get("token") or "").get("app_metadata")
+    providers = meta.get("providers") if isinstance(meta, dict) and isinstance(meta.get("providers"), list) else ["email"]
+    return "email" in providers
 
 
 def feature_refusal(handler: Any, feature: str) -> tuple[int, dict[str, Any]] | None:
     try:
-        user = load_user(handler)
+        user = complete_user(load_user(handler))
     except Upstream:
         user = None
     return entitlements.user_gate(user, feature, admin=is_admin(user))
@@ -437,7 +483,8 @@ def api_me(handler, user, _q):
     rows = rest("GET", "space_counts", params={"select": "space_id,members"}) or []
     counts = {r["space_id"]: r["members"] for r in rows if r.get("members")}
     return 200, {"user": public_user(user) if user else None, "groupCounts": counts,
-                 "reportThreshold": REPORT_THRESHOLD, "trialDays": entitlements.trial_days()}
+                 "reportThreshold": REPORT_THRESHOLD, "trialDays": entitlements.trial_days(),
+                 "providers": {"google": google_enabled()}}
 
 
 def _auth_error(status: int, data: Any) -> str:
@@ -589,7 +636,12 @@ def api_delete_account(handler, user, data):
         raise cc.ApiError(429, "rate")
     if data.get("confirm") is not True:
         raise cc.ApiError(400, "confirm")
-    session = _check_password(user, data.get("password"), "login")
+    if has_password(user):
+        session = _check_password(user, data.get("password"), "login")
+    else:   # Google-only account: no password to re-check, so the public name is typed instead
+        if str(data.get("handle") or "").strip().lower() != user["handle"].lower():
+            raise cc.ApiError(401, "confirm_handle")
+        session = {"access_token": tok(user)}
     # Deleting your accounts row deletes your Supabase Auth user (trigger); posts stay with no author.
     rest("DELETE", "accounts", token=session["access_token"], params={"user_id": f"eq.{user['id']}"}, prefer="return=minimal")
     return 200, {"ok": True}, clear_cookies(handler)
@@ -983,6 +1035,234 @@ def api_change_email(handler, user, data):
     return 200, {"user": public_user(fresh)}, session_cookies(handler, session)
 
 
+
+# ───────────────────────── Continue with Google (server-side PKCE) ─────────────────────────
+#
+# GET /api/auth/google?locale=es&next=/#feed
+#     -> a fresh code_verifier in a short-lived HttpOnly cookie (cc_oauth), then 302 to Supabase's
+#        /auth/v1/authorize?provider=google&redirect_to=<origin>/auth/callback&code_challenge=…&code_challenge_method=s256
+# Google -> Supabase (/auth/v1/callback) -> GET /auth/callback?code=…   (or ?error=…&error_description=…)
+#     -> POST /auth/v1/token?grant_type=pkce {auth_code, code_verifier}; cc_at/cc_rt set like a password sign-in;
+#        verifier cookie cleared; 302 back into the app with ?signin=google (or ?signin=google-new when the
+#        account still needs a public name, or ?signin_error=<code>).
+# POST /api/auth/complete-profile   handle + the two agreements -> public.complete_profile() (see migration).
+#
+# Supabase links a Google sign-in to an existing account with the same verified email, so the same auth user
+# (and the same accounts row) comes back; new Google users get a placeholder handle from the signup trigger.
+
+OAUTH_COOKIE = "cc_oauth"
+OAUTH_TTL_S = 600
+GOOGLE_ERRORS = ("google_cancelled", "google_expired", "google_failed", "google_off", "google_unavailable")
+_settings_lock = threading.Lock()
+_settings_cache: dict[str, Any] = {"at": 0.0, "google": False}
+SETTINGS_TTL_S = 300
+
+
+def google_enabled() -> bool:
+    """Is the Google provider switched on in Supabase? (public /auth/v1/settings, cached 5 minutes)."""
+    now = time.time()
+    with _settings_lock:
+        if now - _settings_cache["at"] < SETTINGS_TTL_S:
+            return bool(_settings_cache["google"])
+    try:
+        status, data, _ = call("GET", "/auth/v1/settings")
+        external = data.get("external") if status == 200 and isinstance(data, dict) else None
+        on, known = bool(isinstance(external, dict) and external.get("google")), status == 200
+    except Upstream:
+        on, known = False, False
+    with _settings_lock:   # a failed lookup is retried after 30 s instead of 5 minutes
+        _settings_cache.update(at=now if known else now - SETTINGS_TTL_S + 30, google=on)
+    return on
+
+
+def _b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def new_verifier() -> str:
+    return _b64url(os.urandom(48))   # 64 chars from [A-Za-z0-9_-]: inside RFC 7636's 43–128
+
+
+def challenge(verifier: str) -> str:
+    return _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
+
+
+def safe_next(raw: Any) -> str:
+    """Only same-site paths ("/", "/#feed", "/?x=1#post=p3"); anything else becomes "/"."""
+    text = str(raw or "/")[:300]
+    if not text.startswith("/") or text.startswith("//") or "\\" in text or any(ord(ch) < 33 or ord(ch) == 127 for ch in text):
+        return "/"
+    parsed = urllib.parse.urlsplit(text)
+    if parsed.scheme or parsed.netloc:
+        return "/"
+    return text
+
+
+def oauth_origin(handler: Any) -> tuple[str, bool]:
+    """(origin for redirect_to, is_this_request_on_it). The callback has to land on the host that holds the
+    verifier cookie, so a request on another host is first bounced to the configured public origin."""
+    configured = [o.strip().rstrip("/") for o in os.environ.get("CASECIRCLE_PUBLIC_ORIGIN", "").split(",") if o.strip()]
+    host = (handler.headers.get("X-Forwarded-Host", "") if cc.trust_proxy() else "") or handler.headers.get("Host", "")
+    here = f"{'https' if cc.is_https(handler) else 'http'}://{host}" if host else ""
+    if not configured:
+        return (here or cc.public_base(handler)), True
+    if here.lower() in {c.lower() for c in configured}:
+        return here, True
+    return configured[0], False
+
+
+def _pack(verifier: str, locale: str, next_path: str) -> str:
+    return f"{verifier}.{locale}.{_b64url(next_path.encode('utf-8'))}"
+
+
+def _unpack(value: str) -> tuple[str, str, str] | None:
+    parts = value.split(".")
+    if len(parts) != 3 or not (43 <= len(parts[0]) <= 128) or parts[1] not in ("en", "es"):
+        return None
+    if any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" for ch in parts[0] + parts[2]):
+        return None
+    try:
+        next_path = base64.urlsafe_b64decode((parts[2] + "=" * (-len(parts[2]) % 4)).encode()).decode("utf-8")
+    except Exception:
+        return None
+    return parts[0], parts[1], safe_next(next_path)
+
+
+def read_oauth_cookie(handler: Any) -> tuple[str, str, str] | None:
+    raw = handler.headers.get("Cookie", "")
+    try:
+        jar = SimpleCookie()
+        jar.load(raw)
+    except Exception:
+        return None
+    morsel = jar.get(OAUTH_COOKIE)
+    return _unpack(morsel.value) if morsel and len(morsel.value) < 700 else None
+
+
+def app_url(next_path: str, **params: str) -> str:
+    """next_path with ?signin=… merged into its query (before any #route)."""
+    parts = urllib.parse.urlsplit(safe_next(next_path))
+    query = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query) if k not in ("signin", "signin_error", "lang")]
+    query += [(k, v) for k, v in params.items() if v]
+    return urllib.parse.urlunsplit(("", "", parts.path or "/", urllib.parse.urlencode(query), parts.fragment))
+
+
+def send_redirect(handler: Any, location: str, cookies: list[str] | None = None) -> None:
+    handler.send_response(302)
+    handler.send_header("Location", location)
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", "0")
+    for cookie in cookies or []:
+        handler.send_header("Set-Cookie", cookie)
+    handler.end_headers()
+
+
+def oauth_start(handler: Any) -> None:
+    """GET /api/auth/google — no X-CaseCircle header (it is a plain link); nothing changes until the callback."""
+    parsed = urllib.parse.urlparse(handler.path)
+    query = urllib.parse.parse_qs(parsed.query)
+    locale = "es" if (query.get("locale") or [""])[0] == "es" else "en"
+    next_path = safe_next((query.get("next") or ["/"])[0])
+    origin, here = oauth_origin(handler)
+    if not here:
+        send_redirect(handler, origin + parsed.path + (f"?{parsed.query}" if parsed.query else ""))
+        return
+    fail = lambda code: send_redirect(handler, app_url(next_path, signin_error=code, lang=locale))
+    if cc.rate_hit("token", cc.client_ip(handler)):
+        fail("google_failed")
+        return
+    if not google_enabled():
+        fail("google_off")
+        return
+    verifier = new_verifier()
+    params = {"provider": "google", "redirect_to": f"{origin}/auth/callback",
+              "code_challenge": challenge(verifier), "code_challenge_method": "s256"}
+    target = f"{base_url()}/auth/v1/authorize?{urllib.parse.urlencode(params)}"
+    cookie = _cookie(handler, OAUTH_COOKIE, _pack(verifier, locale, next_path), OAUTH_TTL_S)
+    send_redirect(handler, target, [cookie])
+
+
+def oauth_callback(handler: Any) -> None:
+    """GET /auth/callback — swap the one-time code (plus our verifier) for a session."""
+    query = {k: v[0] for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(handler.path).query).items()}
+    stored = read_oauth_cookie(handler)
+    verifier, locale, next_path = stored or ("", "en", "/")
+    clear = [_cookie(handler, OAUTH_COOKIE, "", 0)]
+    fail = lambda code: send_redirect(handler, app_url(next_path, signin_error=code, lang=locale), clear)
+    error = query.get("error") or query.get("error_code") or ""
+    if error:
+        handler.log_message("google sign-in returned error=%s", error[:60])
+        fail("google_cancelled" if error == "access_denied" else "google_failed")
+        return
+    code = query.get("code", "")
+    if not code or len(code) > 512:
+        fail("google_failed")
+        return
+    if not verifier:
+        fail("google_expired")
+        return
+    if cc.rate_hit("token", cc.client_ip(handler)):
+        fail("google_failed")
+        return
+    try:
+        status, data, _ = call("POST", "/auth/v1/token", params={"grant_type": "pkce"},
+                               body={"auth_code": code, "code_verifier": verifier})
+        if status != 200 or not isinstance(data, dict) or not data.get("access_token"):
+            reason = _auth_error(status, data)
+            handler.log_message("google code exchange failed: %s", reason[:60])
+            fail("google_expired" if reason in ("flow_state_expired", "flow_state_not_found", "bad_code_verifier",
+                                                "bad_oauth_state", "validation_failed") or status == 404
+                 else "google_unavailable" if status >= 500 else "google_failed")
+            return
+        status, user = fetch_account(data["access_token"])
+    except Upstream as err:
+        handler.log_message("supabase unreachable during google sign-in: %s", str(err))
+        fail("google_unavailable")
+        return
+    if status != 200 or not user:
+        fail("google_failed")
+        return
+    cookies = session_cookies(handler, data) + clear
+    if user.get("needs_profile"):
+        send_redirect(handler, app_url(next_path, signin="google-new", lang=locale), cookies)
+        return
+    send_redirect(handler, app_url(next_path, signin="google"), cookies)
+
+
+def api_complete_profile(handler, user, data):
+    """A Google sign-up picks its public name and agrees to the rules; the 3-day trial starts now."""
+    if not user:
+        raise cc.ApiError(401, "auth")
+    if not user.get("needs_profile"):
+        raise cc.ApiError(409, "already")
+    if cc.rate_hit("account", f"u{user['id']}"):
+        raise cc.ApiError(429, "rate")
+    handle = cc.clean_text(data.get("handle"), 20, False)
+    issue = cc.handle_issue(handle)
+    if not issue and handle.lower().startswith("user_") and len(handle) == 15:
+        issue = "invalid"   # looks like a placeholder handle
+    if issue:
+        raise cc.ApiError(400, issue)
+    if not data.get("agreeRules") or not data.get("agreeNotAdvice"):
+        raise cc.ApiError(400, "agree")
+    if handle_taken(handle):
+        raise cc.ApiError(409, "taken")
+    locale = "es" if data.get("locale") == "es" else "en"
+    spaces = cc.clean_spaces(data.get("spaces")) or ["i-485"]
+    profiles = cc.clean_profiles(data.get("profiles"))
+    try:
+        rest("POST", "rpc/complete_profile", token=tok(user), prefer="return=minimal",
+             body={"p_handle": handle, "p_locale": locale, "p_spaces": spaces, "p_case_profiles": profiles})
+    except cc.ApiError as error:
+        if error.status == 404:   # the migration that adds complete_profile() has not been applied yet
+            raise cc.ApiError(503, "server") from None
+        raise
+    status, fresh = fetch_account(tok(user))
+    if status != 200 or not fresh or fresh.get("needs_profile"):
+        raise cc.ApiError(502, "server")
+    return 201, {"user": public_user(fresh)}
+
+
 # ───────────────────────── router ─────────────────────────
 
 GET_ROUTES = {"/api/me": api_me, "/api/posts": api_list_posts, "/api/handle-check": api_handle_check,
@@ -993,8 +1273,11 @@ POST_ROUTES = {
     "/api/report": api_report, "/api/mod": api_mod, "/api/waitlist": api_waitlist, "/api/verify": api_verify,
     "/api/verify/resend": api_verify_resend, "/api/password/forgot": api_forgot, "/api/password/reset": api_reset,
     "/api/account/password": api_change_password, "/api/account/email": api_change_email,
-    "/api/account/logout-all": api_logout_all,
+    "/api/account/logout-all": api_logout_all, "/api/auth/complete-profile": api_complete_profile,
 }
+# Routes that see a Google sign-up before it has finished its profile; every other route treats it as signed out.
+UNFINISHED_OK = {("GET", "/api/me"), ("GET", "/api/handle-check"), ("POST", "/api/logout"),
+                 ("POST", "/api/auth/complete-profile")}
 
 
 def dispatch(handler: Any, method: str) -> None:
@@ -1004,6 +1287,8 @@ def dispatch(handler: Any, method: str) -> None:
         if method == "POST" and (handler.headers.get("X-CaseCircle") != "1" or not cc.same_origin(handler)):
             raise cc.ApiError(403, "csrf")
         user = load_user(handler)
+        if (method, path) not in UNFINISHED_OK:
+            user = complete_user(user)
         match = cc.POST_ITEM.match(path)
         if method == "GET":
             query = urllib.parse.parse_qs(parsed.query)

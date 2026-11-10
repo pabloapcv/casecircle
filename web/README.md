@@ -170,6 +170,26 @@ When `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are set, `supa.py` serves eve
 
 Without these two variables everything below (SQLite, `mailer.py`) applies as before.
 
+### Continue with Google
+
+The sign-in and sign-up screens show a **Continue with Google** button (Google's standard white button, EN/ES) whenever the Google provider is switched on in Supabase (`/api/me` reports `providers.google`, read from Supabase's public `/auth/v1/settings` and cached 5 minutes). With SQLite accounts there is no Google sign-in.
+
+**How it works (server-side PKCE, no Supabase JS in the browser):**
+
+1. `GET /api/auth/google?locale=es&next=/#feed` makes a random `code_verifier`, keeps it in a 10-minute `cc_oauth` cookie (`HttpOnly; SameSite=Lax; Secure` over HTTPS) and redirects to `https://<project-ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=<origin>/auth/callback&code_challenge=<S256>&code_challenge_method=s256`. Only the challenge leaves the server. If the request arrives on a host that isn't in `CASECIRCLE_PUBLIC_ORIGIN`, it is first bounced to the first configured origin, so the callback lands where the cookie is.
+2. Google → Supabase → `GET /auth/callback?code=…`. The server posts `{auth_code, code_verifier}` to `/auth/v1/token?grant_type=pkce`, sets `cc_at`/`cc_rt` exactly like a password sign-in, clears `cc_oauth` and redirects to `next` with `?signin=google`. Errors come back as `?signin_error=google_cancelled|google_expired|google_failed|google_off|google_unavailable`, which the page shows in English or Spanish on the sign-in screen (expired/missing verifier, a code minted for another browser, a cancelled Google screen and a Supabase outage are all covered).
+3. **First-time Google users:** the existing `on_auth_user_created` trigger gives them an accounts row with a placeholder handle (`user_` + 10 hex digits of their id). Until they finish their profile the server treats them as signed out everywhere except `/api/me`, `/api/handle-check`, `/api/logout` and `POST /api/auth/complete-profile`, and the page shows **Finish your profile**: public name (same rules as sign-up) plus the same two agreements (community rules; not legal advice / not affiliated with USCIS). That POST keeps the `X-CaseCircle` + same-origin CSRF check and calls `public.complete_profile()` (migration `20261110220000_complete_profile.sql`), which sets the name and groups and **starts the 3-day trial at that moment**. It only works while the placeholder handle is still there.
+4. **Same email as an existing password account:** Supabase links the Google identity to the existing (confirmed) user, so the same auth user and the same `accounts` row come back — same handle, same trial, same admin flag.
+5. Google-only accounts have no CaseCircle password: Account settings hides the change-email/change-password forms and deleting the account asks for the public name instead of a password.
+
+**Setup (once):**
+
+1. **Google Cloud Console** → APIs & Services → OAuth consent screen: External, app name CaseCircle, support email, authorized domain `casecircle.us` (and `supabase.co` while Supabase's domain is shown), scopes `openid`, `email`, `profile` only.
+2. Credentials → Create credentials → **OAuth client ID** → Web application. Authorized JavaScript origins: `https://casecircle.us`. Authorized redirect URI: **`https://aucdxtyzyilcjqtgxrqf.supabase.co/auth/v1/callback`** (Supabase's callback, not ours). Keep the client secret out of the repo.
+3. **Supabase** → Authentication → Sign In / Providers → **Google**: enable, paste the Client ID and Client Secret, save. URL Configuration already allows `https://casecircle.us/**` and `https://casecircle.onrender.com/**`, which covers `/auth/callback`.
+4. Apply `supabase/migrations/20261110220000_complete_profile.sql` (SQL editor or `supabase db push`). Without it, Google sign-in works but **Finish your profile** answers 503.
+5. Until Google verifies the app (and the domain), Google's screen names the Supabase domain instead of CaseCircle; a custom auth domain or verification fixes that.
+
 ## Deploy
 
 The repo root has a `render.yaml` Blueprint: one Python web service (`rootDir: web`, `python3 serve.py`, health check `/healthz`) with a 1 GB persistent disk at `/var/data` for SQLite. On Render: **New → Blueprint**, pick the repo, fill the `sync: false` values, deploy. Disks need a paid instance (the Blueprint uses `starter`) and keep the service at **one instance**; deploys have a few seconds of downtime. Render snapshots the disk daily.
@@ -221,7 +241,7 @@ The landing page points only to real free/low-cost resources (no paid lead-gen):
 npm test
 ```
 
-That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, `mailer_test.py`: templates, escaping, console/Resend/SMTP delivery and quiet logs, `supa_test.py`: the Supabase backend against a fake Auth/PostgREST (cookies, refresh rotation, error mapping, signup/confirm, trial/pass/admin gating), and `community_test.py`: accounts, scrypt hashing, sessions, email confirmation, forgot/reset, settings, lockout, idle expiry, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
+That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, `mailer_test.py`: templates, escaping, console/Resend/SMTP delivery and quiet logs, `supa_test.py`: the Supabase backend against a fake Auth/PostgREST (cookies, refresh rotation, error mapping, signup/confirm, trial/pass/admin gating, Continue with Google: PKCE redirect, callback exchange, finish-your-profile, error paths), and `community_test.py`: accounts, scrypt hashing, sessions, email confirmation, forgot/reset, settings, lockout, idle expiry, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
 
 To smoke the UI against the mock (clearly test-only):
 

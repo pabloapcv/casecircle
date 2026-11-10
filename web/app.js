@@ -473,7 +473,8 @@ const ICONS = {
   mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>',
   lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
-  groups: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 15.2A4.5 4.5 0 0 1 20.5 19"/>'
+  groups: '<circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14.5 15.2A4.5 4.5 0 0 1 20.5 19"/>',
+  shuffle: '<path d="M16 3h5v5"/><path d="m4 20 7-7"/><path d="M21 8 8 21"/><path d="M16 16h5v5"/><path d="m4 4 5 5"/>'
 };
 function icon(name, size = 20) {
   return `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name] || ""}</svg>`;
@@ -650,6 +651,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Home") { event.preventDefault(); items[0]?.focus(); return; }
   if (event.key === "End") { event.preventDefault(); items[items.length - 1]?.focus(); }
 });
+document.addEventListener("keydown", handleCivicsKeys);
 
 function handleEmailLink(link) {
   if (link.kind === "reset") { resetToken = link.token; openAuth("reset"); return; }
@@ -3098,7 +3100,7 @@ const INTERVIEW_TABS = [["i-485", "caseMarriage"], ["i-751", "caseI751"], ["n-40
 const extrasUi = {
   cache: {}, loading: {}, error: {},
   mock: null, showOther: false,
-  civicsVersion: "", civicsMode: "practice", filedOn: "", senior: false, showEs: false,
+  civicsVersion: "", civicsMode: "practice", civicsChoosing: false, filedOn: "", senior: false, showEs: false,
   session: null, topic: "", card: 0, flipped: false, cardOrder: null
 };
 function X(key, values) { return extrasText(lang(), key, values); }
@@ -3255,13 +3257,62 @@ function interviewExtras(data) {
 }
 
 function civicsVersion() {
-  return extrasUi.civicsVersion || versionForFilingDate(extrasUi.filedOn) || "2025";
+  return civicsChosenVersion() || "2025";
+}
+
+function civicsChosenVersion() {
+  return extrasUi.civicsVersion || versionForFilingDate(extrasUi.filedOn) || "";
+}
+
+function civicsTestMeta(id) {
+  const v = id === "2008" ? "2008" : "2025";
+  return {
+    title: X(v === "2008" ? "test2008Title" : "test2025Title"),
+    stats: X(v === "2008" ? "test2008Stats" : "test2025Stats"),
+    rules: X(v === "2008" ? "test2008Rules" : "test2025Rules"),
+    label: X(v === "2008" ? "label2008" : "label2025")
+  };
+}
+
+function civicsTestStep() {
+  const chosen = civicsChosenVersion();
+  const choosing = extrasUi.civicsChoosing || !chosen;
+  if (!choosing && chosen) {
+    const meta = civicsTestMeta(chosen);
+    return `<div class="card civics-chosen">
+      <div>
+        <p class="civics-step-num">${esc(X("step1"))}</p>
+        <h2>${esc(X("practicingTest", { label: meta.label }))}</h2>
+        <p class="muted">${esc(meta.stats)} · ${esc(meta.rules)}</p>
+      </div>
+      <button type="button" class="btn-secondary" data-act="civics-change">${esc(X("changeTest"))}</button>
+    </div>`;
+  }
+  const card = (id) => {
+    const meta = civicsTestMeta(id);
+    const on = chosen === id;
+    return `<button type="button" class="card civics-test-card${on ? " on" : ""}" data-act="civics-version" data-id="${id}" aria-pressed="${on}">
+      <strong>${esc(meta.title)}</strong>
+      <span class="civics-test-stats">${esc(meta.stats)}</span>
+      <span class="civics-test-rules">${esc(meta.rules)}</span>
+    </button>`;
+  };
+  const recommended = versionForFilingDate(extrasUi.filedOn);
+  return `<section class="civics-step" aria-labelledby="civics-step1">
+    <p class="civics-step-num">${esc(X("step1"))}</p>
+    <h2 id="civics-step1">${esc(X("whichTest"))}</h2>
+    <p class="lede">${esc(X("whichTestHelp"))}</p>
+    <div class="civics-test-grid">${card("2025")}${card("2008")}</div>
+    <div class="civics-date-help">
+      <p class="civics-date-title">${esc(X("notSureDate"))}</p>
+      <label class="field civics-date">${esc(X("filedOn"))}<input type="date" id="civics-filed" data-act="civics-filed" value="${esc(extrasUi.filedOn)}"></label>
+      ${recommended ? `<p class="note civics-you-take">${esc(X("youTake", { label: X(recommended === "2025" ? "label2025" : "label2008") }))}</p>` : ""}
+    </div>
+  </section>`;
 }
 
 function civicsScreen() {
-  const version = civicsVersion();
-  const recommended = versionForFilingDate(extrasUi.filedOn);
-  const chip = (v) => `<button type="button" class="chip ${version === v ? "on" : ""}" aria-pressed="${version === v}" data-act="civics-version" data-id="${v}">${esc(X(v === "2025" ? "version2025" : "version2008"))}</button>`;
+  const chosen = civicsChosenVersion();
   return `<div class="interview-hub civics">
     ${backButton()}
     <div class="page-head">
@@ -3271,33 +3322,37 @@ function civicsScreen() {
     </div>
     ${extrasNotice()}
     ${extrasBanner()}
-    <div class="card civics-picker">
-      <h2>${esc(X("whichTest"))}</h2>
-      <p class="muted">${esc(X("whichTestHelp"))}</p>
-      <label class="field">${esc(X("filedOn"))}<input type="date" id="civics-filed" data-act="civics-filed" value="${esc(extrasUi.filedOn)}"></label>
-      ${recommended ? `<p class="note">${esc(X("youTake", { label: X(recommended === "2025" ? "label2025" : "label2008") }))}</p>` : ""}
-      <div class="chips" role="group" aria-label="${esc(X("whichTest"))}">${chip("2025")}${chip("2008")}</div>
-    </div>
-    ${extrasGate("civics", version, civicsBody)}
+    ${civicsTestStep()}
+    ${chosen ? extrasGate("civics", chosen, civicsPracticeStep) : (extrasStatus().access ? "" : extrasLocked())}
     ${legalDisclaimer()}
   </div>`;
 }
 
-function civicsBody(data) {
-  const modes = [["practice", "modePractice"], ["topics", "modeTopics"], ["cards", "modeCards"], ["vocab", "modeVocab"]];
-  const tabs = modes.map(([id, label]) => `<button type="button" role="tab" class="chip ${extrasUi.civicsMode === id ? "on" : ""}" aria-selected="${extrasUi.civicsMode === id}" data-act="civics-mode" data-id="${id}">${esc(X(label))}</button>`).join("");
+function civicsPracticeStep(data) {
+  const modes = [
+    ["practice", "modePractice", "modePracticeLead"],
+    ["topics", "modeTopics", "modeTopicsLead"],
+    ["cards", "modeCards", "modeCardsLead"],
+    ["vocab", "modeVocab", "modeVocabLead"]
+  ];
+  const tabs = modes.map(([id, label]) => `<button type="button" role="tab" class="seg ${extrasUi.civicsMode === id ? "on" : ""}" aria-selected="${extrasUi.civicsMode === id}" data-act="civics-mode" data-id="${id}">${esc(X(label))}</button>`).join("");
+  const leadKey = (modes.find((row) => row[0] === extrasUi.civicsMode) || modes[0])[2];
   const esNote = data.version === "2008"
-    ? `<label class="check-inline"><input type="checkbox" data-act="civics-es" ${extrasUi.showEs ? "checked" : ""}> ${esc(X("showSpanish"))}</label>`
-    : `<p class="muted small-print">${esc(X("noSpanish2025"))}</p>`;
+    ? `<label class="civics-toggle"><input type="checkbox" data-act="civics-es" ${extrasUi.showEs ? "checked" : ""}> <span><strong>${esc(X("showSpanish"))}</strong><span class="muted">${esc(X("studyAid"))}</span></span></label>`
+    : `<p class="civics-info">${esc(X("noSpanish2025"))}</p>`;
   const body = extrasUi.civicsMode === "topics" ? civicsTopics(data)
     : extrasUi.civicsMode === "cards" ? civicsCards(data)
     : extrasUi.civicsMode === "vocab" ? civicsVocab(data)
     : civicsPractice(data);
-  return `<section class="extras-body">
-    <div class="chips civics-modes" role="tablist">${tabs}</div>
-    <label class="check-inline"><input type="checkbox" data-act="civics-senior" ${extrasUi.senior ? "checked" : ""}> ${esc(X("senior"))}</label>
-    ${extrasUi.senior ? `<p class="muted small-print">${esc(X("seniorHelp"))}</p>` : ""}
-    ${esNote}
+  return `<section class="civics-step civics-practice-step extras-body" aria-labelledby="civics-step2">
+    <p class="civics-step-num">${esc(X("step2"))}</p>
+    <h2 id="civics-step2">${esc(X("chooseHow"))}</h2>
+    <div class="civics-modes" role="tablist" aria-label="${esc(X("chooseHow"))}">${tabs}</div>
+    <p class="civics-mode-lead">${esc(X(leadKey))}</p>
+    <div class="civics-options">
+      <label class="civics-toggle"><input type="checkbox" role="switch" data-act="civics-senior" ${extrasUi.senior ? "checked" : ""}> <span><strong>${esc(X("senior"))}</strong><span class="muted">${esc(X("seniorHelp"))}</span></span></label>
+      ${esNote}
+    </div>
     ${body}
     <p class="muted small-print">${esc(X("officialFiles"))}: <a href="${esc(data.meta.source)}" target="_blank" rel="noopener noreferrer">${esc(data.meta.label)} (${esc(data.meta.edition)})</a>${data.meta.spanish ? ` · <a href="${esc(data.meta.spanish.source)}" target="_blank" rel="noopener noreferrer">Español (${esc(data.meta.spanish.edition)})</a>` : ""} · <a href="${esc(data.studyPage)}" target="_blank" rel="noopener noreferrer">USCIS — Study for the Test</a> · ${esc(X("checkedOn", { date: data.checked }))}</p>
   </section>`;
@@ -3367,14 +3422,25 @@ function civicsCards(data) {
   const pool = civicsPool(data);
   const order = extrasUi.cardOrder && extrasUi.cardOrder.version === data.version && extrasUi.cardOrder.senior === extrasUi.senior
     ? extrasUi.cardOrder.list : pool.map((q) => q.n);
-  const index = Math.min(extrasUi.card, order.length - 1);
+  const index = Math.min(extrasUi.card, Math.max(0, order.length - 1));
   const q = pool.find((item) => item.n === order[index]) || pool[0];
-  return `<div class="card flashcard ${extrasUi.flipped ? "flipped" : ""}">
-      <p class="kicker">${esc(X("cardOf", { i: index + 1, n: order.length }))}</p>
-      ${civicsQuestion(q)}
+  const topic = lang() === "es" && q.topicEs ? q.topicEs : q.topic;
+  const pct = order.length ? Math.round(((index + 1) / order.length) * 100) : 0;
+  return `<div class="card flashcard${extrasUi.flipped ? " flipped" : ""}">
+      <div class="flash-head">
+        <div class="flash-progress" role="progressbar" aria-valuemin="1" aria-valuemax="${order.length}" aria-valuenow="${index + 1}" aria-label="${esc(X("cardOf", { i: index + 1, n: order.length }))}"><span style="width:${pct}%"></span></div>
+        <p class="flash-count">${esc(X("cardOf", { i: index + 1, n: order.length }))}</p>
+        <span class="pill">${esc(topic)}</span>
+      </div>
+      <p class="civics-q" lang="en">${esc(q.q)}</p>
       ${extrasUi.flipped ? civicsAnswer(q, data) : ""}
+      <button type="button" class="btn block" data-act="card-flip">${esc(X(extrasUi.flipped ? "hideAnswer" : "reveal"))}</button>
     </div>
-    <div class="row"><button class="btn-secondary" data-act="card-prev" data-total="${order.length}">${esc(X("prev"))}</button><button class="btn" data-act="card-flip">${esc(X("flip"))}</button><button class="btn-secondary" data-act="card-next" data-total="${order.length}">${esc(X("next"))}</button><button class="btn-secondary" data-act="card-shuffle">${esc(X("shuffle"))}</button></div>`;
+    <div class="flash-nav">
+      <button type="button" class="btn-secondary" data-act="card-prev" data-total="${order.length}">${esc(X("prev"))}</button>
+      <button type="button" class="btn" data-act="card-next" data-total="${order.length}">${esc(X("next"))}</button>
+    </div>
+    <button type="button" class="text-link flash-shuffle" data-act="card-shuffle">${icon("shuffle", 16)} ${esc(X("shuffle"))}</button>`;
 }
 
 function civicsVocab(data) {
@@ -3398,7 +3464,8 @@ function handleExtrasClick(act, node) {
   }
   if (act === "mock-next") { if (extrasUi.mock) extrasUi.mock.i += 1; render(); return true; }
   if (act === "mock-end") { extrasUi.mock = null; render(); return true; }
-  if (act === "civics-version") { extrasUi.civicsVersion = node.dataset.id; extrasUi.session = null; extrasUi.card = 0; extrasUi.flipped = false; extrasUi.topic = ""; extrasUi.cardOrder = null; if (node.dataset.id === "2025") extrasUi.showEs = false; render(); return true; }
+  if (act === "civics-change") { extrasUi.civicsChoosing = true; render(); return true; }
+  if (act === "civics-version") { extrasUi.civicsVersion = node.dataset.id; extrasUi.civicsChoosing = false; extrasUi.session = null; extrasUi.card = 0; extrasUi.flipped = false; extrasUi.topic = ""; extrasUi.cardOrder = null; if (node.dataset.id === "2025") extrasUi.showEs = false; render(); return true; }
   if (act === "civics-mode") { extrasUi.civicsMode = node.dataset.id; render(); return true; }
   if (act === "civics-start") {
     const data = extrasUi.cache[extrasCacheKey("civics", civicsVersion())];
@@ -3423,9 +3490,41 @@ function handleExtrasClick(act, node) {
   return false;
 }
 
+function handleCivicsKeys(event) {
+  if ((state.route?.name || "") !== "civics" || extrasUi.civicsMode !== "cards" || !extrasStatus().access) return;
+  const menu = document.getElementById("account-menu");
+  if (menu && !menu.hidden) return;
+  if (event.target?.closest?.("input, textarea, select, [contenteditable=true]")) return;
+  const data = extrasUi.cache[extrasCacheKey("civics", civicsVersion())];
+  if (!data) return;
+  const pool = civicsPool(data);
+  const total = (extrasUi.cardOrder && extrasUi.cardOrder.version === data.version && extrasUi.cardOrder.senior === extrasUi.senior
+    ? extrasUi.cardOrder.list : pool.map((q) => q.n)).length || 1;
+  if (event.key === " " || event.code === "Space") {
+    if (event.target?.closest?.("button, a")) return;
+    event.preventDefault();
+    extrasUi.flipped = !extrasUi.flipped;
+    render();
+    return;
+  }
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    extrasUi.card = nextCard(extrasUi.card, total, 1);
+    extrasUi.flipped = false;
+    render();
+    return;
+  }
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    extrasUi.card = nextCard(extrasUi.card, total, -1);
+    extrasUi.flipped = false;
+    render();
+  }
+}
+
 function handleExtrasChange(node) {
   const act = node.dataset.act;
-  if (act === "civics-filed") { extrasUi.filedOn = node.value; extrasUi.civicsVersion = ""; extrasUi.session = null; extrasUi.cardOrder = null; extrasUi.card = 0; render(); return true; }
+  if (act === "civics-filed") { extrasUi.filedOn = node.value; extrasUi.civicsVersion = ""; extrasUi.civicsChoosing = !versionForFilingDate(node.value); extrasUi.session = null; extrasUi.cardOrder = null; extrasUi.card = 0; render(); return true; }
   if (act === "civics-senior") { extrasUi.senior = node.checked; extrasUi.session = null; extrasUi.cardOrder = null; extrasUi.card = 0; extrasUi.topic = ""; render(); return true; }
   if (act === "civics-es") { extrasUi.showEs = node.checked; render(); return true; }
   if (act === "mock-other") { extrasUi.showOther = node.checked; render(); return true; }

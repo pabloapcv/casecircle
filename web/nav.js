@@ -32,7 +32,7 @@ export const SECTION_OF = {
   home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", form: "feed",
   interview: "interview", civics: "interview",
   insights: "insights",
-  timelines: "wait", "profile-edit": "wait",
+  timelines: "wait", "profile-edit": "wait", approval: "wait",
   prepare: "papers",
   bot: "answers", questions: "answers",
   you: "account", settings: "account", mod: "account", pricing: "account"

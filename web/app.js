@@ -22,6 +22,9 @@ import { maskIdentifiers } from "./redact.js";
 import { extrasText, trialLabel, isFeatureOpen, GATED_FEATURES } from "./extras-text.js";
 import { answerView, nextCard, pickQuestions, questionsInTopic, rulesFor, scoreSession, shuffle, topicsOf, versionForFilingDate } from "./civics.js";
 import { deleteText, extractFromFile, kindOf, loadText, saveText, keepFile } from "./extract.js";
+import { growthText } from "./growth-text.js";
+import { TWIN_FORMS, TWIN_OFFICES, cohortFrom, monthKey, twinIssue, twinsView } from "./twins.js";
+import { CARD_SIZE, cardModel, cleanCardName, drawCard, monthsBetween, shareLinks, shareUrl } from "./approval-card.js";
 import { folderSummaryHtml } from "./summary.js";
 import { NEXT_STEPS, OFFICIAL, WAIT_FORMS, rangeBar, waitPosition } from "./insights.js";
 
@@ -67,6 +70,9 @@ const dataCache = { timelines: null, insights: null, loading: false, failed: fal
 const officialCache = new Map();
 let folderChatStatus = { available: null, mock: false, reason: "", loaded: false, inflight: false };
 let folderChatAbort = null;
+/* Case twins (server: /api/twins, Supabase my_case_twins) and the approval card builder. */
+const twins = { loaded: false, loading: false, available: false, cohorts: [], busy: false, error: "", showForm: false, draft: null };
+let approvalUi = { spaceId: "", month: "", nameMode: "none", firstName: "", showOffice: false, error: "" };
 
 function withoutSamples(saved) {
   const sampleIds = new Set((saved.members || []).filter((person) => person.sample).map((person) => person.id));
@@ -129,6 +135,7 @@ function account() {
 
 /* Link (or unlink) the device member to the signed-in account. Server groups/profiles win; local ones are pushed up once. */
 function adoptAccount(user) {
+  if ((session.user?.id || null) !== (user?.id || null)) resetTwins();
   session.user = user || null;
   let local = me(state);
   if (user) {
@@ -332,6 +339,7 @@ function Help(key) { return helpText(lang(), key); }
 function FormSeo(key) { return formSeoText(lang(), key); }
 function T(key, vars) { return toolsText(lang(), key, vars); }
 function A(key, vars) { return authText(lang(), key, vars); }
+function G(key, vars) { return growthText(lang(), key, vars); }
 function casePassPriceLabel() {
   return lang() === "es" ? `US$${CASE_PASS_PRICE_USD} (una vez)` : `$${CASE_PASS_PRICE_USD} one-time`;
 }
@@ -407,6 +415,7 @@ function render() {
     }
     restoreFocus = "";
   }
+  if (state.route?.name === "approval" && state.meId) paintApprovalCard();
   if (state.route?.name === "questions" && state.route.id) {
     document.getElementById(`q-${state.route.id}`)?.scrollIntoView({ block: "start" });
   }
@@ -721,6 +730,7 @@ function screen() {
   if (route.name === "explain") return landing({ signed: true });
   if (route.name === "spaces") return spacesScreen();
   if (route.name === "timelines") return timelinesScreen();
+  if (route.name === "approval") return approvalScreen(route.spaceId);
   if (route.name === "insights") return insightsScreen();
   if (route.name === "bot") return botScreen();
   if (route.name === "you") return youScreen();
@@ -2628,9 +2638,302 @@ function timelinesScreen() {
   ${waitToolSection()}
   <h2 class="secondary-h">${esc(T("waitCommunityTitle"))}</h2>
   ${waitCalculator()}
-  ${cases.length ? `<div class="card-grid">${cases.map((profile) => `<button class="card" data-act="edit-profile" data-id="${esc(profile.spaceId)}"><strong>${esc(spaceName(lang(), profile.spaceId))}</strong><div class="kicker">${esc(badge(lang(), profile))}</div><div>${monthsSince(profile.filed)} ${esc(L("months"))} ${esc(L("sinceFiling"))}</div></button>`).join("")}</div>` : ""}
+  ${twinsSection("wait")}
+  ${cases.length ? `<div class="card-grid">${cases.map(caseCard).join("")}</div>` : ""}
   <p class="footer-note muted">${esc(L("officialNote"))}</p>
   ${legalDisclaimer()}`;
+}
+
+/* A saved case: edit it, mark it approved, or (once approved) make the shareable card. */
+function caseCard(profile) {
+  const done = profile.stage === "approved" || profile.stage === "oath";
+  return `<div class="card case-card">
+    <button class="case-card-main" data-act="edit-profile" data-id="${esc(profile.spaceId)}"><strong>${esc(spaceName(lang(), profile.spaceId))}</strong><span class="kicker">${esc(badge(lang(), profile))}</span><span>${monthsSince(profile.filed)} ${esc(L("months"))} ${esc(L("sinceFiling"))}</span></button>
+    <div class="row">${done
+      ? `<button class="btn-secondary small" data-act="approval-card" data-id="${esc(profile.spaceId)}">${icon("check", 14)} ${esc(G("cardMake"))}</button>`
+      : `<button class="btn-secondary small" data-act="approval-mark" data-id="${esc(profile.spaceId)}">${esc(G("approvedMark"))}</button>`}</div>
+  </div>`;
+}
+
+/* ───────────── Case twins ───────────── */
+async function loadTwins(force = false) {
+  if (!account() || twins.loading || (twins.loaded && !force)) return;
+  twins.loading = true;
+  const res = await api("/api/twins");
+  twins.loading = false;
+  twins.loaded = true;
+  twins.available = Boolean(res.ok && res.data.available);
+  twins.cohorts = res.ok ? res.data.cohorts || [] : [];
+  render();
+}
+
+function resetTwins() {
+  Object.assign(twins, { loaded: false, loading: false, available: false, cohorts: [], busy: false, error: "", showForm: false, draft: null });
+}
+
+function twinDefaults(where) {
+  if (twins.draft) return twins.draft;
+  const tool = waitTool?.checked ? cohortFrom(waitTool) : null;
+  const profile = cohortFrom(me(state)?.profiles?.[0]);
+  const pick = where === "wait" && tool?.form ? tool : profile.form ? profile : tool || profile;
+  return { form: pick.form || "I-485", officeId: pick.officeId || "", month: pick.month || "" };
+}
+
+function twinPlace(cohort) {
+  return { form: cohort.form, office: officeName(lang(), cohort.officeId) || cohort.officeId, month: cohort.month ? monthLabel(lang(), `${cohort.month}-01T00:00:00Z`) : "" };
+}
+
+function twinsCohortCard(cohort) {
+  const view = twinsView(cohort);
+  const place = twinPlace(cohort);
+  const line = view.kind === "first" ? G("twinsFirst", place) : G(view.kind === "plus" ? "twinsCountPlus" : "twinsCount", { ...place, n: view.others });
+  return `<article class="twin-cohort">
+    <p class="twin-line"><strong>${esc(line)}</strong></p>
+    ${view.handles.length ? `<p class="tiny twin-h">${esc(G("twinsHandles"))}</p><ul class="twin-handles">${view.handles.map((h) => `<li class="chip">@${esc(h)}</li>`).join("")}${view.more ? `<li class="muted tiny">${esc(G("twinsAndMore"))}</li>` : ""}</ul>` : ""}
+    <div class="row">
+      <button class="btn-secondary small" data-act="twins-group" data-form="${esc(cohort.form)}" data-office="${esc(cohort.officeId)}">${esc(G("twinsOpenGroup", { form: cohort.form }))}</button>
+      <button class="btn-secondary small" data-act="twins-thread" data-form="${esc(cohort.form)}" data-office="${esc(cohort.officeId)}" data-month="${esc(cohort.month)}">${esc(G("twinsStartThread"))}</button>
+      <button class="ghost small" data-act="twins-off" data-form="${esc(cohort.form)}" ${twins.busy ? "disabled" : ""}>${esc(G("twinsOff"))}</button>
+    </div>
+  </article>`;
+}
+
+function twinsForm(where) {
+  const d = twinDefaults(where);
+  const now = new Date();
+  const max = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const officeOptions = TWIN_OFFICES.map((id) => `<option value="${esc(id)}" ${d.officeId === id ? "selected" : ""}>${esc(officeName(lang(), id))}</option>`).join("");
+  return `<form class="twin-form" data-form="twins" onsubmit="return false">
+    <label class="field">${esc(G("twinsForm"))}<select id="twin-form">${TWIN_FORMS.map((f) => `<option ${d.form === f ? "selected" : ""}>${esc(f)}</option>`).join("")}</select></label>
+    <label class="field">${esc(G("twinsOffice"))}<select id="twin-office"><option value="">${esc(G("twinsOfficePick"))}</option>${officeOptions}</select></label>
+    <label class="field">${esc(G("twinsMonth"))}<input id="twin-month" type="month" min="2000-01" max="${max}" value="${esc(d.month)}"></label>
+    <button class="btn" data-act="twins-on" ${twins.busy ? "disabled" : ""}>${esc(twins.busy ? A("working") : G("twinsOn"))}</button>
+  </form>
+  ${twins.error ? `<p class="danger" role="alert">${esc(twins.error)}</p>` : ""}`;
+}
+
+/* Shown on Check the wait ("wait") and on your account page ("you"). Free; signed-out visitors get a teaser. */
+function twinsSection(where) {
+  const head = (lead) => `<p class="kicker">${icon("user", 14)} ${esc(G("twinsKicker"))}</p><h2>${esc(G("twinsTitle"))}</h2>${lead ? `<p class="muted">${esc(lead)}</p>` : ""}`;
+  const privacy = `<p class="tiny twin-privacy">${icon("lock", 12)} ${esc(G("twinsPrivacy"))}</p>`;
+  if (!account()) {
+    return `<section class="twins-card teaser" aria-label="${esc(G("twinsTitle"))}">${head(G("twinsTeaserBody"))}
+      <div class="twin-sample" aria-hidden="true"><span class="chip">I-485</span><span class="chip">Miami, FL</span><span class="chip">${esc(monthLabel(lang(), "2026-03-01T00:00:00Z"))}</span></div>
+      <div class="row"><button class="btn" data-act="auth" data-mode="signup">${esc(G("twinsTeaserCta"))}</button><button class="btn-secondary" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button></div>
+      ${privacy}</section>`;
+  }
+  if (!twins.loaded) { loadTwins(); return `<section class="twins-card">${head("")}<p class="muted" role="status">${esc(G("twinsLoading"))}</p></section>`; }
+  if (!twins.available) return "";
+  const d = twinDefaults(where);
+  const prompt = where === "wait" && waitTool?.checked && d.officeId && d.month && !twins.cohorts.length
+    ? G("twinsAfterWait", twinPlace(d)) : G("twinsLead");
+  const showForm = !twins.cohorts.length || twins.showForm;
+  return `<section class="twins-card" id="twins" aria-label="${esc(G("twinsTitle"))}">${head(prompt)}
+    ${twins.cohorts.map(twinsCohortCard).join("")}
+    ${showForm ? twinsForm(where) : `<button class="ghost small" data-act="twins-more">+ ${esc(G("twinsAddAnother"))}</button>`}
+    ${privacy}</section>`;
+}
+
+async function twinsAction(act, node) {
+  if (twins.busy) return;
+  if (act === "twins-more") { twins.showForm = true; twins.draft = null; render(); return; }
+  if (act === "twins-group") {
+    const space = spaces.find((item) => item.forms.includes(node.dataset.form));
+    state.route = space ? { name: "space", id: space.id } : { name: "home" };
+    save(); render(); window.scrollTo?.(0, 0);
+    return;
+  }
+  if (act === "twins-thread") {
+    if (needAccount()) return;
+    const place = twinPlace({ form: node.dataset.form, officeId: node.dataset.office, month: node.dataset.month });
+    const space = spaces.find((item) => item.forms.includes(node.dataset.form));
+    ask = { ...blankAsk(), step: 2, type: "question", spaceIds: [space?.id || "i-485"], title: G("twinsThreadTitle", place).slice(0, 140), body: G("twinsThreadBody", place) };
+    state.route = { name: "ask" };
+    save(); render(); window.scrollTo?.(0, 0);
+    return;
+  }
+  let res;
+  if (act === "twins-on") {
+    const cohort = {
+      form: document.getElementById("twin-form")?.value || "",
+      officeId: document.getElementById("twin-office")?.value || "",
+      month: document.getElementById("twin-month")?.value || ""
+    };
+    twins.draft = cohort;
+    const issue = twinIssue(cohort);
+    if (issue) { twins.error = G(issue === "twin_form" ? "errTwinForm" : issue === "twin_office" ? "errTwinOffice" : "errTwinMonth"); render(); return; }
+    twins.busy = true; twins.error = ""; render();
+    res = await api("/api/twins", { method: "POST", body: cohort });
+    if (res.ok) { twins.showForm = false; twins.draft = null; toast = G("twinsOnDone"); }
+  } else if (act === "twins-off") {
+    twins.busy = true; render();
+    res = await api("/api/twins/off", { method: "POST", body: { form: node.dataset.form } });
+    if (res.ok) toast = G("twinsOffDone");
+  }
+  twins.busy = false;
+  if (!res.ok) {
+    twins.error = String(res.error).startsWith("twin_") ? G(res.error === "twin_form" ? "errTwinForm" : res.error === "twin_office" ? "errTwinOffice" : "errTwinMonth") : A(errorKey(res.error));
+  } else {
+    twins.available = Boolean(res.data.available);
+    twins.cohorts = res.data.cohorts || [];
+  }
+  render();
+}
+
+/* ───────────── Approval: mark approved + shareable card ───────────── */
+function currentMonth() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function approvalProfile(spaceId) {
+  return me(state)?.profiles?.find((item) => item.spaceId === spaceId) || null;
+}
+
+function approvalScreen(spaceId) {
+  const profile = approvalProfile(spaceId);
+  if (!profile) return `${backButton()}<p class="muted">${esc(L("couldNot"))}</p>`;
+  const approved = profile.stage === "approved" || profile.stage === "oath";
+  if (approvalUi.spaceId !== spaceId) approvalUi = { spaceId, month: monthKey(profile.dates?.approved) || currentMonth(), nameMode: "none", firstName: "", showOffice: false, error: "" };
+  const error = approvalUi.error ? `<p class="danger" role="alert">${esc(approvalUi.error)}</p>` : "";
+  if (!approved || state.route?.step === "month") {
+    return `${backButton()}<section class="auth-card narrow approval-step">
+      <p class="kicker">${icon("check", 16)} ${esc(profile.form)}</p>
+      <h1>${esc(G("approvedTitle"))}</h1>
+      <p class="lede">${esc(G("approvedLead", { form: profile.form }))}</p>
+      <label class="field">${esc(G("approvedMonth"))}<input id="approval-month" type="month" min="${esc(monthKey(profile.filed))}" max="${esc(currentMonth())}" value="${esc(approvalUi.month)}"></label>
+      ${error}
+      <button class="btn block" data-act="approval-save" data-id="${esc(spaceId)}">${esc(G("approvedSave"))}</button>
+      <p class="note">${esc(L("disclaimer"))}</p>
+    </section>`;
+  }
+  const acct = account();
+  const office = officeById(profile.officeId);
+  const officeLabel = office && office.id !== "unsure" ? (lang() === "es" ? office.es : office.en) : "";
+  const share = approvalShare(profile);
+  const radio = (mode, label) => `<label class="check"><input type="radio" name="card-name" data-act="card-name" value="${mode}" ${approvalUi.nameMode === mode ? "checked" : ""}>${esc(label)}</label>`;
+  return `${backButton()}<div class="approval narrow">
+    <div class="page-head"><p class="kicker">${icon("check", 16)} ${esc(profile.form)}</p><h1>${esc(G("cardTitle"))}</h1><p class="lede">${esc(G("cardLead"))}</p></div>
+    <div class="approval-grid">
+      <figure class="card-preview"><canvas id="approval-canvas" width="${CARD_SIZE}" height="${CARD_SIZE}" role="img" aria-label="${esc(G("cardAlt"))}"></canvas></figure>
+      <div class="stack approval-options">
+        <fieldset class="field"><legend>${esc(G("cardName"))}</legend>
+          ${radio("none", G("cardNameNone"))}
+          ${acct ? radio("handle", G("cardNameHandle", { handle: acct.handle })) : ""}
+          ${radio("first", G("cardNameFirst"))}
+          ${approvalUi.nameMode === "first" ? `<label class="field">${esc(G("cardFirstLabel"))}<input id="card-first" type="text" maxlength="24" autocomplete="given-name" value="${esc(approvalUi.firstName)}"></label>` : ""}
+        </fieldset>
+        ${officeLabel ? `<label class="check"><input type="checkbox" id="card-office" data-act="card-office" ${approvalUi.showOffice ? "checked" : ""}>${esc(G("cardShowOffice", { office: officeLabel }))}</label>` : ""}
+        <div class="stack share-buttons">
+          <button class="btn" data-act="card-download">${esc(G("cardDownload"))}</button>
+          <button class="btn-secondary" data-act="card-share">${esc(G("cardShare"))}</button>
+          <a class="btn-secondary" href="${esc(share.links.whatsapp)}" target="_blank" rel="noopener noreferrer">${esc(G("cardWhatsApp"))}</a>
+          <a class="btn-secondary" href="${esc(share.links.facebook)}" target="_blank" rel="noopener noreferrer">${esc(G("cardFacebook"))}</a>
+          <button class="ghost" data-act="card-celebrate" data-id="${esc(spaceId)}">${icon("plus", 14)} ${esc(G("cardCelebrate"))}</button>
+        </div>
+        <button class="ghost small" data-act="approval-mark" data-id="${esc(spaceId)}">${esc(G("approvedMonth"))}: ${esc(monthLabel(lang(), `${monthKey(profile.dates?.approved) || currentMonth()}-01T00:00:00Z`))}</button>
+      </div>
+    </div>
+    <p class="note">${esc(G("cardFine"))}</p>
+  </div>`;
+}
+
+function approvalModel(profile) {
+  const office = officeById(profile.officeId);
+  const officeLabel = approvalUi.showOffice && office && office.id !== "unsure" ? (lang() === "es" ? office.es : office.en) : "";
+  const name = approvalUi.nameMode === "handle" ? account()?.handle || "" : approvalUi.nameMode === "first" ? approvalUi.firstName : "";
+  const months = monthsBetween(profile.filed, profile.dates?.approved || currentMonth());
+  const space = spaces.find((item) => item.forms.includes(profile.form));
+  return cardModel({ t: G, form: profile.form, formName: space ? (lang() === "es" ? space.es : space.en) : "", months, office: officeLabel, name, refCode: account()?.referralCode || "" });
+}
+
+function approvalShare(profile) {
+  const model = approvalModel(profile);
+  const url = shareUrl(account()?.referralCode || "");
+  const text = G("shareText", { headline: model.headline, form: model.form, months: model.months.replace(/^(Approved in|Aprobado en) /, "") });
+  return { model, url, text, links: shareLinks(text, url) };
+}
+
+let cardFontsReady = false;
+function paintApprovalCard() {
+  const canvas = document.getElementById("approval-canvas");
+  const profile = approvalProfile(state.route?.spaceId);
+  if (!canvas || !profile || !canvas.getContext) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  drawCard(ctx, approvalModel(profile));
+  if (!cardFontsReady && document.fonts?.load) {
+    cardFontsReady = true;
+    Promise.all(["800 40px \"Inter Tight\"", "500 30px \"Inter Tight\""].map((f) => document.fonts.load(f))).then(() => {
+      const again = document.getElementById("approval-canvas");
+      if (again) drawCard(again.getContext("2d"), approvalModel(profile));
+    }).catch(() => {});
+  }
+}
+
+function cardBlob() {
+  const canvas = document.getElementById("approval-canvas");
+  return new Promise((resolve) => canvas ? canvas.toBlob((blob) => resolve(blob), "image/png") : resolve(null));
+}
+
+async function approvalAction(act, node) {
+  if (act === "approval-mark" || act === "approval-card") {
+    const spaceId = node.dataset.id;
+    approvalUi = { ...approvalUi, spaceId: "" };
+    state.route = { name: "approval", spaceId, step: act === "approval-mark" ? "month" : "card" };
+    save(); render(); window.scrollTo?.(0, 0);
+    return;
+  }
+  const profile = approvalProfile(state.route?.spaceId);
+  if (!profile) return;
+  if (act === "approval-save") {
+    const month = document.getElementById("approval-month")?.value || "";
+    approvalUi.month = month;
+    if (!/^\d{4}-\d{2}$/.test(month) || month > currentMonth() || month < monthKey(profile.filed)) { approvalUi.error = G("errApprovedMonth"); render(); return; }
+    const dates = { ...(profile.dates || {}), approved: `${month}-01T00:00:00.000Z` };
+    apply(saveProfile(state, { ...profile, stage: "approved", dates }), () => {
+      approvalUi.error = "";
+      toast = G("approvedDone");
+      state.route = { name: "approval", spaceId: profile.spaceId, step: "card" };
+      const user = me(state);
+      if (account() && user) api("/api/me", { method: "POST", body: { profiles: user.profiles, spaces: user.spaces } }).then((res) => { if (res.ok) session.user = res.data.user; });
+    });
+    return;
+  }
+  if (act === "card-download") {
+    const blob = await cardBlob();
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `casecircle-approved-${profile.form.toLowerCase()}.png`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return;
+  }
+  if (act === "card-share") {
+    const share = approvalShare(profile);
+    const blob = await cardBlob();
+    const file = blob && typeof File === "function" ? new File([blob], `casecircle-approved-${profile.form.toLowerCase()}.png`, { type: "image/png" }) : null;
+    try {
+      if (file && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], text: share.text, url: share.url });
+      else if (navigator.share) await navigator.share({ text: share.text, url: share.url });
+      else { toast = G("cardShareFallback"); render(); }
+    } catch { /* the person closed the share sheet */ }
+    return;
+  }
+  if (act === "card-celebrate") {
+    if (needAccount()) return;
+    const months = monthsBetween(profile.filed, profile.dates?.approved || currentMonth()) ?? 0;
+    const office = officeById(profile.officeId);
+    const officeText = approvalUi.showOffice && office && office.id !== "unsure" ? G("celebrateOffice", { office: lang() === "es" ? office.es : office.en }) : "";
+    ask = { ...blankAsk(), step: 2, type: "timeline", stage: "approved", spaceIds: [profile.spaceId],
+      title: G("celebrateTitle", { form: profile.form, n: months }).slice(0, 140), body: G("celebrateBody", { form: profile.form, n: months, office: officeText }) };
+    state.route = { name: "ask" };
+    save(); render(); window.scrollTo?.(0, 0);
+  }
 }
 
 /* ───────────── Insights ───────────── */
@@ -3140,7 +3443,8 @@ function youScreen() {
   return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(acct ? user.username : A("guest"))}</h1>${acct ? `<div class="kicker">${esc(levelName(lang(), acct.reputation || 0))}</div><div class="muted">${esc(L("reputation"))} ${acct.reputation || 0} · ${esc(A("accountEmail", { email: acct.email }))}</div>` : ""}</div></div>
     ${acct ? `<div class="row"><button class="btn-secondary" data-act="open-settings">${esc(A("settings"))}</button><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button>` : ""}</div>` : guestCard()}
     <h2>${esc(L("caseProfiles"))}</h2>
-    <div class="stack">${user.profiles.length ? user.profiles.map((profile) => `<div class="card">${esc(badge(lang(), profile))}</div>`).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
+    <div class="stack">${user.profiles.length ? user.profiles.map(caseCard).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
+    ${twinsSection("you")}
     <h2>${esc(L("yourPosts"))}</h2>
     ${mine.length ? `<div class="stack">${mine.map(postCard).join("")}</div>` : `<div class="empty-state"><p>${esc(L("noPosts"))}</p><button class="btn-secondary" data-act="tab" data-tab="ask">${esc(H("newPost"))}</button></div>`}
     <h2>${esc(L("bookmarks"))}</h2>
@@ -3428,6 +3732,7 @@ document.addEventListener("click", (event) => {
       filed: document.querySelector("#wait-filed")?.value || "",
       checked: true
     };
+    twins.draft = null;
     render();
     document.getElementById("wait-result")?.scrollIntoView?.({ block: "start", behavior: "smooth" });
     return;
@@ -3670,6 +3975,8 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
+  if (act.startsWith("twins-")) { event.preventDefault(); twinsAction(act, node); return; }
+  if (["approval-mark", "approval-card", "approval-save", "card-download", "card-share", "card-celebrate"].includes(act)) { approvalAction(act, node); return; }
   if (act === "ask-next") { ask.step = 2; render(); return; }
   if (act === "ask-back") { ask.step = Math.max(0, ask.step - 1); render(); return; }
   if (act === "publish") { publishAsk(); return; }
@@ -3743,6 +4050,8 @@ document.addEventListener("change", (event) => {
     render();
     return;
   }
+  if (node.dataset.act === "card-name") { approvalUi.nameMode = node.value; render(); return; }
+  if (node.dataset.act === "card-office") { approvalUi.showOffice = node.checked; render(); return; }
   if (node.dataset.act === "wait-calc-profile") {
     const user = me(state);
     waitCalcProfile = user?.profiles?.find(p => p.spaceId === node.value) || null;
@@ -3758,6 +4067,7 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.id === "card-first") { approvalUi.firstName = cleanCardName(event.target.value); paintApprovalCard(); return; }
   if (event.target.id === "auth-email") authForm.email = event.target.value;
   if (event.target.id === "auth-handle") authForm.handle = event.target.value;
   if (event.target.id === "auth-rules") authForm.rules = event.target.checked;

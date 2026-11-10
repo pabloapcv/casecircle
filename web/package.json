@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test logic.test.js prepare.test.js folder-chat.test.js nav.test.js sidebar.test.js redact.test.js readiness.test.js timeline.test.js builder.test.js api.test.js civics.test.js extras-text.test.js && python3 -m unittest folder_chat_test.py folder_check_test.py community_test.py mailer_test.py entitlements_test.py supa_test.py",
+    "test": "node --test logic.test.js prepare.test.js folder-chat.test.js nav.test.js sidebar.test.js redact.test.js readiness.test.js timeline.test.js builder.test.js api.test.js growth.test.js civics.test.js extras-text.test.js && python3 -m unittest folder_chat_test.py folder_check_test.py community_test.py mailer_test.py entitlements_test.py supa_test.py",
     "start": "python3 serve.py",
     "build-data": "node scripts/build-data.mjs"
   }

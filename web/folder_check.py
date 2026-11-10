@@ -17,6 +17,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+import community
 import folder_chat as fc
 
 MAX_BODY = 64_000
@@ -762,10 +763,15 @@ def run_plan(payload: dict[str, Any]) -> dict[str, Any]:
     return {**result, "mock": False}
 
 
-def _handle(handler: Any, port: int, validate: Any, run: Any) -> None:
+def _handle(handler: Any, port: int, validate: Any, run: Any, feature: str | None = None) -> None:
     data, ok = _read_json(handler, port)
     if not ok:
         return
+    if feature:
+        refused = community.feature_refusal(handler, feature)
+        if refused:
+            _send(handler, refused[0], refused[1])
+            return
     payload, error = validate(data)
     if error or payload is None:
         status = 403 if error and error.get("error") in {"blocked", "consent"} else 400
@@ -783,7 +789,7 @@ def _handle(handler: Any, port: int, validate: Any, run: Any) -> None:
 
 
 def handle_check(handler: Any, port: int) -> None:
-    _handle(handler, port, validate_check, run_check)
+    _handle(handler, port, validate_check, run_check, feature="folder_check")
 
 
 def handle_plan(handler: Any, port: int) -> None:

@@ -28,8 +28,8 @@ This branch includes the blank-page startup fix from [PR #2](https://github.com/
 
 ## Pricing (no payment backend yet)
 
-- **Free core:** feed, Check the wait, checklists, common questions, limited Ask-the-posts questions.
-- **Case Pass:** one-time, per case, 12 months — unlimited folder chat, printable bilingual checklist, interview prep pack, wait alerts.
+- **Free core:** feed, Check the wait, folder checklist, common questions, general interview tips, limited Ask-the-posts questions.
+- **Case Pass:** one-time, per case, 12 months — Interview practice, Civics practice, the AI document check, folder chat, printable bilingual checklist, wait alerts. New accounts get every extra free for 3 days.
 - Checkout is **not** wired. The UI shows **Coming soon / Join the waitlist**; `POST /api/waitlist` stores the email, language and source page in SQLite (table `waitlist`). The browser only remembers a "joined" flag.
 - A/B price test: `CASE_PASS_PRICE_USD` in `app.js` is set to **19** (alternative under test: **29**). Change that constant to flip the displayed price; do not invent a charge.
 
@@ -125,7 +125,7 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 - **Moderation:** a post or reply with `CASECIRCLE_REPORT_HIDE_THRESHOLD` (default 3) open reports is hidden automatically. Accounts whose email is in `CASECIRCLE_ADMIN_EMAILS` see **Review queue** (account menu) and can hide, unhide, remove or dismiss reports.
 - **Delete account** (Account settings → Delete) needs the password and `confirm: true`; it removes email, password, handle, sessions and tokens and keeps posts as "Deleted member".
 - The **App Review demo** account and the old browser-only posts are gone from production paths (old local data is dropped on load). The "Public titles" Reddit section is unchanged.
-- Documents are **never** uploaded: the Folder Builder, readiness score and per-document consent flow are unchanged and still work signed out.
+- Documents are **never** uploaded: the folder checklist, readiness score and adding documents still work signed out. The AI document check and folder chat need a signed-in account in the free trial or with a Case Pass (`POST` returns `401 signin` or `402 extras_locked`).
 
 | Endpoint | Method | Notes |
 | --- | --- | --- |
@@ -172,7 +172,7 @@ Any host that runs a long-lived Python 3.10+ process with a persistent volume wo
 | `CASECIRCLE_OUTBOX_DIR` | no | console mode: where `.txt`/`.html` copies go (default `web/data/outbox/`, gitignored, never served) |
 | `CASECIRCLE_EMAIL_SYNC` | no | `1`: send in the request thread (tests). Default sends on a background thread so response time doesn't reveal whether an account exists |
 | `CASECIRCLE_REPORT_HIDE_THRESHOLD` | no | open reports before auto-hide (default 3) |
-| `CASECIRCLE_TRIAL_DAYS` | no | free-trial length for the extras (Interview practice, Civics practice) on new accounts; default `3`, clamped 0–90 |
+| `CASECIRCLE_TRIAL_DAYS` | no | free-trial length for the extras (Interview practice, Civics practice, AI document check, folder chat) on new accounts; default `3`, clamped 0–90 |
 | `CASECIRCLE_LLM_API_KEY`, `CASECIRCLE_LLM_BASE_URL`, `CASECIRCLE_LLM_MODEL` | for real AI | see "Folder chat" above; without a key the AI parts say they're unavailable |
 | `CASECIRCLE_LLM_MOCK` | **never in production** | test-only canned replies |
 
@@ -220,13 +220,13 @@ On screens 1100px and wider, Feed, a case group, and a post show a right sidebar
 
 ### Freemium: extras and the free trial
 
-Free for everyone: Folder Builder (checklists, document checks, folder chat), Check the wait, the community, common questions, and general interview tips.
+Free for everyone: the folder checklist (marks, on-device documents, readiness score), Check the wait, the community, common questions, and general interview tips.
 
-Extras (server-gated): **Interview practice** (mock interview prompts from the sections of your forms, a what-to-bring checklist matched to your folder, tips with official citations) and **Civics practice** (official 2025 and 2008 USCIS banks, practice test with the real pass/stop rules, study by topic, flashcards, reading/writing vocabulary).
+Extras (server-gated, listed in `entitlements.GATED_FEATURES` — add an id there and in `extras-text.js` to gate another feature later): **Interview practice** (mock interview prompts from the sections of your forms, a what-to-bring checklist matched to your folder, tips with official citations), **Civics practice** (official 2025 and 2008 USCIS banks, practice test with the real pass/stop rules, study by topic, flashcards, reading/writing vocabulary), the **AI document check**, and **folder chat**. The AI checklist tailor (`POST /api/folder-plan`) is not gated yet.
 
-- One check, `entitlements.has_extras(user, admin=…)`: admin (`CASECIRCLE_ADMIN_EMAILS`, or the owner address once verified) **or** inside the trial **or** `users.pass_until` in the future.
-- Trial: starts at sign-up (`users.trial_started_at`); accounts older than the trial start it on their next `/api/me`. Length `CASECIRCLE_TRIAL_DAYS` (default 3). `/api/me` returns `user.extras` with `access`, `reason` (`admin` / `trial` / `paid` / `expired` / `signin`) and `daysLeft`.
-- `GET /api/extras`, `/api/extras/civics?version=2025|2008`, `/api/extras/interview?form=i-485|i-130|i-751|n-400` return `401 signin` or `402 extras_locked` when not entitled. Content lives in `data/premium/`, which is never served statically.
+- One check, `entitlements.has_extras(user, admin=…)` / `entitlements.user_gate(user, feature, admin=…)`: admin (`CASECIRCLE_ADMIN_EMAILS`, or the owner address once verified) **or** inside the trial **or** `users.pass_until` in the future. Features not in `GATED_FEATURES` stay open, including when signed out.
+- Trial: starts at sign-up (`users.trial_started_at`); accounts older than the trial start it on their next `/api/me`. Length `CASECIRCLE_TRIAL_DAYS` (default 3). `/api/me` returns `user.extras` with `access`, `reason` (`admin` / `trial` / `paid` / `expired` / `signin`), `daysLeft`, and `gatedFeatures`.
+- `GET /api/extras`, `/api/extras/civics?version=2025|2008`, `/api/extras/interview?form=i-485|i-130|i-751|n-400`, `POST /api/folder-check`, and `POST /api/folder-chat` return `401 signin` or `402 extras_locked` when not entitled. Content for interview/civics lives in `data/premium/`, which is never served statically. `GET /api/folder-chat` and `GET /api/ai-status` (provider availability) stay open.
 - After the trial the extras point to the Case Pass waitlist. There is no checkout. A payment provider can later call `entitlements.grant_pass(conn, user_id, until)` from a verified webhook.
 - `scripts/build_civics.py <dir with the official USCIS files>` regenerates `data/premium/civics.json` (check `UPDATES` against uscis.gov/citizenship/testupdates first).
 - `data/form-editions.json` is the accepted-editions table used by the document check; update it from each form's official page.

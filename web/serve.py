@@ -2,8 +2,8 @@
 """Serve the website and its same-origin API.
 
 GET  /healthz               health check (also opens the SQLite database)
-GET  /api/folder-chat       chat availability          POST /api/folder-chat   folder chat (SSE)
-GET  /api/ai-status         provider + Demo AI flag    POST /api/folder-check  one document vs one checklist item
+GET  /api/folder-chat       chat availability          POST /api/folder-chat   folder chat (SSE; trial/pass)
+GET  /api/ai-status         provider + Demo AI flag    POST /api/folder-check  one document vs one checklist item (trial/pass)
 GET  /api/processing-times  official times (cached)    POST /api/folder-plan   tailor the checklist
 GET  /api/extras, /api/extras/civics, /api/extras/interview   extras (signed-in, trial or pass; extras.py)
 /api/me, /api/signup, /api/login, /api/logout, /api/posts…, /api/vote, /api/report, /api/mod…, /api/waitlist

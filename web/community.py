@@ -582,6 +582,16 @@ def is_admin(user: sqlite3.Row | None) -> bool:
     return bool(user) and user["email"].lower() in admin_emails()
 
 
+def feature_refusal(handler: Any, feature: str) -> tuple[int, dict[str, Any]] | None:
+    """Open a short DB connection and apply entitlements.user_gate to this request's session."""
+    conn = connect()
+    try:
+        user = current_user(conn, handler)
+        return entitlements.user_gate(user, feature, admin=is_admin(user))
+    finally:
+        conn.close()
+
+
 def is_verified(user: sqlite3.Row | None) -> bool:
     """Admins count as verified (existing accounts are otherwise unverified until they confirm)."""
     return bool(user) and (bool(user["email_verified"]) or is_admin(user))

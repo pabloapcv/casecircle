@@ -1,4 +1,4 @@
-"""Extras API (Interview prep + Civics practice), gated by entitlements.has_extras on the server.
+"""Extras API (Interview prep + Civics practice), gated by entitlements.user_gate on the server.
 
 GET /api/extras                       -> {"extras": status}   (anyone; tells the UI what to show)
 GET /api/extras/civics?version=2025   -> official civics bank + vocabulary (entitled accounts only)

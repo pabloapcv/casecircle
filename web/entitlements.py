@@ -1,9 +1,14 @@
-"""Who can use the extras (Interview prep, Civics practice).
+"""Who can use the extras (Interview practice, Civics practice, AI document check, folder chat).
 
 One server-side check, ``has_extras``: admin (or the owner) OR inside the free trial OR a paid pass.
 The trial starts when an account is created (older accounts start it the first time they load /api/me).
 ``pass_until`` is the hook for a real payment provider later (e.g. a Stripe webhook calls ``grant_pass``);
 nothing in this file takes or fakes a payment.
+
+``GATED_FEATURES`` is the single list that decides which product features lock after the trial.
+To gate another feature later (checklist, Check the wait, community, general interview tips, or
+the AI checklist tailor at ``folder_plan``), add its id here and lock that endpoint/UI. Features
+not in the set stay free.
 """
 from __future__ import annotations
 
@@ -17,6 +22,21 @@ MAX_TRIAL_DAYS = 90
 OWNER_EMAILS = frozenset({"pabloapcv@gmail.com"})
 DAY = 86400.0
 
+# Known feature ids. Only GATED_FEATURES are locked after the trial.
+FEATURES = (
+    "interview",
+    "civics",
+    "folder_chat",
+    "folder_check",
+    "folder_plan",         # AI tailor of the checklist — not gated yet
+    "checklist",           # folder checklist / marks / on-device documents
+    "processing_times",    # Check the wait
+    "community",
+    "interview_tips",      # general (free) interview tips
+)
+
+GATED_FEATURES = frozenset({"civics", "folder_chat", "folder_check", "interview"})
+
 
 def trial_days() -> int:
     raw = os.environ.get("CASECIRCLE_TRIAL_DAYS", "").strip()
@@ -25,6 +45,14 @@ def trial_days() -> int:
     except ValueError:
         days = DEFAULT_TRIAL_DAYS
     return max(0, min(MAX_TRIAL_DAYS, days))
+
+
+def gated_feature_list() -> list[str]:
+    return sorted(GATED_FEATURES)
+
+
+def feature_is_gated(feature: str) -> bool:
+    return feature in GATED_FEATURES
 
 
 def _get(user: Any, key: str) -> Any:
@@ -43,7 +71,7 @@ def is_owner(user: Any) -> bool:
 def extras_status(user: Any, *, admin: bool = False, now: float | None = None) -> dict[str, Any]:
     now = time.time() if now is None else now
     days = trial_days()
-    base = {"trialDays": days}
+    base = {"trialDays": days, "gatedFeatures": gated_feature_list()}
     if not user:
         return {**base, "access": False, "reason": "signin", "daysLeft": 0, "trialEndsAt": None}
     if admin or is_owner(user):
@@ -63,6 +91,29 @@ def extras_status(user: Any, *, admin: bool = False, now: float | None = None) -
 
 def has_extras(user: Any, *, admin: bool = False, now: float | None = None) -> bool:
     return bool(extras_status(user, admin=admin, now=now)["access"])
+
+
+def has_feature(user: Any, feature: str, *, admin: bool = False, now: float | None = None) -> bool:
+    """True when this feature is free for everyone, or the user has extras access."""
+    if not feature_is_gated(feature):
+        return True
+    return has_extras(user, admin=admin, now=now)
+
+
+def user_gate(user: Any, feature: str, *, admin: bool = False, now: float | None = None) -> tuple[int, dict[str, Any]] | None:
+    """If ``feature`` is gated and this user may not use it, return ``(HTTP status, JSON body)``.
+
+    Signed-out → 401 ``signin``. Trial expired (and no pass) → 402 ``extras_locked``.
+    Ungated features always return None, even when signed out.
+    """
+    status = extras_status(user, admin=admin, now=now)
+    if not feature_is_gated(feature):
+        return None
+    if not user:
+        return 401, {"error": "signin", "extras": status}
+    if not status["access"]:
+        return 402, {"error": "extras_locked", "extras": status}
+    return None
 
 
 def ensure_trial_started(conn: Any, user: Any, now: float | None = None) -> Any:

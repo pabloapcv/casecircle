@@ -442,19 +442,19 @@ const compareRows = [
 const pricingCopy = {
   pricingTitle: ["Pricing", "Precios"],
   pricingLead: [
-    "The free core stays free. Case Pass is a one-time purchase for one case, for twelve months.",
-    "El núcleo gratis sigue gratis. Case Pass es una compra única por un caso, por doce meses."
+    "The folder checklist, Check the wait, and the community stay free. Case Pass is a one-time purchase for one case, for twelve months.",
+    "La lista de la carpeta, Ver la espera y la comunidad siguen gratis. Case Pass es una compra única por un caso, por doce meses."
   ],
   freeTitle: ["Free", "Gratis"],
   freePrice: ["$0", "$0"],
   freeBody: [
-    "Folder builder, Check the wait, the community, common questions, general interview tips, and a small monthly allowance of Ask-the-posts questions.",
-    "Armador de carpetas, Ver la espera, la comunidad, preguntas comunes, consejos generales de entrevista y un cupo mensual pequeño de Pregunta a las publicaciones."
+    "Folder checklist, Check the wait, the community, common questions, general interview tips, and a small monthly allowance of Ask-the-posts questions.",
+    "Lista de la carpeta, Ver la espera, la comunidad, preguntas comunes, consejos generales de entrevista y un cupo mensual pequeño de Pregunta a las publicaciones."
   ],
   passTitle: ["Case Pass", "Case Pass"],
   passBody: [
-    "One-time, per case, for 12 months: Interview practice, Civics practice, unlimited folder chat, printable bilingual checklist, and wait alerts.",
-    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, chat de carpeta ilimitado, lista bilingüe imprimible y alertas de espera."
+    "One-time, per case, for 12 months: Interview practice, Civics practice, the AI document check, folder chat, printable bilingual checklist, and wait alerts.",
+    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, la revisión de documentos con IA, el chat de la carpeta, lista bilingüe imprimible y alertas de espera."
   ],
   passComing: ["Coming soon — Join the waitlist", "Próximamente — Únete a la lista de espera"],
   waitlistHelp: ["No checkout yet. Leave your email and we will write once when Case Pass is ready. We never charge you from this page.", "Aún no hay pago. Deja tu correo y te escribiremos una vez cuando Case Pass esté listo. Nunca te cobramos desde esta página."],

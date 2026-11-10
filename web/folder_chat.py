@@ -11,6 +11,8 @@ import urllib.error
 import urllib.request
 from typing import Any, Iterator
 
+import community
+
 ALLOWED_SPACES = {"n-400", "i-751", "i-485", "i-130", "i-765", "i-131"}
 ALLOWED_STATUS = {"ready", "need", "na"}
 ALLOWED_LANG = {"en", "es"}
@@ -415,6 +417,10 @@ def handle_post(handler: Any, port: int) -> None:
     except (UnicodeDecodeError, json.JSONDecodeError):
         _json_error(handler, 400, {"error": "invalid", "reason": "json"})
         return
+    refused = community.feature_refusal(handler, "folder_chat")
+    if refused:
+        _json_error(handler, refused[0], refused[1])
+        return
     payload, error = validate_payload(data)
     if error or payload is None:
         status = 403 if error and error.get("error") == "blocked" else 400
@@ -451,7 +457,7 @@ def handle_post(handler: Any, port: int) -> None:
             return
 
 
-def _json_error(handler: Any, status: int, payload: dict[str, str]) -> None:
+def _json_error(handler: Any, status: int, payload: dict[str, Any]) -> None:
     body = json.dumps(payload).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")

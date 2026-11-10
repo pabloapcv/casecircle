@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { EXTRAS_KEYS, extrasText, trialLabel } from "./extras-text.js";
+import { EXTRAS_KEYS, extrasText, trialLabel, GATED_FEATURES, isFeatureOpen } from "./extras-text.js";
 
 test("every extras string exists in English and Spanish and they differ where they should", () => {
   for (const key of EXTRAS_KEYS) {
@@ -13,4 +13,21 @@ test("every extras string exists in English and Spanish and they differ where th
   assert.match(extrasText("en", "notAdvice"), /Not legal advice/);
   assert.match(extrasText("en", "notAdvice"), /Not affiliated with USCIS/);
   assert.match(extrasText("es", "lockedSigninBody", { days: 3 }), /3 días/);
+  assert.match(extrasText("en", "trialBody"), /AI document check/);
+  assert.match(extrasText("en", "trialBody"), /folder chat/);
+  assert.match(extrasText("en", "trialBody"), /folder checklist/);
+  assert.match(extrasText("en", "lockedExpiredBody"), /no checkout yet/i);
+  assert.match(extrasText("en", "pricingTrial"), /all extras are free/);
+  assert.match(extrasText("en", "pricingGated"), /AI document check/);
+  assert.match(extrasText("en", "pricingGated"), /folder chat/);
+});
+
+test("gated feature list and isFeatureOpen", () => {
+  assert.deepEqual([...GATED_FEATURES].sort(), ["civics", "folder_chat", "folder_check", "interview"]);
+  assert.equal(isFeatureOpen({ access: false }, "checklist"), true);
+  assert.equal(isFeatureOpen({ access: false }, "processing_times"), true);
+  assert.equal(isFeatureOpen({ access: false }, "community"), true);
+  assert.equal(isFeatureOpen({ access: false }, "folder_plan"), true);
+  assert.equal(isFeatureOpen({ access: false }, "folder_chat"), false);
+  assert.equal(isFeatureOpen({ access: true }, "folder_check"), true);
 });

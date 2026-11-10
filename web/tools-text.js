@@ -223,7 +223,7 @@ const text = {
   heroStartBuilder: ["Start the Folder Builder", "Empezar a armar la carpeta"],
   heroCheckWait: ["Check the wait", "Revisar la espera"],
   heroPrivacy: ["Your documents stay on your device unless you choose to check one, and we mask ID numbers first. Not legal advice.", "Tus documentos se quedan en tu dispositivo salvo que elijas revisar uno, y antes enmascaramos los números de identificación. No es asesoría legal."],
-  toolBuilderBody: ["Guided chat → personalized checklist → per-document checks → folder readiness score.", "Chat guiado → lista personalizada → revisión por documento → preparación de la carpeta."],
+  toolBuilderBody: ["Guided setup → personalized checklist → AI document checks during your trial → folder readiness score.", "Armado guiado → lista personalizada → revisión de documentos con IA durante tu prueba → preparación de la carpeta."],
   toolWaitBody: ["Your filing date vs official USCIS times and public-post timelines, plus what to do next.", "Tu fecha vs tiempos oficiales de USCIS y públicos, y qué hacer después."],
   toolInterviewBody: ["Tips per form, a marriage-evidence checklist, and real interview experiences.", "Consejos por formulario, lista de pruebas de matrimonio y experiencias reales."],
   toolCommunityBody: ["Bilingual, moderated groups for each form. Second to the tools, always there.", "Grupos bilingües y moderados por formulario. Después de las herramientas, siempre ahí."],

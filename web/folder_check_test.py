@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import tempfile
 import threading
 import unittest
@@ -8,10 +9,13 @@ from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+import community
 import folder_chat
 import folder_check
+import mailer
 import processing_times
 import serve
+from community_test import Client
 
 GOOD_TEXT = (
     "ACTA DE MATRIMONIO. Registro Civil. Contrayente: MARIA ELENA LOPEZ GARCIA. "
@@ -99,24 +103,38 @@ class MockHttpTests(unittest.TestCase):
         os.environ["CASECIRCLE_LLM_MOCK"] = "1"
         os.environ["CASECIRCLE_PROCESSING_TIMES_LIVE"] = "0"
         os.environ.pop("CASECIRCLE_LLM_API_KEY", None)
+        cls.tmp = tempfile.mkdtemp()
+        os.environ["CASECIRCLE_DB_PATH"] = os.path.join(cls.tmp, "test.db")
+        os.environ["CASECIRCLE_EMAIL_PROVIDER"] = "console"
+        os.environ["CASECIRCLE_EMAIL_SYNC"] = "1"
+        os.environ["CASECIRCLE_OUTBOX_DIR"] = os.path.join(cls.tmp, "outbox")
+        mailer.clear_outbox()
+        community.reset_for_tests()
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), serve.Handler)
         port = cls.server.server_address[1]
         serve.Handler.server_port = port
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.origin = f"http://127.0.0.1:{port}"
+        cls.user = Client(cls.origin)
+        status, _, _ = cls.user.signup("CheckUser")
+        if status != 201:
+            raise RuntimeError(f"signup failed: {status}")
 
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
-        os.environ.pop("CASECIRCLE_LLM_MOCK", None)
-        os.environ.pop("CASECIRCLE_PROCESSING_TIMES_LIVE", None)
+        community.reset_for_tests()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        for key in ("CASECIRCLE_LLM_MOCK", "CASECIRCLE_PROCESSING_TIMES_LIVE", "CASECIRCLE_DB_PATH",
+                    "CASECIRCLE_EMAIL_PROVIDER", "CASECIRCLE_EMAIL_SYNC", "CASECIRCLE_OUTBOX_DIR"):
+            os.environ.pop(key, None)
 
     def _post(self, path, payload, origin=None):
         body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json", "Origin": origin or self.origin}
-        return urlopen(Request(self.origin + path, data=body, headers=headers, method="POST"), timeout=5)
+        return self.user.opener.open(Request(self.origin + path, data=body, headers=headers, method="POST"), timeout=5)
 
     def test_status(self):
         with urlopen(Request(self.origin + "/api/ai-status", headers={"Origin": self.origin}), timeout=5) as response:

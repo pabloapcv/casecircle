@@ -19,7 +19,7 @@ import { toolsText } from "./tools-text.js";
 import { BUILDER_FORMS, answerLabel, buildPlan, inferFromDescription, mergeAiPlan, nextQuestion, questionsFor, suggestItem } from "./builder.js";
 import { computeReadiness, crossDocFindings, readinessBand, topFixes } from "./readiness.js";
 import { maskIdentifiers } from "./redact.js";
-import { extrasText, trialLabel } from "./extras-text.js";
+import { extrasText, trialLabel, isFeatureOpen, GATED_FEATURES } from "./extras-text.js";
 import { answerView, nextCard, pickQuestions, questionsInTopic, rulesFor, scoreSession, shuffle, topicsOf, versionForFilingDate } from "./civics.js";
 import { deleteText, extractFromFile, kindOf, loadText, saveText, keepFile } from "./extract.js";
 import { folderSummaryHtml } from "./summary.js";
@@ -1677,13 +1677,14 @@ function folderChatPanel(spaceId, packet, folder) {
   const loading = chat.status === "loading";
   const pendingStatus = !folderChatStatus.loaded;
   const unavailable = folderChatStatus.loaded && folderChatStatus.available === false;
+  const chatLocked = !isFeatureOpen(extrasStatus(), "folder_chat");
   const messages = chat.messages.map((row, index) => {
     const who = row.role === "assistant" ? P("chatAssistant") : P("chatYou");
     const streamId = row.streaming ? " id=\"chat-stream\"" : "";
     const mock = row.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : "";
     return `<article class="chat-msg ${esc(row.role)}"${streamId}><p class="chat-who">${esc(who)}</p>${mock}<p>${esc(row.text)}</p></article>`;
   }).join("");
-  const composer = unavailable || pendingStatus ? "" : `<div class="field chat-composer">
+  const composer = chatLocked || unavailable || pendingStatus ? "" : `<div class="field chat-composer">
       <label for="chat-q">${esc(P(chat.messages.length ? "chatFollowLabel" : "chatAskLabel"))}</label>
       <textarea id="chat-q" rows="3" ${chat.consent && !loading ? "" : "disabled"} aria-describedby="chat-hint">${esc(chat.draft)}</textarea>
       <p id="chat-hint" class="chat-hint">${esc(P("chatHint"))}</p>
@@ -1700,7 +1701,7 @@ function folderChatPanel(spaceId, packet, folder) {
     <a href="${esc(local.href)}" target="_blank" rel="noreferrer">${esc(local.link)}</a>
     <h2 id="chat-heading">${esc(P("chatTitle"))}</h2>
     <p class="muted">${esc(P("chatLead"))}</p>
-    ${pendingStatus ? `<p class="muted" role="status">${esc(lang() === "es" ? "Comprobando si el modelo de lenguaje está disponible…" : "Checking whether the language model is available…")}</p>` : ""}
+    ${chatLocked ? extrasLocked() : `${pendingStatus ? `<p class="muted" role="status">${esc(lang() === "es" ? "Comprobando si el modelo de lenguaje está disponible…" : "Checking whether the language model is available…")}</p>` : ""}
     ${unavailable ? `<div class="chat-unavailable" role="status"><strong>${esc(P("chatUnavailable"))}</strong><p>${esc(P("chatUnavailableBody"))}</p></div>` : ""}
     ${folderChatStatus.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : ""}
     ${unavailable || pendingStatus ? "" : `<label class="check-item chat-consent"><input id="chat-consent" type="checkbox" data-act="chat-consent" data-space="${esc(spaceId)}" ${chat.consent ? "checked" : ""} ${loading ? "disabled" : ""}><span>${esc(P("chatConsent"))}</span></label>`}
@@ -1708,7 +1709,7 @@ function folderChatPanel(spaceId, packet, folder) {
     <div class="chat-log" id="chat-log" role="log" aria-live="polite" ${messages ? 'tabindex="0"' : ""} aria-label="${esc(P("chatTitle"))}">${messages}</div>
     ${loading ? `<p class="muted" role="status">${esc(P("chatLoading"))}</p>` : ""}
     ${chat.error ? `<p class="danger" role="alert">${esc(chat.error)}</p>` : ""}
-    ${composer}
+    ${composer}`}
     <p class="footer-note muted">${esc(P("chatLegal"))}</p>
     <p class="footer-note muted">${esc(P("noPromise"))}</p>
   </aside>`;
@@ -1718,6 +1719,11 @@ async function sendFolderChat(spaceId, question) {
   const chat = chatFor(spaceId);
   const asked = String(question || chat.draft || "").trim();
   if (!asked || chat.status === "loading") return;
+  if (!isFeatureOpen(extrasStatus(), "folder_chat")) {
+    chat.draft = asked;
+    render();
+    return;
+  }
   if (!chat.consent) {
     chat.error = P("chatConsent");
     render();
@@ -1766,10 +1772,21 @@ async function sendFolderChat(spaceId, question) {
     });
     if (!response.ok) {
       let reason = "error";
+      let err = {};
       try {
-        const err = await response.json();
+        err = await response.json();
         reason = err.error || err.reason || reason;
       } catch { /* use default */ }
+      applyExtras(err);
+      if (response.status === 401 || response.status === 402 || reason === "signin" || reason === "extras_locked") {
+        chat.messages.pop();
+        chat.messages.pop();
+        chat.draft = asked;
+        chat.status = "idle";
+        chat.error = "";
+        render();
+        return;
+      }
       if (reason === "unavailable" || reason === "no_key") {
         folderChatStatus = { available: false, mock: false, reason, loaded: true };
         chat.messages.pop();
@@ -2135,7 +2152,9 @@ function docRow(spaceId, item, doc, input) {
     ${findingList}
     ${consent}
     <div class="doc-actions">
-      ${consent ? "" : `<button class="btn-secondary small" data-act="doc-check" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}" ${canCheck ? "" : "disabled"}>${icon("spark", 14)} ${esc(check ? T("recheck") : T("checkAi"))}</button>`}
+      ${consent ? "" : (isFeatureOpen(extrasStatus(), "folder_check")
+        ? `<button class="btn-secondary small" data-act="doc-check" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}" ${canCheck ? "" : "disabled"}>${icon("spark", 14)} ${esc(check ? T("recheck") : T("checkAi"))}</button>`
+        : `<button class="btn-secondary small" data-act="${extrasStatus().reason === "signin" || !account() ? "auth" : "open-pricing"}" data-mode="signup">${icon("lock", 14)} ${esc(check ? T("recheck") : T("checkAi"))} · ${esc(X("extrasKicker"))}</button>`)}
       <button class="ghost small" data-act="doc-remove" data-space="${esc(spaceId)}" data-doc="${esc(doc.id)}">${esc(T("removeDoc"))}</button>
     </div>
   </div>`;
@@ -2220,6 +2239,7 @@ function builderFolderScreen(spaceId) {
       ${readinessCard(spaceId, input)}
       <section class="checklist-wrap" aria-labelledby="checklist-h">
         <h2 id="checklist-h">${esc(T("checklistTitle"))}</h2>
+        ${isFeatureOpen(extrasStatus(), "folder_check") ? "" : extrasLocked()}
         <h3 class="group-h">${esc(T("groupRequired"))} <span class="count">${required.length}</span></h3>
         <div class="stack">${required.map((item) => checklistItem(spaceId, item, input)).join("")}</div>
         ${optional.length ? `<h3 class="group-h">${esc(T("groupOptional"))} <span class="count">${optional.length}</span></h3><div class="stack">${optional.map((item) => checklistItem(spaceId, item, input)).join("")}</div>` : ""}
@@ -2327,6 +2347,7 @@ async function addDocFromText(spaceId, itemId, text) {
 }
 
 async function openConsent(spaceId, docId) {
+  if (!isFeatureOpen(extrasStatus(), "folder_check")) { render(); return; }
   const text = await loadText(docId);
   if (!text) { builderUi.errors[docId] = T("readFail"); render(); return; }
   const masked = maskIdentifiers(text);
@@ -2342,6 +2363,12 @@ async function sendCheck(spaceId, docId) {
   const folder = builderOf(spaceId);
   const doc = folder.docs.find((row) => row.id === docId);
   if (!doc || !builderUi.consentAgree) return;
+  if (!isFeatureOpen(extrasStatus(), "folder_check")) {
+    builderUi.consentFor = "";
+    builderUi.consentAgree = false;
+    render();
+    return;
+  }
   const plan = planFor(spaceId);
   const item = plan.items.find((row) => row.id === doc.itemId);
   const text = maskIdentifiers(builderUi.consentDraft).text.trim();
@@ -2357,7 +2384,13 @@ async function sendCheck(spaceId, docId) {
     const response = await fetch("/api/folder-check", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      builderUi.errors[docId] = data.error === "blocked" ? T("checkBlocked") : data.error === "unavailable" ? T("checkUnavailable") : T("checkFail");
+      applyExtras(data);
+      if (response.status === 401 || response.status === 402 || data.error === "signin" || data.error === "extras_locked") {
+        builderUi.consentFor = "";
+        builderUi.errors[docId] = "";
+      } else {
+        builderUi.errors[docId] = data.error === "blocked" ? T("checkBlocked") : data.error === "unavailable" ? T("checkUnavailable") : T("checkFail");
+      }
     } else {
       doc.check = { status: data.status, summary: data.summary || "", findings: (data.findings || []).map((row) => ({ ...row, resolved: false })), facts: data.facts || {}, mock: Boolean(data.mock), at: new Date().toISOString() };
       if (doc.check.status !== "mismatch" && (folder.marks[doc.itemId] || "need") === "need") folder.marks[doc.itemId] = "ready";
@@ -2664,7 +2697,13 @@ const extrasUi = {
 };
 function X(key, values) { return extrasText(lang(), key, values); }
 function extrasStatus() {
-  return account()?.extras || { access: false, reason: "signin", trialDays: session.trialDays ?? 3, daysLeft: 0 };
+  const fallback = { access: false, reason: "signin", trialDays: session.trialDays ?? 3, daysLeft: 0, gatedFeatures: [...GATED_FEATURES] };
+  const status = account()?.extras;
+  return status ? { gatedFeatures: fallback.gatedFeatures, ...status } : fallback;
+}
+
+function applyExtras(data) {
+  if (data?.extras && session.user) session.user = { ...session.user, extras: data.extras };
 }
 function extrasCacheKey(kind, param) { return `${account()?.id || "anon"}:${kind}:${param}`; }
 function loadExtras(kind, param) {

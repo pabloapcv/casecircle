@@ -1264,6 +1264,9 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 }
 
 /* ───────── Extras: interview practice + civics practice ───────── */
+.checklist-wrap > .extras-locked { margin: 0 0 16px; }
+.chat-panel .extras-locked { margin: 8px 0 0; }
+.chat-panel .extras-locked h3, .chat-panel .extras-locked p { overflow-wrap: anywhere; }
 .extras-notice { margin: 4px 0 16px; padding: 10px 14px; border-radius: var(--radius-card); background: var(--surface); border: 1px solid var(--line); color: var(--secondary); font-size: 0.875rem; }
 .extras-section { margin: 8px 0 24px; }
 .extras-banner { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0 0 16px; padding: 12px 14px; border-radius: var(--radius-card); background: var(--accent-soft); color: var(--accent-deep); }

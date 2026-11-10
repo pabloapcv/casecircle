@@ -172,10 +172,11 @@ Any host that runs a long-lived Python 3.10+ process with a persistent volume wo
 | `CASECIRCLE_OUTBOX_DIR` | no | console mode: where `.txt`/`.html` copies go (default `web/data/outbox/`, gitignored, never served) |
 | `CASECIRCLE_EMAIL_SYNC` | no | `1`: send in the request thread (tests). Default sends on a background thread so response time doesn't reveal whether an account exists |
 | `CASECIRCLE_REPORT_HIDE_THRESHOLD` | no | open reports before auto-hide (default 3) |
+| `CASECIRCLE_TRIAL_DAYS` | no | free-trial length for the extras (Interview practice, Civics practice) on new accounts; default `3`, clamped 0–90 |
 | `CASECIRCLE_LLM_API_KEY`, `CASECIRCLE_LLM_BASE_URL`, `CASECIRCLE_LLM_MODEL` | for real AI | see "Folder chat" above; without a key the AI parts say they're unavailable |
 | `CASECIRCLE_LLM_MOCK` | **never in production** | test-only canned replies |
 
-Security headers on every response: `Content-Security-Policy` (self + Google Fonts + jsDelivr for pdf.js/tesseract.js + tesseract language data + `blob:` workers; one hashed inline handler for the printable summary's Print button), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy`, and HSTS when served over HTTPS. CSS/JS/HTML keep `Cache-Control: no-cache, must-revalidate`. Directory listings, `.py`, dotfiles, `scripts/`, `data/cache/`, `data/outbox/` and database files are never served (paths are percent-decoded before the check).
+Security headers on every response: `Content-Security-Policy` (self + Google Fonts + jsDelivr for pdf.js/tesseract.js + tesseract language data + `blob:` workers; one hashed inline handler for the printable summary's Print button), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy`, and HSTS when served over HTTPS. CSS/JS/HTML keep `Cache-Control: no-cache, must-revalidate`. Directory listings, `.py`, dotfiles, `scripts/`, `data/cache/`, `data/outbox/`, `data/premium/` (gated extras content) and database files are never served (paths are percent-decoded before the check).
 
 ### Email
 
@@ -215,3 +216,17 @@ Then open a folder in Prepare. Mock replies start with “Test-only mock reply�
 The UI follows the Paper "mineral" design. Tokens (colors, radii, font) are CSS custom properties at the top of `styles.css`. **Light theme only** — there is no dark mode. The font is Inter Tight from Google Fonts with the system sans as fallback, so the browser requests the font files from Google; no case data, documents, or checklist content is part of that request.
 
 On screens 1100px and wider, Feed, a case group, and a post show a right sidebar ("Your case", saved posts, tools, community rules). "Your case" comes from `sidebar.js` (local/account case profile); saved posts come from `GET /api/posts?saved=1`.
+
+
+### Freemium: extras and the free trial
+
+Free for everyone: Folder Builder (checklists, document checks, folder chat), Check the wait, the community, common questions, and general interview tips.
+
+Extras (server-gated): **Interview practice** (mock interview prompts from the sections of your forms, a what-to-bring checklist matched to your folder, tips with official citations) and **Civics practice** (official 2025 and 2008 USCIS banks, practice test with the real pass/stop rules, study by topic, flashcards, reading/writing vocabulary).
+
+- One check, `entitlements.has_extras(user, admin=…)`: admin (`CASECIRCLE_ADMIN_EMAILS`, or the owner address once verified) **or** inside the trial **or** `users.pass_until` in the future.
+- Trial: starts at sign-up (`users.trial_started_at`); accounts older than the trial start it on their next `/api/me`. Length `CASECIRCLE_TRIAL_DAYS` (default 3). `/api/me` returns `user.extras` with `access`, `reason` (`admin` / `trial` / `paid` / `expired` / `signin`) and `daysLeft`.
+- `GET /api/extras`, `/api/extras/civics?version=2025|2008`, `/api/extras/interview?form=i-485|i-130|i-751|n-400` return `401 signin` or `402 extras_locked` when not entitled. Content lives in `data/premium/`, which is never served statically.
+- After the trial the extras point to the Case Pass waitlist. There is no checkout. A payment provider can later call `entitlements.grant_pass(conn, user_id, until)` from a verified webhook.
+- `scripts/build_civics.py <dir with the official USCIS files>` regenerates `data/premium/civics.json` (check `UPDATES` against uscis.gov/citizenship/testupdates first).
+- `data/form-editions.json` is the accepted-editions table used by the document check; update it from each form's official page.

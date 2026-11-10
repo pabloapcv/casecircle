@@ -38,7 +38,7 @@ export const NEXT_STEPS = {
     { id: "oath", label: S("Oath ceremony", "Ceremonia de juramento"), body: S("You become a citizen at the oath, not at the interview.", "Te haces ciudadano en el juramento, no en la entrevista."), milestone: "interview_to_oath" }
   ],
   "I-765": [
-    { id: "receipt", label: S("Receipt notice", "Aviso de recibo"), body: S("Check whether your category gets an automatic extension.", "Revisa si tu categoría tiene extensión automática."), milestone: null },
+    { id: "receipt", label: S("Receipt notice", "Aviso de recibo"), body: S("For renewals filed on or after Oct. 30, 2025, the receipt does not extend your work permit, except some TPS cases set by Federal Register notice. File the renewal up to 180 days before the card expires.", "En renovaciones presentadas desde el 30 de octubre de 2025, el recibo no extiende tu permiso, salvo algunos casos de TPS fijados por el Federal Register. Presenta la renovación hasta 180 días antes del vencimiento."), milestone: null },
     { id: "biometrics", label: S("Biometrics (if required)", "Biometría (si la piden)"), body: S("Not every category needs a new appointment.", "No todas las categorías necesitan cita nueva."), milestone: "filed_to_biometrics" },
     { id: "decision", label: S("Decision and card", "Decisión y tarjeta"), body: S("'Card is being produced' usually comes before mailing.", "'La tarjeta se está produciendo' suele llegar antes del envío."), milestone: "filed_to_approval" }
   ],

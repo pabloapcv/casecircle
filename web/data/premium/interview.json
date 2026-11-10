@@ -1,0 +1,670 @@
+{
+ "checked": "2026-11-10",
+ "sources": {
+  "pm7a5": {
+   "title": "USCIS Policy Manual, Vol. 7, Part A, Ch. 5 — Interview Guidelines",
+   "url": "https://www.uscis.gov/policy-manual/volume-7-part-a-chapter-5"
+  },
+  "pm12b3": {
+   "title": "USCIS Policy Manual, Vol. 12, Part B, Ch. 3 — Naturalization Interview",
+   "url": "https://www.uscis.gov/policy-manual/volume-12-part-b-chapter-3"
+  },
+  "pm12e2": {
+   "title": "USCIS Policy Manual, Vol. 12, Part E, Ch. 2 — English and Civics Testing",
+   "url": "https://www.uscis.gov/policy-manual/volume-12-part-e-chapter-2"
+  },
+  "pm8b4": {
+   "title": "USCIS Policy Manual, Vol. 8, Part B, Ch. 4 — Review of Medical Examination Documentation",
+   "url": "https://www.uscis.gov/policy-manual/volume-8-part-b-chapter-4"
+  },
+  "natTest": {
+   "title": "USCIS — The Naturalization Interview and Test",
+   "url": "https://www.uscis.gov/citizenship/learn-about-citizenship/the-naturalization-interview-and-test"
+  },
+  "studyTest": {
+   "title": "USCIS — Study for the Test",
+   "url": "https://www.uscis.gov/citizenship/find-study-materials-and-resources/study-for-the-test"
+  },
+  "testUpdates": {
+   "title": "USCIS — Check for Test Updates",
+   "url": "https://www.uscis.gov/citizenship/testupdates"
+  },
+  "i130instr": {
+   "title": "Form I-130 Instructions (edition 04/01/24)",
+   "url": "https://www.uscis.gov/i-130"
+  },
+  "i485page": {
+   "title": "USCIS — Form I-485 page (edition 09/18/26)",
+   "url": "https://www.uscis.gov/i-485"
+  },
+  "i485instr": {
+   "title": "Form I-485 Instructions (edition 09/18/26)",
+   "url": "https://www.uscis.gov/i-485"
+  },
+  "i751instr": {
+   "title": "Form I-751 Instructions (edition 04/01/24)",
+   "url": "https://www.uscis.gov/i-751"
+  },
+  "n400instr": {
+   "title": "Form N-400 Instructions (edition 01/20/25)",
+   "url": "https://www.uscis.gov/n-400"
+  },
+  "n400page": {
+   "title": "USCIS — Form N-400 page and Checklist of Required Initial Evidence",
+   "url": "https://www.uscis.gov/n-400"
+  },
+  "legal": {
+   "title": "USCIS — Find legal services",
+   "url": "https://www.uscis.gov/scams-fraud-and-misconduct/avoid-scams/find-legal-services"
+  },
+  "ceremony": {
+   "title": "USCIS — Naturalization Ceremonies",
+   "url": "https://www.uscis.gov/citizenship/learn-about-citizenship/naturalization-ceremonies"
+  }
+ },
+ "forms": {
+  "marriage": {
+   "spaces": [
+    "i-485",
+    "i-130"
+   ],
+   "title": {
+    "en": "Marriage-based green card interview (I-130 + I-485)",
+    "es": "Entrevista de residencia por matrimonio (I-130 + I-485)"
+   },
+   "intro": {
+    "en": "At an adjustment interview the officer verifies the information on your forms, checks that you understood the questions, and lets you correct answers that were wrong or have changed. Practice saying the true facts from your own forms clearly. There is no official list of marriage interview questions; the prompts below come from the sections of your own forms.",
+    "es": "En una entrevista de ajuste el oficial verifica la información de tus formularios, revisa que entendiste las preguntas y te deja corregir respuestas equivocadas o que cambiaron. Practica decir con claridad los hechos verdaderos de tus propios formularios. No existe una lista oficial de preguntas para entrevistas por matrimonio; las preguntas de abajo salen de las secciones de tus propios formularios."
+   },
+   "tips": [
+    {
+     "en": "Family-based: USCIS generally requires the I-130 petitioner to appear for the interview with the person applying to adjust.",
+     "es": "Por familia: USCIS generalmente requiere que el peticionario del I-130 se presente a la entrevista con la persona que solicita el ajuste.",
+     "src": "pm7a5"
+    },
+    {
+     "en": "Unanswered or incomplete questions on the application are resolved at the interview. If information is added or revised, you re-sign the application (the I-485 has a 'Signature at Interview' part).",
+     "es": "Las preguntas sin responder o incompletas de la solicitud se resuelven en la entrevista. Si se agrega o corrige información, vuelves a firmar la solicitud (el I-485 tiene una parte de 'Firma en la entrevista').",
+     "src": "pm7a5"
+    },
+    {
+     "en": "If you bring an interpreter, the interpreter presents a valid government-issued ID, completes an interpreter's oath, and translates to the best of their ability without adding their own opinion or answers. In general a disinterested person should interpret, and the officer may disqualify an interpreter if the integrity of the interview is compromised.",
+     "es": "Si llevas intérprete, el intérprete presenta una identificación oficial vigente, hace un juramento de intérprete y traduce lo mejor que puede sin agregar sus propias opiniones o respuestas. En general debe interpretar una persona imparcial, y el oficial puede descalificar a un intérprete si se compromete la integridad de la entrevista.",
+     "src": "pm7a5"
+    },
+    {
+     "en": "USCIS may request an original of any document you sent a copy of. Bring the originals of what you filed.",
+     "es": "USCIS puede pedir el original de cualquier documento del que enviaste copia. Lleva los originales de lo que presentaste.",
+     "src": "i485instr"
+    },
+    {
+     "en": "If you filed the I-485 online, keep the original I-693 and the civil surgeon's envelope until a decision — USCIS may review them at the interview.",
+     "es": "Si presentaste el I-485 en línea, guarda el I-693 original y el sobre del médico civil hasta la decisión — USCIS puede revisarlos en la entrevista.",
+     "src": "i485page"
+    },
+    {
+     "en": "Answer with the facts. If you do not know or do not remember, say so. Do not guess and do not memorize a story. If your history includes an arrest, a prior removal, or a missed deadline, talk to a lawyer or accredited representative before the interview.",
+     "es": "Responde con los hechos. Si no sabes o no recuerdas, dilo. No adivines y no memorices una historia. Si tu historial incluye un arresto, una deportación previa o un plazo vencido, habla con un abogado o representante acreditado antes de la entrevista.",
+     "src": "legal"
+    }
+   ],
+   "bring": [
+    {
+     "en": "The interview notice and a government photo ID for each of you",
+     "es": "El aviso de entrevista y una identificación con foto de cada uno",
+     "folder": [],
+     "src": "pm7a5"
+    },
+    {
+     "en": "Passport(s) and the originals of identity documents you copied",
+     "es": "Pasaporte(s) y los originales de los documentos de identidad que copiaste",
+     "folder": [
+      "i485-passport",
+      "i485-i94"
+     ],
+     "src": "i485instr"
+    },
+    {
+     "en": "Original birth certificate(s), with the certified translations you filed",
+     "es": "Acta(s) de nacimiento original(es), con las traducciones certificadas que presentaste",
+     "folder": [
+      "i485-birth"
+     ],
+     "src": "i485instr"
+    },
+    {
+     "en": "Original marriage certificate and proof any prior marriage ended",
+     "es": "Acta de matrimonio original y prueba de que terminó cualquier matrimonio anterior",
+     "folder": [
+      "i485-marriage",
+      "i485-divorce",
+      "i130-marriage",
+      "i130-divorce"
+     ],
+     "src": "i130instr"
+    },
+    {
+     "en": "Petitioner's proof of U.S. citizenship or permanent residence",
+     "es": "Prueba de ciudadanía o residencia permanente del peticionario",
+     "folder": [
+      "i130-petitioner"
+     ],
+     "src": "i130instr"
+    },
+    {
+     "en": "Updated evidence of your life together since you filed: joint property or lease, combined finances, children's birth certificates, affidavits from people who know your marriage",
+     "es": "Pruebas actualizadas de su vida juntos desde que presentaron: propiedad o contrato conjunto, finanzas combinadas, actas de nacimiento de hijos, declaraciones de personas que conocen su matrimonio",
+     "folder": [
+      "i485-evidence",
+      "i130-evidence",
+      "i130-photos"
+     ],
+     "src": "i130instr"
+    },
+    {
+     "en": "Sponsor's current tax and income documents if anything changed since the I-864",
+     "es": "Documentos actuales de impuestos e ingresos del patrocinador si algo cambió desde el I-864",
+     "folder": [
+      "i485-i864"
+     ],
+     "src": "i485instr"
+    },
+    {
+     "en": "Certified court records for any arrest or citation",
+     "es": "Registros judiciales certificados de cualquier arresto o citación",
+     "folder": [
+      "i485-court"
+     ],
+     "src": "i485instr"
+    },
+    {
+     "en": "If you filed online: the original I-693 and the civil surgeon's envelope",
+     "es": "Si presentaste en línea: el I-693 original y el sobre del médico civil",
+     "folder": [
+      "i485-i693"
+     ],
+     "src": "i485page"
+    },
+    {
+     "en": "A complete copy of everything you filed, in the same order",
+     "es": "Una copia completa de todo lo que presentaste, en el mismo orden",
+     "folder": [],
+     "src": "pm7a5"
+    }
+   ],
+   "practice": [
+    {
+     "topic": {
+      "en": "About you",
+      "es": "Sobre ti"
+     },
+     "from": "I-485 Part 1 / I-130 Part 4",
+     "en": "What is your full name, and have you used any other names?",
+     "es": "¿Cuál es tu nombre completo y has usado otros nombres?"
+    },
+    {
+     "topic": {
+      "en": "About you",
+      "es": "Sobre ti"
+     },
+     "from": "I-485 Part 1",
+     "en": "When and where did you last enter the United States, and with what status or document?",
+     "es": "¿Cuándo y por dónde entraste por última vez a Estados Unidos, y con qué estatus o documento?"
+    },
+    {
+     "topic": {
+      "en": "Your marriage",
+      "es": "Tu matrimonio"
+     },
+     "from": "I-130 Part 2 (Marital Information) / I-485 Part 6",
+     "en": "When and where did you get married?",
+     "es": "¿Cuándo y dónde se casaron?"
+    },
+    {
+     "topic": {
+      "en": "Your marriage",
+      "es": "Tu matrimonio"
+     },
+     "from": "I-130 Part 2 / I-485 Part 6",
+     "en": "How many times has each of you been married, and how did each prior marriage end?",
+     "es": "¿Cuántas veces ha estado casado cada uno, y cómo terminó cada matrimonio anterior?"
+    },
+    {
+     "topic": {
+      "en": "Your marriage",
+      "es": "Tu matrimonio"
+     },
+     "from": "I-130 Instructions — bona fide marriage evidence",
+     "en": "Walk through the documents that show your life together: where you live, shared finances, children, people who know you as a couple.",
+     "es": "Repasa los documentos que muestran su vida juntos: dónde viven, finanzas compartidas, hijos, personas que los conocen como pareja."
+    },
+    {
+     "topic": {
+      "en": "Where you live and work",
+      "es": "Dónde vives y trabajas"
+     },
+     "from": "I-130 Part 2 (Address History) / I-130A",
+     "en": "What addresses have you lived at over the last five years, and since when have you lived together?",
+     "es": "¿En qué direcciones has vivido en los últimos cinco años y desde cuándo viven juntos?"
+    },
+    {
+     "topic": {
+      "en": "Where you live and work",
+      "es": "Dónde vives y trabajas"
+     },
+     "from": "I-130 Part 2 (Employment History) / I-130A",
+     "en": "Where have you worked over the last five years? What does your spouse do?",
+     "es": "¿Dónde has trabajado en los últimos cinco años? ¿A qué se dedica tu cónyuge?"
+    },
+    {
+     "topic": {
+      "en": "Family",
+      "es": "Familia"
+     },
+     "from": "I-485 Parts 5 and 7",
+     "en": "Who are your parents, and do you have children? Where do they live?",
+     "es": "¿Quiénes son tus padres y tienes hijos? ¿Dónde viven?"
+    },
+    {
+     "topic": {
+      "en": "Eligibility questions",
+      "es": "Preguntas de elegibilidad"
+     },
+     "from": "I-485 Part 9",
+     "en": "Read every yes/no question in Part 9 of your I-485 again. Is each answer still true today? If an answer changed or was wrong, be ready to say so.",
+     "es": "Vuelve a leer cada pregunta de sí/no de la Parte 9 de tu I-485. ¿Cada respuesta sigue siendo verdad hoy? Si una respuesta cambió o estaba mal, prepárate para decirlo."
+    },
+    {
+     "topic": {
+      "en": "Changes since filing",
+      "es": "Cambios desde que presentaste"
+     },
+     "from": "Policy Manual Vol. 7, Part A, Ch. 5",
+     "en": "What has changed since you filed — address, job, travel, children, an arrest or citation?",
+     "es": "¿Qué cambió desde que presentaste — dirección, trabajo, viajes, hijos, un arresto o citación?"
+    }
+   ]
+  },
+  "i-751": {
+   "spaces": [
+    "i-751"
+   ],
+   "title": {
+    "en": "Removing conditions interview (I-751)",
+    "es": "Entrevista para quitar condiciones (I-751)"
+   },
+   "intro": {
+    "en": "USCIS may ask you to come to an office for an interview on your I-751, and may take biometrics there. Many petitions are decided from the evidence you sent. If you get a notice, practice explaining your married life since you got your conditional card, using your own records.",
+    "es": "USCIS puede pedirte que vayas a una oficina para una entrevista sobre tu I-751, y puede tomar biometría allí. Muchas peticiones se deciden con las pruebas que enviaste. Si recibes un aviso, practica explicar tu vida de casados desde que recibiste la tarjeta condicional, con tus propios registros."
+   },
+   "tips": [
+    {
+     "en": "The I-751 instructions say USCIS may request an interview and may take your biometrics during it.",
+     "es": "Las instrucciones del I-751 dicen que USCIS puede pedir una entrevista y tomar tu biometría durante ella.",
+     "src": "i751instr"
+    },
+    {
+     "en": "The evidence should show the relationship from the date of the marriage to the present — and, if it ended, the circumstances of the end.",
+     "es": "Las pruebas deben mostrar la relación desde la fecha del matrimonio hasta hoy — y, si terminó, las circunstancias del final.",
+     "src": "i751instr"
+    },
+    {
+     "en": "Affidavits must come from at least two people who have known you both since conditional residence was granted, must be supported by other evidence, and the people who sign them may be asked to testify.",
+     "es": "Las declaraciones juradas deben venir de al menos dos personas que los conocen a ambos desde que se otorgó la residencia condicional, deben estar respaldadas por otras pruebas, y quienes las firman pueden ser llamados a testificar.",
+     "src": "i751instr"
+    },
+    {
+     "en": "A waiver filing (divorce, abuse, death, or extreme hardship) is a lawyer conversation. Bring the documents for the basis you actually filed under.",
+     "es": "Una petición con perdón (divorcio, abuso, fallecimiento o dificultad extrema) es una conversación con un abogado. Lleva los documentos de la base que realmente usaste.",
+     "src": "legal"
+    },
+    {
+     "en": "Answer with the facts. If you do not remember a date, say so rather than guessing.",
+     "es": "Responde con los hechos. Si no recuerdas una fecha, dilo en lugar de adivinar.",
+     "src": "legal"
+    }
+   ],
+   "bring": [
+    {
+     "en": "The interview notice and a government photo ID",
+     "es": "El aviso de entrevista y una identificación con foto",
+     "folder": [],
+     "src": "i751instr"
+    },
+    {
+     "en": "Your conditional green card",
+     "es": "Tu tarjeta de residencia condicional",
+     "folder": [
+      "i751-card"
+     ],
+     "src": "i751instr"
+    },
+    {
+     "en": "Originals and updates of joint records: lease or mortgage, joint bank accounts with transaction history, joint tax returns, insurance naming your spouse, utility bills, loans",
+     "es": "Originales y actualizaciones de registros conjuntos: contrato o hipoteca, cuentas conjuntas con movimientos, declaraciones de impuestos conjuntas, seguros que nombran a tu cónyuge, servicios, préstamos",
+     "folder": [
+      "i751-joint"
+     ],
+     "src": "i751instr"
+    },
+    {
+     "en": "Birth certificates of children born during the marriage",
+     "es": "Actas de nacimiento de hijos nacidos durante el matrimonio",
+     "folder": [
+      "i751-children"
+     ],
+     "src": "i751instr"
+    },
+    {
+     "en": "Original affidavits and contact details for the people who signed them",
+     "es": "Declaraciones originales y datos de contacto de quienes las firmaron",
+     "folder": [
+      "i751-affidavits"
+     ],
+     "src": "i751instr"
+    },
+    {
+     "en": "Certified court records for any arrest or citation",
+     "es": "Registros judiciales certificados de cualquier arresto o citación",
+     "folder": [
+      "i751-court"
+     ],
+     "src": "i751instr"
+    },
+    {
+     "en": "Waiver evidence for the basis you filed under (divorce decree, death certificate, abuse evidence)",
+     "es": "Pruebas del perdón según la base que usaste (divorcio, defunción, pruebas de abuso)",
+     "folder": [
+      "i751-waiver"
+     ],
+     "src": "i751instr"
+    },
+    {
+     "en": "A complete copy of the petition and everything you sent",
+     "es": "Una copia completa de la petición y de todo lo que enviaste",
+     "folder": [],
+     "src": "i751instr"
+    }
+   ],
+   "practice": [
+    {
+     "topic": {
+      "en": "Your marriage",
+      "es": "Tu matrimonio"
+     },
+     "from": "I-751 Parts 1 and 4",
+     "en": "When and where did you marry, and where does your spouse live and work now?",
+     "es": "¿Cuándo y dónde se casaron, y dónde vive y trabaja tu cónyuge ahora?"
+    },
+    {
+     "topic": {
+      "en": "Your marriage",
+      "es": "Tu matrimonio"
+     },
+     "from": "I-751 Part 3 (Basis for Petition)",
+     "en": "Are you filing jointly or with a waiver? Explain the basis in one or two true sentences.",
+     "es": "¿Presentas en conjunto o con un perdón? Explica la base en una o dos oraciones verdaderas."
+    },
+    {
+     "topic": {
+      "en": "Life together",
+      "es": "Vida juntos"
+     },
+     "from": "I-751 Instructions — Evidence of the Relationship",
+     "en": "Where have you lived together since you got the conditional card? Whose names are on the lease or mortgage?",
+     "es": "¿Dónde han vivido juntos desde que recibiste la tarjeta condicional? ¿Qué nombres aparecen en el contrato o la hipoteca?"
+    },
+    {
+     "topic": {
+      "en": "Life together",
+      "es": "Vida juntos"
+     },
+     "from": "I-751 Instructions — Evidence of the Relationship",
+     "en": "How do you share finances — joint accounts, taxes, insurance, bills?",
+     "es": "¿Cómo comparten las finanzas — cuentas conjuntas, impuestos, seguros, cuentas?"
+    },
+    {
+     "topic": {
+      "en": "Family",
+      "es": "Familia"
+     },
+     "from": "I-751 Part 5",
+     "en": "Do you have children? When and where were they born?",
+     "es": "¿Tienen hijos? ¿Cuándo y dónde nacieron?"
+    },
+    {
+     "topic": {
+      "en": "People who know you",
+      "es": "Personas que los conocen"
+     },
+     "from": "I-751 Instructions — affidavits",
+     "en": "Who signed affidavits for you, how do they know you both, and since when?",
+     "es": "¿Quién firmó declaraciones por ustedes, cómo los conoce a ambos y desde cuándo?"
+    },
+    {
+     "topic": {
+      "en": "Changes since filing",
+      "es": "Cambios desde que presentaste"
+     },
+     "from": "I-751 Instructions — Requests for Interview",
+     "en": "What has changed since you filed — address, job, travel, children, an arrest or citation?",
+     "es": "¿Qué cambió desde que presentaste — dirección, trabajo, viajes, hijos, un arresto o citación?"
+    }
+   ]
+  },
+  "n-400": {
+   "spaces": [
+    "n-400"
+   ],
+   "title": {
+    "en": "Naturalization interview (N-400)",
+    "es": "Entrevista de naturalización (N-400)"
+   },
+   "intro": {
+    "en": "The officer places you under oath, asks about your application and background, and — unless you qualify for an exception — gives the English test (reading, writing, speaking) and the civics test. The questions below follow the topics the USCIS Policy Manual says the officer may cover, and the parts of your own N-400.",
+    "es": "El oficial te toma juramento, pregunta sobre tu solicitud y tus antecedentes y — salvo que califiques para una excepción — hace el examen de inglés (lectura, escritura, conversación) y el de educación cívica. Las preguntas de abajo siguen los temas que, según el Manual de Políticas de USCIS, el oficial puede cubrir, y las partes de tu propio N-400."
+   },
+   "tips": [
+    {
+     "en": "The officer places you under oath at the start, and the questions focus on the information in your application, the documents you provided, and anything from the background investigation.",
+     "es": "El oficial te toma juramento al inicio, y las preguntas se centran en la información de tu solicitud, los documentos que diste y cualquier dato de la investigación de antecedentes.",
+     "src": "pm12b3"
+    },
+    {
+     "en": "Speaking: the officer judges your ability to speak and understand English during the eligibility interview itself.",
+     "es": "Conversación: el oficial evalúa tu capacidad de hablar y entender inglés durante la misma entrevista de elegibilidad.",
+     "src": "natTest"
+    },
+    {
+     "en": "Reading: read aloud 1 of 3 sentences correctly. You must read all content words; small pronunciation errors that don't change the meaning are OK.",
+     "es": "Lectura: lee en voz alta 1 de 3 oraciones correctamente. Debes leer todas las palabras de contenido; pequeños errores de pronunciación que no cambian el sentido están bien.",
+     "src": "pm12e2"
+    },
+    {
+     "en": "Writing: write 1 of 3 dictated sentences so the officer understands it. Don't abbreviate words. Spelling, capitalization, or punctuation errors only count if they change the meaning.",
+     "es": "Escritura: escribe 1 de 3 oraciones dictadas de modo que el oficial la entienda. No abrevies palabras. Los errores de ortografía, mayúsculas o puntuación solo cuentan si cambian el sentido.",
+     "src": "pm12e2"
+    },
+    {
+     "en": "Civics: filed on or after Oct. 20, 2025 — up to 20 questions from the 128-question list; pass at 12 correct, fail at 9 wrong. Filed before Oct. 20, 2025 — up to 10 from the 100-question list; pass at 6 correct.",
+     "es": "Educación cívica: si presentaste el 20 de octubre de 2025 o después — hasta 20 preguntas de la lista de 128; apruebas con 12 correctas y repruebas con 9 incorrectas. Si presentaste antes — hasta 10 de la lista de 100; apruebas con 6 correctas.",
+     "src": "studyTest"
+    },
+    {
+     "en": "Answers about current officials change after elections and appointments. Answer with the official serving on the day of your interview — check the USCIS test updates page the week before.",
+     "es": "Las respuestas sobre funcionarios actuales cambian con elecciones y nombramientos. Responde con el funcionario en el cargo el día de tu entrevista — revisa la página de actualizaciones de USCIS la semana anterior.",
+     "src": "testUpdates"
+    },
+    {
+     "en": "You have two opportunities to pass the English and civics tests. If you fail a portion at the first interview, you are retested on that portion (English or civics) between 60 and 90 days later.",
+     "es": "Tienes dos oportunidades para aprobar los exámenes de inglés y educación cívica. Si repruebas una parte en la primera entrevista, te vuelven a examinar en esa parte (inglés o cívica) entre 60 y 90 días después.",
+     "src": "pm12e2"
+    },
+    {
+     "en": "Bring your IRS tax transcripts to the interview, especially if you were outside the U.S. for a trip of more than 6 months.",
+     "es": "Lleva tus transcripciones de impuestos del IRS a la entrevista, sobre todo si estuviste fuera de EE. UU. en un viaje de más de 6 meses.",
+     "src": "n400instr"
+    },
+    {
+     "en": "If you have arrest or court records, the instructions say to bring the originals or court-certified copies to the interview.",
+     "es": "Si tienes registros de arrestos o de la corte, las instrucciones dicen que lleves los originales o copias certificadas por la corte a la entrevista.",
+     "src": "n400instr"
+    },
+    {
+     "en": "You are not a U.S. citizen until you take the Oath of Allegiance at a naturalization ceremony — a separate step after approval.",
+     "es": "No eres ciudadano estadounidense hasta que haces el Juramento de Lealtad en una ceremonia de naturalización — un paso aparte después de la aprobación.",
+     "src": "ceremony"
+    }
+   ],
+   "bring": [
+    {
+     "en": "The interview notice and a government photo ID",
+     "es": "El aviso de entrevista y una identificación con foto",
+     "folder": [],
+     "src": "pm12b3"
+    },
+    {
+     "en": "Your green card",
+     "es": "Tu tarjeta de residencia",
+     "folder": [
+      "n400-gc"
+     ],
+     "src": "n400page"
+    },
+    {
+     "en": "Passports and travel documents that show your trips",
+     "es": "Pasaportes y documentos de viaje que muestran tus viajes",
+     "folder": [
+      "n400-trips"
+     ],
+     "src": "n400instr"
+    },
+    {
+     "en": "IRS tax transcripts (especially after a trip over 6 months)",
+     "es": "Transcripciones de impuestos del IRS (sobre todo después de un viaje de más de 6 meses)",
+     "folder": [
+      "n400-taxes"
+     ],
+     "src": "n400instr"
+    },
+    {
+     "en": "Marriage certificate and proof prior marriages ended, if applicable",
+     "es": "Acta de matrimonio y prueba de que terminaron matrimonios anteriores, si aplica",
+     "folder": [
+      "n400-marital",
+      "n400-marriage"
+     ],
+     "src": "n400page"
+    },
+    {
+     "en": "Originals or court-certified copies of any arrest or court records",
+     "es": "Originales o copias certificadas de cualquier registro de arresto o de la corte",
+     "folder": [
+      "n400-arrest"
+     ],
+     "src": "n400instr"
+    },
+    {
+     "en": "A complete copy of your N-400",
+     "es": "Una copia completa de tu N-400",
+     "folder": [
+      "n400-form"
+     ],
+     "src": "pm12b3"
+    }
+   ],
+   "practice": [
+    {
+     "topic": {
+      "en": "About you",
+      "es": "Sobre ti"
+     },
+     "from": "N-400 Parts 2 and 3",
+     "en": "What is your full name? Have you used any other names? Do you want to change your name?",
+     "es": "¿Cuál es tu nombre completo? ¿Has usado otros nombres? ¿Quieres cambiar tu nombre?"
+    },
+    {
+     "topic": {
+      "en": "Your residence",
+      "es": "Tu residencia"
+     },
+     "from": "N-400 Part 1 / Policy Manual Vol. 12, Part B, Ch. 3",
+     "en": "When did you become a permanent resident, and under which path are you applying (5 years, or 3 years married to a U.S. citizen)?",
+     "es": "¿Cuándo te hiciste residente permanente y por qué vía solicitas (5 años, o 3 años casado con un ciudadano)?"
+    },
+    {
+     "topic": {
+      "en": "Your residence",
+      "es": "Tu residencia"
+     },
+     "from": "N-400 Part 4",
+     "en": "Where have you lived during the period the form asks about? Give the dates.",
+     "es": "¿Dónde has vivido durante el periodo que pregunta el formulario? Da las fechas."
+    },
+    {
+     "topic": {
+      "en": "Marriage and children",
+      "es": "Matrimonio e hijos"
+     },
+     "from": "N-400 Parts 5 and 6",
+     "en": "What is your marital status? How many times have you been married? How many children do you have?",
+     "es": "¿Cuál es tu estado civil? ¿Cuántas veces te has casado? ¿Cuántos hijos tienes?"
+    },
+    {
+     "topic": {
+      "en": "Work and school",
+      "es": "Trabajo y estudios"
+     },
+     "from": "N-400 Part 7",
+     "en": "Where do you work now, and where have you worked or studied during the period the form asks about?",
+     "es": "¿Dónde trabajas ahora y dónde has trabajado o estudiado durante el periodo que pregunta el formulario?"
+    },
+    {
+     "topic": {
+      "en": "Time outside the U.S.",
+      "es": "Tiempo fuera de EE. UU."
+     },
+     "from": "N-400 Part 8",
+     "en": "What trips outside the U.S. have you taken in the period the form asks about (trips longer than 24 hours)? Were any longer than 6 months?",
+     "es": "¿Qué viajes fuera de EE. UU. has hecho en el periodo que pregunta el formulario (viajes de más de 24 horas)? ¿Alguno duró más de 6 meses?"
+    },
+    {
+     "topic": {
+      "en": "Good moral character",
+      "es": "Buen carácter moral"
+     },
+     "from": "N-400 Part 9",
+     "en": "Have you EVER been arrested, cited, or detained by any law enforcement officer? Do you owe any overdue federal, state, or local taxes?",
+     "es": "¿ALGUNA VEZ te arrestó, citó o detuvo algún agente de la ley? ¿Debes impuestos federales, estatales o locales atrasados?"
+    },
+    {
+     "topic": {
+      "en": "Good moral character",
+      "es": "Buen carácter moral"
+     },
+     "from": "N-400 Part 9",
+     "en": "Have you EVER claimed to be a U.S. citizen, or registered to vote or voted in any federal, state, or local election in the U.S.?",
+     "es": "¿ALGUNA VEZ dijiste ser ciudadano estadounidense, o te registraste para votar o votaste en alguna elección federal, estatal o local en EE. UU.?"
+    },
+    {
+     "topic": {
+      "en": "Attachment to the Constitution",
+      "es": "Apego a la Constitución"
+     },
+     "from": "N-400 Part 9 / Part 16",
+     "en": "Do you support the Constitution and form of Government of the United States? Do you understand the full Oath of Allegiance, and are you willing to take it?",
+     "es": "¿Apoyas la Constitución y la forma de gobierno de Estados Unidos? ¿Entiendes el Juramento de Lealtad completo y estás dispuesto a hacerlo?"
+    },
+    {
+     "topic": {
+      "en": "Groups and associations",
+      "es": "Grupos y asociaciones"
+     },
+     "from": "N-400 Part 9",
+     "en": "Part 9 asks about groups you have been part of or associated with. Re-read those questions and your answers so you can explain any 'Yes'.",
+     "es": "La Parte 9 pregunta sobre grupos de los que has sido parte o con los que te has asociado. Vuelve a leer esas preguntas y tus respuestas para poder explicar cualquier 'Sí'."
+    }
+   ]
+  }
+ }
+}

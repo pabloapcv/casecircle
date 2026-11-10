@@ -41,6 +41,7 @@ from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+import entitlements
 import mailer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -194,6 +195,11 @@ MIGRATIONS: list[str] = [
       created_at TEXT NOT NULL
     );
     CREATE INDEX tokens_user ON tokens(user_id, kind);
+    """,
+    # 3: extras trial + paid pass (entitlements.py)
+    """
+    ALTER TABLE users ADD COLUMN trial_started_at REAL;
+    ALTER TABLE users ADD COLUMN pass_until REAL;
     """,
 ]
 
@@ -601,6 +607,7 @@ def public_user(user: sqlite3.Row) -> dict[str, Any]:
         "emailVerified": is_verified(user),
         "pendingEmail": user["pending_email"],
         "createdAt": user["created_at"],
+        "extras": entitlements.extras_status(user, admin=is_admin(user)),
     }
 
 
@@ -678,8 +685,11 @@ def group_counts(conn: sqlite3.Connection) -> dict[str, int]:
 
 
 def api_me(conn, handler, user, _q):
+    if user and not user["trial_started_at"]:
+        with _write_lock:
+            user = entitlements.ensure_trial_started(conn, user)
     return 200, {"user": public_user(user) if user else None, "groupCounts": group_counts(conn),
-                 "reportThreshold": report_threshold()}
+                 "reportThreshold": report_threshold(), "trialDays": entitlements.trial_days()}
 
 
 def create_session(conn: sqlite3.Connection, handler: Any, user_id: int) -> str:
@@ -764,8 +774,9 @@ def api_signup(conn, handler, user, data):
         if conn.execute("SELECT 1 FROM users WHERE handle = ?", (handle,)).fetchone():
             raise ApiError(409, "taken")
         cur = conn.execute(
-            "INSERT INTO users (email, handle, pw_hash, pw_salt, locale, spaces, profiles, created_at) VALUES (?,?,?,?,?,?,?,?)",
-            (email, handle, pw_hash, pw_salt, locale, json.dumps(spaces), json.dumps(profiles), now_iso()))
+            "INSERT INTO users (email, handle, pw_hash, pw_salt, locale, spaces, profiles, created_at, trial_started_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (email, handle, pw_hash, pw_salt, locale, json.dumps(spaces), json.dumps(profiles), now_iso(), time.time()))
         cookie = create_session(conn, handler, cur.lastrowid)
         send_verify(conn, handler, cur.lastrowid, email, handle, locale)
     row = conn.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)).fetchone()

@@ -72,3 +72,10 @@ test("nav labels exist in both languages and are distinct", () => {
   }
   assert.notEqual(homeText("en", "navFeed"), homeText("en", "communities"));
 });
+
+test("civics practice has its own route under the Interview section", () => {
+  assert.deepEqual(routeFromHash("#civics"), { name: "civics" });
+  assert.deepEqual(routeFromHash("#civica"), { name: "civics" });
+  assert.equal(hashForRoute({ name: "civics" }), "#civics");
+  assert.equal(SECTION_OF.civics, "interview");
+});

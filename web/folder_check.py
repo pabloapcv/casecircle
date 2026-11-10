@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import os
 import re
 import threading
 import time
@@ -43,6 +44,89 @@ ANSWER_VALUE = re.compile(r"[a-z0-9]{1,24}")
 ANSWER_KEY = re.compile(r"[A-Za-z0-9]{1,24}")
 ITEM_ID = re.compile(r"[a-z0-9-]{1,48}")
 FORM = re.compile(r"[A-Za-z0-9-]{1,12}")
+
+# ───────────── accepted form editions (data/form-editions.json, kept current by the weekly USCIS check) ─────────────
+
+EDITIONS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "form-editions.json")
+_editions_cache: dict[str, Any] = {"mtime": None, "data": {"forms": {}}}
+_EDITION_WITH_FORM = re.compile(r"\bForm\s+([IN]-\d{2,3}[A-Z]?)\s+(?:Edition|Ed\.)\s*(?:Date\s*)?(\d{1,2})/(\d{1,2})/(\d{2,4})", re.I)
+_EDITION_ONLY = re.compile(r"\bedition(?:\s+date)?\s*:?\s*(\d{1,2})/(\d{1,2})/(\d{2,4})", re.I)
+
+
+def load_editions(path: str | None = None) -> dict[str, Any]:
+    """The accepted-editions table. Re-read when the file changes, so a weekly edit needs no restart."""
+    path = path or EDITIONS_PATH
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        return {"forms": {}}
+    if path != EDITIONS_PATH:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+    if _editions_cache["mtime"] != mtime:
+        with open(path, encoding="utf-8") as handle:
+            _editions_cache["data"] = json.load(handle)
+        _editions_cache["mtime"] = mtime
+    return _editions_cache["data"]
+
+
+def normalize_edition(month: str, day: str, year: str) -> str:
+    return f"{int(month):02d}/{int(day):02d}/{int(year) % 100:02d}"
+
+
+def check_edition(form: str, edition: str, table: dict[str, Any] | None = None) -> tuple[str, dict[str, Any] | None]:
+    """Return (verdict, entry): 'ok', 'rejected' (USCIS says it refuses it), 'unlisted' (not the edition USCIS lists),
+    or 'unknown_form' (no row in the table, so no claim is made)."""
+    forms = (table or load_editions()).get("forms", {})
+    entry = forms.get(str(form or "").strip().upper())
+    if not entry:
+        return "unknown_form", None
+    parts = re.match(r"^\s*(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})\s*$", str(edition or ""))
+    if parts:
+        edition = normalize_edition(*parts.groups())
+    if edition in entry.get("accepted", []):
+        return "ok", entry
+    if edition in entry.get("rejected", []):
+        return "rejected", entry
+    return "unlisted", entry
+
+
+def find_edition(text: str, form_hint: str) -> tuple[str, str] | None:
+    """(form, mm/dd/yy) printed on a USCIS form page footer, e.g. 'Form I-485 Edition 09/18/26 Page 1 of 20'."""
+    hit = _EDITION_WITH_FORM.search(text)
+    if hit:
+        return hit.group(1).upper(), normalize_edition(hit.group(2), hit.group(3), hit.group(4))
+    hit = _EDITION_ONLY.search(text)
+    if hit and form_hint:
+        return form_hint.upper(), normalize_edition(hit.group(1), hit.group(2), hit.group(3))
+    return None
+
+
+def edition_finding(text: str, form_hint: str, lang: str = "en") -> dict[str, str] | None:
+    found = find_edition(text, form_hint)
+    if not found:
+        return None
+    form, edition = found
+    verdict, entry = check_edition(form, edition)
+    if verdict in ("ok", "unknown_form") or not entry:
+        return None
+    es = lang == "es"
+    accepted = " or ".join(entry["accepted"]) if not es else " o ".join(entry["accepted"])
+    note = f" {entry['note']}" if entry.get("note") and not es else ""
+    if verdict == "rejected":
+        return {"code": "wrong_edition", "severity": "high",
+                "message": (f"Este es el {form} edición {edition}. USCIS ya no acepta esa edición; la vigente es {accepted}." if es else
+                            f"This is the {edition} edition of Form {form}. USCIS no longer accepts it; the current edition is {accepted}.{note}"),
+                "fix": (f"Descarga la edición {accepted} desde {entry['url']} y vuelve a llenar el formulario." if es else
+                        f"Download the {accepted} edition from {entry['url']} and fill it out again.")}
+    return {"code": "wrong_edition", "severity": "medium",
+            "message": (f"La edición {edition} del {form} no es la que USCIS publica ahora ({accepted})." if es else
+                        f"Edition {edition} of Form {form} is not the edition USCIS lists right now ({accepted}).{note}"),
+            "fix": (f"Compárala con {entry['url']} y descarga la edición vigente si es distinta." if es else
+                    f"Compare it with {entry['url']} and download the current edition if it differs.")}
+
+
+I693_POLICY_DATE = _dt.date(2023, 11, 1)
 
 # Same patterns as web/redact.js. Server-side masking is defense in depth.
 _MASKS = [
@@ -294,7 +378,10 @@ def check_system_prompt(lang: str) -> str:
         "Look for: the document not being what the checklist item asks for; names that differ from the other names given; "
         "expired documents or dates outside a required window; non-English text with no translator's certification; "
         "missing pages (e.g. 'Page 2 of 4' with pages absent, or fewer PDF pages than stated); missing signature where one is "
-        "expected; an old form edition date if one is visible; evidence that looks thin (one record covering a short period).\n"
+        "expected; a form edition that is not in the accepted-editions list below; evidence that looks thin (one record covering a short period).\n"
+        f"Accepted USCIS form editions (checked {load_editions().get('checked', '')}): "
+        + "; ".join(f"{k} {' or '.join(v.get('accepted', []))}" for k, v in load_editions().get("forms", {}).items())
+        + ". Do not flag an edition for any form not in this list.\n"
         "Each finding needs a concrete fix. Do not invent fees, deadlines, or form editions; if a rule depends on current "
         "instructions, say to confirm it on the official page.\n"
         "Return ONLY a JSON object with this shape:\n"
@@ -510,11 +597,15 @@ def mock_check(payload: dict[str, Any], today: _dt.date | None = None) -> dict[s
                          "message": t(f"The passport expires on {expires.isoformat()}, less than 6 months from today.", f"El pasaporte vence el {expires.isoformat()}, en menos de 6 meses."),
                          "fix": t("Consider renewing it before you file or travel, and confirm what the instructions require.", "Considera renovarlo antes de presentar o viajar, y confirma lo que piden las instrucciones.")})
     if "medical" in found_keys:
+        # Policy Manual Vol. 8, Part B, Ch. 4: an I-693 signed on or after Nov. 1, 2023 stays valid while the application
+        # it is filed with is pending (no 60-day rule since Mar. 31, 2023). Only older exams have a 2-year window.
         signed = [d for d in (_parse_date(m) for m in _DATE.finditer(text)) if d]
-        if signed and (today - max(signed)).days > 60 and re.search(r"civil surgeon", text, re.I):
-            findings.append({"code": "date_window", "severity": "medium",
-                             "message": t(f"The latest date on the medical form is {max(signed).isoformat()}.", f"La fecha más reciente del examen es {max(signed).isoformat()}."),
-                             "fix": t("Check the current I-693 validity rules on uscis.gov before you file.", "Revisa en uscis.gov las reglas vigentes de validez del I-693 antes de presentar.")})
+        if signed and max(signed) < I693_POLICY_DATE and re.search(r"civil surgeon", text, re.I):
+            findings.append({"code": "date_window", "severity": "low",
+                             "message": t(f"This exam was signed before Nov. 1, 2023 (latest date: {max(signed).isoformat()}). Those exams are valid for 2 years from the signature.",
+                                          f"Este examen se firmó antes del 1 de noviembre de 2023 (fecha más reciente: {max(signed).isoformat()}). Esos exámenes valen 2 años desde la firma."),
+                             "fix": t("Check uscis.gov/i-693 and the USCIS Policy Manual (Vol. 8, Part B, Ch. 4) before you file.",
+                                      "Revisa uscis.gov/i-693 y el Manual de Políticas de USCIS (Vol. 8, Parte B, Cap. 4) antes de presentar.")})
 
     page_marks = [(int(a), int(b)) for a, b in re.findall(r"page\s+(\d{1,2})\s+of\s+(\d{1,2})", text, re.I)]
     if page_marks:
@@ -525,14 +616,9 @@ def mock_check(payload: dict[str, Any], today: _dt.date | None = None) -> dict[s
                              "message": t(f"The document says it has {total} pages, but only page(s) {', '.join(str(p) for p in sorted(seen))} are here.", f"El documento dice que tiene {total} páginas, pero solo están la(s) {', '.join(str(p) for p in sorted(seen))}."),
                              "fix": t("Scan and add every page, including blank backs if they carry stamps.", "Escanea y agrega todas las páginas, incluso reversos con sellos.")})
 
-    edition = re.search(r"edition\s*(\d{2})/(\d{2})/(\d{2,4})", text, re.I)
+    edition = edition_finding(text, payload.get("form", ""), payload["lang"])
     if edition:
-        year = int(edition.group(3))
-        year = year + 2000 if year < 100 else year
-        if year <= today.year - 2:
-            findings.append({"code": "wrong_edition", "severity": "medium",
-                             "message": t(f"The form edition date is {edition.group(1)}/{edition.group(2)}/{edition.group(3)}, which may be outdated.", f"La edición del formulario es {edition.group(1)}/{edition.group(2)}/{edition.group(3)}; puede estar desactualizada."),
-                             "fix": t(f"Compare it with the edition listed on {payload['officialUrl']} and re-download if it differs.", f"Compárala con la edición de {payload['officialUrl']} y descárgala otra vez si es distinta.")})
+        findings.append(edition)
 
     wants_signature = bool(expected & {"form", "i864", "translation"})
     if wants_signature and not re.search(r"signature|signed|/s/|firma", text, re.I):
@@ -643,15 +729,27 @@ def _send(handler: Any, status: int, payload: dict[str, Any]) -> None:
     handler.wfile.write(body)
 
 
+def apply_edition_table(result: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    """The accepted-editions table is the only source for edition findings: drop any model-written wrong_edition
+    finding and add the table's verdict instead."""
+    findings = [row for row in result.get("findings", []) if row.get("code") != "wrong_edition"]
+    edition = edition_finding(payload.get("text", ""), payload.get("form", ""), payload.get("lang", "en"))
+    if edition:
+        findings.append(edition)
+        if result.get("status") == "matches":
+            result = {**result, "status": "possible_issue"}
+    return {**result, "findings": findings[:MAX_FINDINGS]}
+
+
 def run_check(payload: dict[str, Any]) -> dict[str, Any]:
     if fc.mock_enabled():
         result = normalize_check_result(mock_check(payload))
-        return {**(result or {}), "mock": True}
+        return {**apply_edition_table(result or {"findings": []}, payload), "mock": True}
     raw = call_provider(check_system_prompt(payload["lang"]), check_user_message(payload, _dt.date.today().isoformat()))
     result = normalize_check_result(raw)
     if result is None:
         raise RuntimeError("provider_shape")
-    return {**result, "mock": False}
+    return {**apply_edition_table(result, payload), "mock": False}
 
 
 def run_plan(payload: dict[str, Any]) -> dict[str, Any]:

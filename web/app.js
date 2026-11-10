@@ -19,6 +19,8 @@ import { toolsText } from "./tools-text.js";
 import { BUILDER_FORMS, answerLabel, buildPlan, inferFromDescription, mergeAiPlan, nextQuestion, questionsFor, suggestItem } from "./builder.js";
 import { computeReadiness, crossDocFindings, readinessBand, topFixes } from "./readiness.js";
 import { maskIdentifiers } from "./redact.js";
+import { extrasText, trialLabel } from "./extras-text.js";
+import { answerView, nextCard, pickQuestions, questionsInTopic, rulesFor, scoreSession, shuffle, topicsOf, versionForFilingDate } from "./civics.js";
 import { deleteText, extractFromFile, kindOf, loadText, saveText, keepFile } from "./extract.js";
 import { folderSummaryHtml } from "./summary.js";
 import { NEXT_STEPS, OFFICIAL, WAIT_FORMS, rangeBar, waitPosition } from "./insights.js";
@@ -161,6 +163,7 @@ async function refreshSession() {
   session.loaded = true;
   if (res.ok) {
     session.groupCounts = res.data.groupCounts || {};
+    if (typeof res.data.trialDays === "number") session.trialDays = res.data.trialDays;
     adoptAccount(res.data.user);
   }
   render();
@@ -671,6 +674,7 @@ function screen() {
   if (route.name === "bot") return botScreen();
   if (route.name === "you") return youScreen();
   if (route.name === "interview") return interviewScreen(route.spaceId);
+  if (route.name === "civics") return civicsScreen();
   if (route.name === "pricing") return pricingScreen();
   if (route.name === "form") return formSeoScreen(route.id);
   return homeScreen();
@@ -782,6 +786,9 @@ function pricingSection() {
         <p class="kicker">${esc(Pr("passTitle"))}</p>
         <h3>${esc(casePassPriceLabel())}</h3>
         <p>${esc(Pr("passBody"))}</p>
+        <p class="note">${esc(X("pricingTrial", { days: extrasStatus().trialDays ?? 3 }))}</p>
+        <p class="muted">${esc(X("pricingGated"))}</p>
+        ${account() && extrasStatus().access && extrasStatus().reason === "trial" ? `<p class="pill">${esc(trialLabel(lang(), extrasStatus().daysLeft))}</p>` : ""}
         <p class="muted">${esc(Pr("abNote"))}</p>
         <button class="btn" data-act="waitlist-open" aria-describedby="waitlist-note">${esc(Pr("passComing"))}</button>
         <p id="waitlist-note" class="muted">${esc(Pr("waitlistHelp"))}</p>
@@ -1676,9 +1683,11 @@ function folderChatPanel(spaceId, packet, folder) {
     const mock = row.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : "";
     return `<article class="chat-msg ${esc(row.role)}"${streamId}><p class="chat-who">${esc(who)}</p>${mock}<p>${esc(row.text)}</p></article>`;
   }).join("");
-  const composer = unavailable || pendingStatus ? "" : `<label class="field">${esc(P("chatPlaceholder"))}
-      <textarea id="chat-q" ${chat.consent && !loading ? "" : "disabled"} placeholder="${esc(P("chatPlaceholder"))}" aria-label="${esc(P("chatTitle"))}">${esc(chat.draft)}</textarea>
-    </label>
+  const composer = unavailable || pendingStatus ? "" : `<div class="field chat-composer">
+      <label for="chat-q">${esc(P(chat.messages.length ? "chatFollowLabel" : "chatAskLabel"))}</label>
+      <textarea id="chat-q" rows="3" ${chat.consent && !loading ? "" : "disabled"} aria-describedby="chat-hint">${esc(chat.draft)}</textarea>
+      <p id="chat-hint" class="chat-hint">${esc(P("chatHint"))}</p>
+    </div>
     <div class="chat-actions">
       ${loading ? `<button class="btn-secondary" data-act="chat-cancel">${esc(P("chatCancel"))}</button>` : `<button class="btn" data-act="chat-send" data-space="${esc(spaceId)}" ${chat.consent ? "" : "disabled"}>${esc(P("chatSend"))}</button>`}
       ${chat.status === "error" && chat.retry ? `<button class="ghost" data-act="chat-retry" data-space="${esc(spaceId)}">${esc(P("chatRetry"))}</button>` : ""}
@@ -1696,7 +1705,7 @@ function folderChatPanel(spaceId, packet, folder) {
     ${folderChatStatus.mock ? `<p class="chat-mock">${esc(P("chatMockNote"))}</p>` : ""}
     ${unavailable || pendingStatus ? "" : `<label class="check-item chat-consent"><input id="chat-consent" type="checkbox" data-act="chat-consent" data-space="${esc(spaceId)}" ${chat.consent ? "checked" : ""} ${loading ? "disabled" : ""}><span>${esc(P("chatConsent"))}</span></label>`}
     ${unavailable || pendingStatus || !(folder.docs || []).some((doc) => doc.check) ? "" : `<label class="check-item chat-consent"><input id="chat-findings" type="checkbox" data-act="chat-findings" data-space="${esc(spaceId)}" ${chat.shareFindings ? "checked" : ""} ${loading ? "disabled" : ""}><span>${esc(T("chatFindingsConsent"))}</span></label>`}
-    <div class="chat-log" id="chat-log" role="log" aria-live="polite">${messages || (unavailable || pendingStatus ? "" : `<p class="muted">${esc(P("chatEmpty"))}</p>`)}</div>
+    <div class="chat-log" id="chat-log" role="log" aria-live="polite" ${messages ? 'tabindex="0"' : ""} aria-label="${esc(P("chatTitle"))}">${messages}</div>
     ${loading ? `<p class="muted" role="status">${esc(P("chatLoading"))}</p>` : ""}
     ${chat.error ? `<p class="danger" role="alert">${esc(chat.error)}</p>` : ""}
     ${composer}
@@ -2603,33 +2612,6 @@ function rfeHelperSection() {
   </section>`;
 }
 
-function interviewScreen(spaceId) {
-  const space = spaceById(spaceId || "i-485");
-  const tips = interviewTips(lang(), spaceId || "i-485");
-  const interviewPosts = redditForSpace(spaceId || "i-485").filter(p => 
-    /interview|entrevista/i.test(p.title)
-  ).slice(0, 10);
-  
-  return `<div class="interview-hub">
-    ${backButton()}
-    <div class="page-head">
-      <h1>${esc(lang() === "es" ? "Preparación para entrevista" : "Interview Preparation")}</h1>
-      <p class="muted">${esc(space ? (lang() === "es" ? space.es : space.en) : "")}</p>
-    </div>
-    
-    <h2>${esc(lang() === "es" ? "Consejos generales" : "General tips")}</h2>
-    <div class="stack">${tips.map(tip => `<div class="card"><strong>${esc(tip.title)}</strong><p>${esc(tip.body)}</p></div>`).join("")}</div>
-    
-    ${spaceId === "i-485" || spaceId === "i-130" ? marriageEvidenceChecklist() : ""}
-    
-    <h2>${esc(lang() === "es" ? "Experiencias de entrevistas" : "Interview experiences")}</h2>
-    <p class="muted">${esc(lang() === "es" ? "De r/USCIS - experiencias reales de personas" : "From r/USCIS - real experiences from people")}</p>
-    <div class="feed">${interviewPosts.map(p => webCard(p, true)).join("") || `<p class="muted">${esc(lang() === "es" ? "No hay experiencias de entrevistas aún" : "No interview experiences yet")}</p>`}</div>
-    
-    ${legalDisclaimer()}
-  </div>`;
-}
-
 function marriageEvidenceChecklist() {
   const items = [
     { id: "marriage-cert", text: lang() === "es" ? "Acta de matrimonio" : "Marriage certificate", required: true },
@@ -2669,6 +2651,340 @@ function marriageEvidenceChecklist() {
     
     <p class="read-note" style="margin-top:12px;">${esc(lang() === "es" ? "Marca solo documentos genuinos. Una lista más marcada no es un juicio de tu caso." : "Mark only genuine documents. A fuller checklist is not a judgment of your case.")}</p>
   </section>`;
+}
+
+/* ───────── Extras: Interview prep practice + Civics practice (server-gated; see extras.py / entitlements.py) ───────── */
+const INTERVIEW_KEY = { "i-485": "marriage", "i-130": "marriage", "i-751": "i-751", "n-400": "n-400" };
+const INTERVIEW_TABS = [["i-485", "caseMarriage"], ["i-751", "caseI751"], ["n-400", "caseN400"]];
+const extrasUi = {
+  cache: {}, loading: {}, error: {},
+  mock: null, showOther: false,
+  civicsVersion: "", civicsMode: "practice", filedOn: "", senior: false, showEs: false,
+  session: null, topic: "", card: 0, flipped: false, cardOrder: null
+};
+function X(key, values) { return extrasText(lang(), key, values); }
+function extrasStatus() {
+  return account()?.extras || { access: false, reason: "signin", trialDays: session.trialDays ?? 3, daysLeft: 0 };
+}
+function extrasCacheKey(kind, param) { return `${account()?.id || "anon"}:${kind}:${param}`; }
+function loadExtras(kind, param) {
+  const key = extrasCacheKey(kind, param);
+  if (extrasUi.cache[key] || extrasUi.loading[key] || extrasUi.error[key]) return extrasUi.cache[key] || null;
+  extrasUi.loading[key] = true;
+  const query = kind === "civics" ? `version=${encodeURIComponent(param)}` : `form=${encodeURIComponent(param)}`;
+  api(`/api/extras/${kind}?${query}`).then((res) => {
+    delete extrasUi.loading[key];
+    if (res.ok) extrasUi.cache[key] = res.data;
+    else {
+      extrasUi.error[key] = res.status || "offline";
+      if (res.data?.extras && session.user) session.user = { ...session.user, extras: res.data.extras };
+    }
+    render();
+  });
+  return null;
+}
+
+function extrasBanner() {
+  const status = extrasStatus();
+  if (!status.access) return "";
+  const text = status.reason === "trial" ? trialLabel(lang(), status.daysLeft) : status.reason === "paid" ? X("paidAccess") : X("adminAccess");
+  return `<div class="extras-banner" role="status"><span class="pill">${esc(X("extrasKicker"))}</span><strong>${esc(text)}</strong>${status.reason === "trial" ? `<span class="muted">${esc(X("trialBody"))}</span>` : ""}</div>`;
+}
+
+function extrasLocked() {
+  const status = extrasStatus();
+  const signin = status.reason === "signin" || !account();
+  return `<div class="card extras-locked">
+    <p class="kicker">${icon("lock", 16)} ${esc(X("extrasKicker"))}</p>
+    <h3>${esc(X(signin ? "lockedSigninTitle" : "lockedExpiredTitle"))}</h3>
+    <p>${esc(signin ? X("lockedSigninBody", { days: status.trialDays ?? 3 }) : X("lockedExpiredBody"))}</p>
+    <div class="row">${signin
+      ? `<button class="btn" data-act="auth" data-mode="signup">${esc(X("signIn"))}</button>`
+      : `<button class="btn" data-act="open-pricing">${esc(X("joinWaitlist"))}</button>`}</div>
+  </div>`;
+}
+
+/* Renders the gated block: locked card, loading, error, or body(data). */
+function extrasGate(kind, param, body) {
+  if (!extrasStatus().access) return extrasLocked();
+  const key = extrasCacheKey(kind, param);
+  const data = extrasUi.cache[key];
+  if (data) return body(data);
+  if (extrasUi.error[key]) {
+    if (extrasUi.error[key] === 401 || extrasUi.error[key] === 402) return extrasLocked();
+    return `<div class="card"><p>${esc(X("loadError"))}</p><button class="btn-secondary" data-act="extras-retry" data-key="${esc(key)}">${esc(X("retry"))}</button></div>`;
+  }
+  queueMicrotask(() => loadExtras(kind, param));
+  return `<div class="card muted" aria-busy="true">${esc(X("loading"))}</div>`;
+}
+
+function extrasNotice() {
+  return `<p class="extras-notice">${esc(X("notAdvice"))}</p>`;
+}
+
+function sourceLink(sources, id) {
+  const src = sources?.[id];
+  return src ? `<a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">${esc(src.title)}</a>` : "";
+}
+
+function interviewScreen(spaceId) {
+  const sid = INTERVIEW_KEY[spaceId] ? spaceId : (spaceId || "i-485");
+  const key = INTERVIEW_KEY[sid] || null;
+  const tips = interviewTips(lang(), sid);
+  const interviewPosts = redditForSpace(sid).filter((p) => /interview|entrevista/i.test(p.title)).slice(0, 10);
+  const tabs = INTERVIEW_TABS.map(([id, label]) => {
+    const on = INTERVIEW_KEY[sid] === INTERVIEW_KEY[id];
+    return `<button type="button" class="chip ${on ? "on" : ""}" aria-pressed="${on}" data-act="interview-case" data-id="${id}">${esc(X(label))}</button>`;
+  }).join("");
+  return `<div class="interview-hub">
+    ${backButton()}
+    <div class="page-head">
+      <p class="kicker">${esc(L("notAffiliated"))}</p>
+      <h1>${esc(X("interviewTitle"))}</h1>
+      <div class="chips" role="group" aria-label="${esc(X("pickCase"))}">${tabs}</div>
+      <p><button class="text-link" data-act="open-civics">${esc(X("goCivics"))} →</button></p>
+    </div>
+    ${extrasNotice()}
+    ${key ? `<section class="extras-section">${extrasBanner()}${extrasGate("interview", key, interviewExtras)}</section>` : ""}
+    <h2>${esc(X("interviewFree"))}</h2>
+    <div class="stack">${tips.map((tip) => `<div class="card"><strong>${esc(tip.title)}</strong><p>${esc(tip.body)}</p></div>`).join("")}</div>
+    ${sid === "i-485" || sid === "i-130" ? marriageEvidenceChecklist() : ""}
+    <h2>${esc(lang() === "es" ? "Experiencias de entrevistas" : "Interview experiences")}</h2>
+    <p class="muted">${esc(lang() === "es" ? "De r/USCIS - experiencias reales de personas" : "From r/USCIS - real experiences from people")}</p>
+    <div class="feed">${interviewPosts.map((p) => webCard(p, true)).join("") || `<p class="muted">${esc(lang() === "es" ? "No hay experiencias de entrevistas aún" : "No interview experiences yet")}</p>`}</div>
+    ${legalDisclaimer()}
+  </div>`;
+}
+
+function folderMark(spaceIds, ids) {
+  for (const space of spaceIds) {
+    const marks = state.folders?.[state.meId]?.[space]?.marks || {};
+    if (ids.some((id) => marks[id] === "ready")) return "ready";
+  }
+  return ids.length ? "need" : "";
+}
+
+function interviewExtras(data) {
+  const l = lang();
+  const other = l === "es" ? "en" : "es";
+  const qs = data.practice || [];
+  const mock = extrasUi.mock && extrasUi.mock.key === data.key ? extrasUi.mock : null;
+  const qText = (q) => `<p class="practice-q" lang="${l}">${esc(q[l])}</p>${extrasUi.showOther ? `<p class="practice-q other" lang="${other}">${esc(q[other])}</p>` : ""}`;
+  const current = mock && mock.i < mock.order.length ? qs[mock.order[mock.i]] : null;
+  const mockHtml = mock
+    ? (current
+      ? `<div class="card practice-card" aria-live="polite">
+          <p class="kicker">${esc(X("practiceCount", { i: mock.i + 1, n: mock.order.length }))} · ${esc(current.topic[l])}</p>
+          ${qText(current)}
+          <p class="muted small-print">${esc(X("fromPart", { from: current.from }))}</p>
+          <div class="row"><button class="btn" data-act="mock-next">${esc(X("practiceNext"))}</button><button class="btn-secondary" data-act="mock-end">${esc(X("practiceEnd"))}</button></div>
+        </div>`
+      : `<div class="card practice-card"><p>${esc(X("practiceDone"))}</p><button class="btn-secondary" data-act="mock-start">${esc(X("practiceStart"))}</button></div>`)
+    : `<button class="btn" data-act="mock-start">${esc(X("practiceStart"))}</button>`;
+  const spaces = data.spaces || [];
+  const bring = (data.bring || []).map((item) => {
+    const mark = folderMark(spaces, item.folder || []);
+    const pill = mark === "ready" ? `<span class="pill green">${esc(X("bringReady"))}</span>` : mark === "need" ? `<span class="pill coral">${esc(X("bringMissing"))}</span>` : `<span class="pill">${esc(X("bringNoFolder"))}</span>`;
+    return `<li class="bring-item"><div><span>${esc(item[l])}</span> ${pill}</div><span class="muted small-print">${esc(X("sourceLabel"))}: ${sourceLink(data.sources, item.src)}</span></li>`;
+  }).join("");
+  const tips = (data.tips || []).map((tip) => `<li class="card cited-tip"><p>${esc(tip[l])}</p><p class="muted small-print">${esc(X("sourceLabel"))}: ${sourceLink(data.sources, tip.src)}</p></li>`).join("");
+  return `<article class="extras-body">
+    <h2>${esc(data.title[l])}</h2>
+    <p class="lede">${esc(data.intro[l])}</p>
+    ${data.key === "n-400" ? `<p><button class="btn-secondary" data-act="open-civics">${esc(X("goCivics"))}</button></p>` : ""}
+    <h3>${esc(X("practiceTitle"))}</h3>
+    <p class="muted">${esc(X("practiceLead"))}</p>
+    <label class="check-inline"><input type="checkbox" data-act="mock-other" ${extrasUi.showOther ? "checked" : ""}> ${esc(X("showOther"))}</label>
+    ${mockHtml}
+    <details class="practice-all"><summary>${esc(X("practiceAll"))} (${qs.length})</summary>
+      <ol>${qs.map((q) => `<li>${qText(q)}<span class="muted small-print">${esc(X("fromPart", { from: q.from }))}</span></li>`).join("")}</ol>
+    </details>
+    <h3>${esc(X("bringTitle"))}</h3>
+    <p class="muted">${esc(X("bringLead"))}</p>
+    <ul class="bring-list">${bring}</ul>
+    <button class="btn-secondary" data-act="start-tool" data-route="prepare">${esc(X("openFolder"))}</button>
+    <h3>${esc(X("tipsTitle"))}</h3>
+    <ul class="cited-tips">${tips}</ul>
+    <p class="muted small-print">${esc(X("checkedOn", { date: data.checked }))}</p>
+  </article>`;
+}
+
+function civicsVersion() {
+  return extrasUi.civicsVersion || versionForFilingDate(extrasUi.filedOn) || "2025";
+}
+
+function civicsScreen() {
+  const version = civicsVersion();
+  const recommended = versionForFilingDate(extrasUi.filedOn);
+  const chip = (v) => `<button type="button" class="chip ${version === v ? "on" : ""}" aria-pressed="${version === v}" data-act="civics-version" data-id="${v}">${esc(X(v === "2025" ? "version2025" : "version2008"))}</button>`;
+  return `<div class="interview-hub civics">
+    ${backButton()}
+    <div class="page-head">
+      <p class="kicker">${esc(L("notAffiliated"))}</p>
+      <h1>${esc(X("civicsTitle"))}</h1>
+      <p class="lede">${esc(X("civicsLead"))}</p>
+    </div>
+    ${extrasNotice()}
+    ${extrasBanner()}
+    <div class="card civics-picker">
+      <h2>${esc(X("whichTest"))}</h2>
+      <p class="muted">${esc(X("whichTestHelp"))}</p>
+      <label class="field">${esc(X("filedOn"))}<input type="date" id="civics-filed" data-act="civics-filed" value="${esc(extrasUi.filedOn)}"></label>
+      ${recommended ? `<p class="note">${esc(X("youTake", { label: X(recommended === "2025" ? "label2025" : "label2008") }))}</p>` : ""}
+      <div class="chips" role="group" aria-label="${esc(X("whichTest"))}">${chip("2025")}${chip("2008")}</div>
+    </div>
+    ${extrasGate("civics", version, civicsBody)}
+    ${legalDisclaimer()}
+  </div>`;
+}
+
+function civicsBody(data) {
+  const modes = [["practice", "modePractice"], ["topics", "modeTopics"], ["cards", "modeCards"], ["vocab", "modeVocab"]];
+  const tabs = modes.map(([id, label]) => `<button type="button" role="tab" class="chip ${extrasUi.civicsMode === id ? "on" : ""}" aria-selected="${extrasUi.civicsMode === id}" data-act="civics-mode" data-id="${id}">${esc(X(label))}</button>`).join("");
+  const esNote = data.version === "2008"
+    ? `<label class="check-inline"><input type="checkbox" data-act="civics-es" ${extrasUi.showEs ? "checked" : ""}> ${esc(X("showSpanish"))}</label>`
+    : `<p class="muted small-print">${esc(X("noSpanish2025"))}</p>`;
+  const body = extrasUi.civicsMode === "topics" ? civicsTopics(data)
+    : extrasUi.civicsMode === "cards" ? civicsCards(data)
+    : extrasUi.civicsMode === "vocab" ? civicsVocab(data)
+    : civicsPractice(data);
+  return `<section class="extras-body">
+    <div class="chips civics-modes" role="tablist">${tabs}</div>
+    <label class="check-inline"><input type="checkbox" data-act="civics-senior" ${extrasUi.senior ? "checked" : ""}> ${esc(X("senior"))}</label>
+    ${extrasUi.senior ? `<p class="muted small-print">${esc(X("seniorHelp"))}</p>` : ""}
+    ${esNote}
+    ${body}
+    <p class="muted small-print">${esc(X("officialFiles"))}: <a href="${esc(data.meta.source)}" target="_blank" rel="noopener noreferrer">${esc(data.meta.label)} (${esc(data.meta.edition)})</a>${data.meta.spanish ? ` · <a href="${esc(data.meta.spanish.source)}" target="_blank" rel="noopener noreferrer">Español (${esc(data.meta.spanish.edition)})</a>` : ""} · <a href="${esc(data.studyPage)}" target="_blank" rel="noopener noreferrer">USCIS — Study for the Test</a> · ${esc(X("checkedOn", { date: data.checked }))}</p>
+  </section>`;
+}
+
+function civicsRules(data) {
+  const base = rulesFor(data.version, data.meta);
+  return extrasUi.senior ? { ...base, asked: data.senior?.asked ?? 10, pass: data.senior?.pass ?? 6, failAt: (data.senior?.asked ?? 10) - (data.senior?.pass ?? 6) + 1 } : base;
+}
+
+function civicsAnswer(q, data) {
+  const view = answerView(q);
+  const updates = `<a href="${esc(data.updatesPage)}" target="_blank" rel="noopener noreferrer">uscis.gov/citizenship/testupdates</a>`;
+  const changes = view.changes ? `<div class="changes-flag" role="note">
+      <strong>${esc(X("changes"))}</strong>
+      <p>${X("changesBody", { link: updates })}</p>
+      ${view.current.length ? `<p>${esc(X("currentAsOf", { date: data.updatesPageReviewed }))} <strong>${esc(view.current.join(" / "))}</strong></p>` : ""}
+      ${view.find ? `<p><a href="${esc(view.find)}" target="_blank" rel="noopener noreferrer">${esc(X("findYours"))}</a></p>` : ""}
+    </div>` : "";
+  const es = extrasUi.showEs && q.es ? `<div class="study-aid" lang="es"><p class="kicker">${esc(X("studyAid"))}</p><p><strong>${esc(q.es.q)}</strong></p><ul>${q.es.answers.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>` : "";
+  return `<div class="civics-answer"><p class="kicker">${esc(X("acceptable"))}</p><ul lang="en">${view.official.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>${view.note ? `<p class="muted small-print">${esc(view.note)}</p>` : ""}${changes}${es}</div>`;
+}
+
+function civicsQuestion(q) {
+  return `<p class="kicker">${esc(X("question"))} ${q.n}${q.star ? " ★" : ""} · ${esc(lang() === "es" && q.topicEs ? q.topicEs : q.topic)}</p><p class="civics-q" lang="en">${esc(q.q)}</p>`;
+}
+
+function civicsPractice(data) {
+  const rules = civicsRules(data);
+  const s = extrasUi.session && extrasUi.session.version === data.version && extrasUi.session.senior === extrasUi.senior ? extrasUi.session : null;
+  const intro = `<p class="muted">${esc(X("practiceRules", rules))}</p>`;
+  if (!s) return `${intro}<button class="btn" data-act="civics-start">${esc(X("startTest"))}</button>`;
+  const score = scoreSession(s.results, rules);
+  const byN = new Map(data.questions.map((q) => [q.n, q]));
+  const line = `<p class="score-line">${esc(X("scoreLine", { correct: score.correct, wrong: score.wrong, asked: score.asked, max: rules.asked }))}</p>`;
+  if (score.done) {
+    const missed = s.order.slice(0, score.asked).filter((_, i) => !s.results[i]).map((n) => byN.get(n));
+    return `${line}<div class="card ${score.passed ? "result-pass" : "result-fail"}" role="status"><p><strong>${esc(X(score.passed ? "passed" : "failed", score))}</strong></p></div>
+      ${missed.length ? `<h3>${esc(X("missedList"))}</h3><div class="stack">${missed.map((q) => `<div class="card">${civicsQuestion(q)}${civicsAnswer(q, data)}</div>`).join("")}</div>` : ""}
+      <button class="btn" data-act="civics-start">${esc(X("again"))}</button>`;
+  }
+  const q = byN.get(s.order[score.asked]);
+  return `${line}<div class="card practice-card" aria-live="polite">
+    ${civicsQuestion(q)}
+    ${s.revealed ? `${civicsAnswer(q, data)}<div class="row"><button class="btn" data-act="civics-grade" data-ok="1">${esc(X("gotIt"))}</button><button class="btn-secondary" data-act="civics-grade" data-ok="0">${esc(X("missedIt"))}</button></div>`
+      : `<button class="btn" data-act="civics-reveal">${esc(X("reveal"))}</button>`}
+  </div>`;
+}
+
+function civicsPool(data) {
+  return extrasUi.senior ? data.questions.filter((q) => q.star) : data.questions;
+}
+
+function civicsTopics(data) {
+  const pool = civicsPool(data);
+  const topics = topicsOf(pool);
+  const chosen = topics.find((t) => t.key === extrasUi.topic) || null;
+  const list = (chosen ? questionsInTopic(pool, chosen.key) : pool);
+  return `<div class="chips topic-chips">
+      <button type="button" class="chip ${chosen ? "" : "on"}" data-act="civics-topic" data-id="">${esc(X("allTopics"))} (${pool.length})</button>
+      ${topics.map((t) => `<button type="button" class="chip ${chosen?.key === t.key ? "on" : ""}" data-act="civics-topic" data-id="${esc(t.key)}">${esc(t.subtopic || t.topic)} (${t.count})</button>`).join("")}
+    </div>
+    <div class="stack">${list.map((q) => `<details class="card civics-study"><summary>${civicsQuestion(q)}</summary>${civicsAnswer(q, data)}</details>`).join("")}</div>`;
+}
+
+function civicsCards(data) {
+  const pool = civicsPool(data);
+  const order = extrasUi.cardOrder && extrasUi.cardOrder.version === data.version && extrasUi.cardOrder.senior === extrasUi.senior
+    ? extrasUi.cardOrder.list : pool.map((q) => q.n);
+  const index = Math.min(extrasUi.card, order.length - 1);
+  const q = pool.find((item) => item.n === order[index]) || pool[0];
+  return `<div class="card flashcard ${extrasUi.flipped ? "flipped" : ""}">
+      <p class="kicker">${esc(X("cardOf", { i: index + 1, n: order.length }))}</p>
+      ${civicsQuestion(q)}
+      ${extrasUi.flipped ? civicsAnswer(q, data) : ""}
+    </div>
+    <div class="row"><button class="btn-secondary" data-act="card-prev" data-total="${order.length}">${esc(X("prev"))}</button><button class="btn" data-act="card-flip">${esc(X("flip"))}</button><button class="btn-secondary" data-act="card-next" data-total="${order.length}">${esc(X("next"))}</button><button class="btn-secondary" data-act="card-shuffle">${esc(X("shuffle"))}</button></div>`;
+}
+
+function civicsVocab(data) {
+  const block = (title, list) => `<section class="card vocab"><h3>${esc(title)}</h3><p class="muted small-print"><a href="${esc(list.source)}" target="_blank" rel="noopener noreferrer">USCIS (${esc(list.edition)})</a></p>
+    ${Object.entries(list.groups).map(([group, words]) => `<h4>${esc(group)}</h4><p class="vocab-words" lang="en">${words.map((w) => `<span>${esc(w)}</span>`).join("")}</p>`).join("")}</section>`;
+  return `<p class="muted">${esc(X("vocabLead"))}</p><div class="vocab-grid">${block(X("vocabReading"), data.vocab.reading)}${block(X("vocabWriting"), data.vocab.writing)}</div>`;
+}
+
+function handleExtrasClick(act, node) {
+  if (act === "interview-case") { state.route = { name: "interview", spaceId: node.dataset.id }; extrasUi.mock = null; save(); render(); return true; }
+  if (act === "open-civics") { startTool({ name: "civics" }); return true; }
+  if (act === "extras-retry") { delete extrasUi.error[node.dataset.key]; render(); return true; }
+  if (act === "mock-start") {
+    const route = state.route || {};
+    const key = INTERVIEW_KEY[route.spaceId || "i-485"];
+    const data = extrasUi.cache[extrasCacheKey("interview", key)];
+    if (!data) return true;
+    extrasUi.mock = { key, i: 0, order: shuffle(data.practice.map((_, i) => i)) };
+    render();
+    return true;
+  }
+  if (act === "mock-next") { if (extrasUi.mock) extrasUi.mock.i += 1; render(); return true; }
+  if (act === "mock-end") { extrasUi.mock = null; render(); return true; }
+  if (act === "civics-version") { extrasUi.civicsVersion = node.dataset.id; extrasUi.session = null; extrasUi.card = 0; extrasUi.flipped = false; extrasUi.topic = ""; extrasUi.cardOrder = null; if (node.dataset.id === "2025") extrasUi.showEs = false; render(); return true; }
+  if (act === "civics-mode") { extrasUi.civicsMode = node.dataset.id; render(); return true; }
+  if (act === "civics-start") {
+    const data = extrasUi.cache[extrasCacheKey("civics", civicsVersion())];
+    if (!data) return true;
+    const rules = civicsRules(data);
+    extrasUi.session = { version: data.version, senior: extrasUi.senior, order: pickQuestions(data.questions, rules.asked, { starredOnly: extrasUi.senior }), results: [], revealed: false };
+    render();
+    return true;
+  }
+  if (act === "civics-reveal") { if (extrasUi.session) extrasUi.session.revealed = true; render(); return true; }
+  if (act === "civics-grade") { if (extrasUi.session) { extrasUi.session.results.push(node.dataset.ok === "1"); extrasUi.session.revealed = false; } render(); return true; }
+  if (act === "civics-topic") { extrasUi.topic = node.dataset.id; render(); return true; }
+  if (act === "card-flip") { extrasUi.flipped = !extrasUi.flipped; render(); return true; }
+  if (act === "card-next" || act === "card-prev") { extrasUi.card = nextCard(extrasUi.card, Number(node.dataset.total) || 1, act === "card-next" ? 1 : -1); extrasUi.flipped = false; render(); return true; }
+  if (act === "card-shuffle") {
+    const data = extrasUi.cache[extrasCacheKey("civics", civicsVersion())];
+    if (!data) return true;
+    extrasUi.cardOrder = { version: data.version, senior: extrasUi.senior, list: shuffle(civicsPool(data).map((q) => q.n)) };
+    extrasUi.card = 0; extrasUi.flipped = false; render();
+    return true;
+  }
+  return false;
+}
+
+function handleExtrasChange(node) {
+  const act = node.dataset.act;
+  if (act === "civics-filed") { extrasUi.filedOn = node.value; extrasUi.civicsVersion = ""; extrasUi.session = null; extrasUi.cardOrder = null; extrasUi.card = 0; render(); return true; }
+  if (act === "civics-senior") { extrasUi.senior = node.checked; extrasUi.session = null; extrasUi.cardOrder = null; extrasUi.card = 0; extrasUi.topic = ""; render(); return true; }
+  if (act === "civics-es") { extrasUi.showEs = node.checked; render(); return true; }
+  if (act === "mock-other") { extrasUi.showOther = node.checked; render(); return true; }
+  return false;
 }
 
 function youScreen() {
@@ -2786,6 +3102,7 @@ document.addEventListener("click", (event) => {
   const node = event.target.closest("[data-act]");
   if (!node) return;
   const act = node.dataset.act;
+  if (handleExtrasClick(act, node)) return;
   // In-app links keep a real href (#feed, #group=…) for open-in-new-tab and deep links, but navigate in place.
   if (node.matches('a[data-act][href^="#"]') && !event.metaKey && !event.ctrlKey && !event.shiftKey) event.preventDefault();
   else if (node.matches('a[data-act][href^="#"]')) return;
@@ -3265,6 +3582,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("change", (event) => {
   const node = event.target.closest("[data-act]");
   if (!node) return;
+  if (handleExtrasChange(node)) return;
   if (node.dataset.act === "doc-file") {
     const file = node.files?.[0];
     if (file) addDocFromFile(node.dataset.space, node.dataset.item, file);

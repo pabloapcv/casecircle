@@ -1,0 +1,33 @@
+{
+  "_about": "Accepted USCIS form editions. The weekly USCIS check updates this file: open each form's official page, copy the 'Edition Date' and any alert about older editions. 'accepted' editions pass; 'rejected' editions are known to be refused (high severity); anything else is flagged medium as 'not the edition USCIS lists'. Dates are mm/dd/yy exactly as printed on the form.",
+  "checked": "2026-11-10",
+  "forms": {
+    "I-485": {
+      "accepted": ["09/18/26"],
+      "rejected": ["01/20/25"],
+      "url": "https://www.uscis.gov/i-485",
+      "source": "https://www.uscis.gov/newsroom/alerts/uscis-to-publish-new-edition-of-form-i-485-older-editions-will-be-rejected-starting-sept-18",
+      "note": "Only the 09/18/26 edition is accepted for filings postmarked or submitted online on or after Sept. 18, 2026. No grace period."
+    },
+    "I-130": { "accepted": ["04/01/24"], "rejected": [], "url": "https://www.uscis.gov/i-130", "source": "https://www.uscis.gov/i-130" },
+    "I-130A": { "accepted": ["04/01/24"], "rejected": [], "url": "https://www.uscis.gov/i-130", "source": "https://www.uscis.gov/i-130" },
+    "I-751": { "accepted": ["04/01/24"], "rejected": [], "url": "https://www.uscis.gov/i-751", "source": "https://www.uscis.gov/i-751" },
+    "N-400": { "accepted": ["01/20/25"], "rejected": [], "url": "https://www.uscis.gov/n-400", "source": "https://www.uscis.gov/n-400" },
+    "I-131": { "accepted": ["01/20/25"], "rejected": [], "url": "https://www.uscis.gov/i-131", "source": "https://www.uscis.gov/i-131" },
+    "I-765": {
+      "accepted": ["08/21/25"],
+      "rejected": ["09/15/26"],
+      "url": "https://www.uscis.gov/i-765",
+      "source": "https://www.uscis.gov/i-765",
+      "note": "Under a Sept. 14, 2026 court order USCIS keeps accepting the 08/21/25 edition and is not accepting the 09/15/26 edition."
+    },
+    "I-864": {
+      "accepted": ["08/24/26"],
+      "rejected": ["10/17/24"],
+      "url": "https://www.uscis.gov/i-864",
+      "source": "https://www.uscis.gov/i-864",
+      "note": "From Oct. 1, 2026 USCIS only accepts the 08/24/26 edition; a 10/17/24 edition postmarked or submitted on or after that date is not processed."
+    },
+    "I-693": { "accepted": ["01/20/25", "03/09/23"], "rejected": [], "url": "https://www.uscis.gov/i-693", "source": "https://www.uscis.gov/i-693", "note": "Signed on or before July 2, 2025: the 03/09/23 or 01/20/25 edition. Signed July 3, 2025 or later: only the 01/20/25 edition." }
+  }
+}

@@ -61,6 +61,8 @@ export const QUESTIONS = {
       { value: "three", en: "3 years, married to a U.S. citizen", es: "3 años, casado con ciudadano" }
     ]),
     q("longTrips", "Any trips outside the U.S. longer than 6 months?", "¿Algún viaje fuera de EE. UU. de más de 6 meses?", yesNo),
+    q("married", "Are you married now, or were you married before?", "¿Estás casado ahora o estuviste casado antes?", yesNo),
+    q("taxesOwed", "Do you have any overdue federal, state, or local taxes?", "¿Tienes impuestos federales, estatales o locales atrasados?", yesNo),
     arrestsQ,
     nonEnglishQ
   ],
@@ -68,6 +70,8 @@ export const QUESTIONS = {
     q("category", "What is the work permit based on?", "¿En qué se basa el permiso de trabajo?", [
       { value: "pending485", en: "A pending green card (I-485)", es: "Un I-485 pendiente" },
       { value: "asylum", en: "A pending asylum case", es: "Un asilo pendiente" },
+      { value: "parole", en: "Parole", es: "Parole" },
+      { value: "tps", en: "Temporary Protected Status (TPS)", es: "Estatus de Protección Temporal (TPS)" },
       { value: "student", en: "Student (OPT)", es: "Estudiante (OPT)" },
       { value: "other", en: "Something else", es: "Otra cosa" }
     ]),
@@ -86,8 +90,8 @@ export const QUESTIONS = {
 const KIND = {
   evidence: /(-evidence|-joint|-affidavits|-relationship|-children)$|^(i130|i751)-photos$/,
   form: /-form$/,
-  civil: /(-birth|-marriage|-divorce|-waiver)$/,
-  identity: /(-passport|-id|-gc|-card|-i94|-petitioner|-photos|-photosid)$/
+  civil: /(-birth|-marriage|-divorce|-waiver|-marital)$/,
+  identity: /(-passport|-id|-gc|-card|-i94|-petitioner|-photos|-photosid|-spouse-photos|-photos-abroad)$/
 };
 export function itemKind(id) {
   if (KIND.evidence.test(id)) return "evidence";
@@ -110,12 +114,17 @@ const RULES = {
     "i485-evidence": (a) => a.basis === "marriage" ? R("Marriage cases are reviewed for a real, shared life.", "Los casos por matrimonio se revisan por una vida real compartida.") : null
   },
   "i-765": {
-    "i765-i94": (a) => a.category === "student" || a.category === "other" ? R("Status-based categories ask for the I-94.", "Las categorías por estatus piden el I-94.") : null,
+    "i765-i94": (a) => a.category === "student" || a.category === "other" || a.category === "parole" ? R("Status-based categories ask for the I-94.", "Las categorías por estatus piden el I-94.") : null,
     "i765-pending": (a) => a.category === "pending485" || a.category === "asylum" ? R("Based on a pending case: include that receipt notice copy.", "Basado en un caso pendiente: incluye la copia del recibo.") : null
   },
   "n-400": {
     "n400-trips": (a) => R(a.longTrips === "yes" ? "Long trips can affect continuous residence; list every trip with exact dates." : "The form asks for every trip; keep the list matching your records.", a.longTrips === "yes" ? "Los viajes largos pueden afectar la residencia continua; anota cada viaje con fechas exactas." : "El formulario pide cada viaje; la lista tiene que coincidir con tus registros."),
-    "n400-taxes": (a) => R("Tax transcripts back up the years the instructions ask about.", "Las transcripciones respaldan los años que piden las instrucciones."),
+    // N-400 instructions (01/20/25): tax transcripts are not required for every case.
+    "n400-taxes": (a) => a.taxesOwed === "yes" ? R("Overdue taxes: the instructions ask for IRS transcripts plus your payment agreement and its status. Talk to a lawyer before you file.", "Impuestos atrasados: las instrucciones piden transcripciones del IRS más tu acuerdo de pago y su estado. Habla con un abogado antes de presentar.")
+      : a.longTrips === "yes" ? R("A trip of more than 6 months: IRS transcripts are one way to show you kept your residence.", "Un viaje de más de 6 meses: las transcripciones del IRS son una forma de mostrar que mantuviste tu residencia.")
+      : a.basis === "three" ? R("3-year marriage path: the instructions list IRS transcripts for you and your spouse for the past 3 years.", "Vía de 3 años por matrimonio: las instrucciones piden transcripciones del IRS tuyas y de tu cónyuge de los últimos 3 años.")
+      : null,
+    "n400-marital": (a) => a.married === "yes" || a.basis === "three" ? R("The N-400 checklist asks for your current marriage certificate and proof that prior marriages ended.", "La lista del N-400 pide tu acta de matrimonio actual y prueba de que terminaron los matrimonios anteriores.") : null,
     "n400-arrest": (a) => a.arrests === "yes" ? R("Any arrest or citation needs certified court records.", "Cualquier arresto o citación necesita registros judiciales certificados.") : null
   },
   "i-130": {
@@ -130,6 +139,7 @@ const RULES = {
     "i751-court": (a) => a.arrests === "yes" ? R("Any arrest or citation needs certified court records.", "Cualquier arresto o citación necesita registros judiciales certificados.") : null
   },
   "i-131": {
+    "i131-photos": (a) => a.docType === "parole" ? R("Advance parole from inside the U.S. needs 2 passport-style photos (I-131 instructions, item 8).", "El advance parole desde EE. UU. pide 2 fotos tamaño pasaporte (instrucciones del I-131, punto 8).") : null,
     "i131-pending": (a) => a.docType === "parole" ? R("Advance parole is tied to the pending I-485.", "El advance parole depende del I-485 pendiente.") : null,
     "i131-gc": (a) => a.docType === "reentry" ? R("A reentry permit is for green card holders.", "El permiso de reingreso es para residentes.") : null,
     "i131-refugee": (a) => a.docType === "refugee" ? R("A refugee travel document needs proof of that status.", "El documento de refugiado necesita prueba de ese estatus.") : null
@@ -143,10 +153,13 @@ function extras(spaceId, a) {
   const out = [];
   if (a.nonEnglish === "yes") out.push({ id: `${spaceId.replace("-", "")}-translations`, en: "Certified English translation for every non-English document", es: "Traducción certificada al inglés de cada documento que no esté en inglés", required: true, reason: R("You said some documents are not in English.", "Dijiste que algunos documentos no están en inglés.") });
   if (spaceId === "i-485" && a.arrests === "yes") out.push({ id: "i485-court", en: "Certified court records for any arrest or citation", es: "Registros judiciales certificados de cualquier arresto o citación", required: true, reason: R("You mentioned an arrest or citation. Get a lawyer's view before filing.", "Mencionaste un arresto o citación. Consulta a un abogado antes de presentar.") });
-  if (spaceId === "i-485" && a.withEad === "yes") out.push({ id: "i485-ead", en: "Form I-765 and/or I-131 filed with the I-485, with their own photos", es: "Formulario I-765 y/o I-131 junto con el I-485, con sus propias fotos", required: false, reason: R("You're filing a work permit or travel document together.", "Presentas permiso de trabajo o de viaje junto.") });
+  if (spaceId === "i-485" && a.withEad === "yes") out.push({ id: "i485-ead", en: "Form I-765 and/or I-131 filed with the I-485, each with its own photos and its own fee", es: "Formulario I-765 y/o I-131 junto con el I-485, cada uno con sus fotos y su propia tarifa", required: false, reason: R("You're filing a work permit or travel document together. Since Apr. 1, 2024 they are not included in the I-485 fee.", "Presentas permiso de trabajo o de viaje junto. Desde el 1 de abril de 2024 no están incluidos en la tarifa del I-485.") });
   if (spaceId === "i-130" && a.priorMarriage === "yes") out.push({ id: "i130-divorce", en: "Divorce decree or death certificate for every prior marriage", es: "Decreto de divorcio o acta de defunción de cada matrimonio anterior", required: true, reason: R("Prior marriages have to be shown as legally ended.", "Los matrimonios anteriores tienen que mostrarse terminados.") });
+  if (spaceId === "i-130" && a.relation === "spouse") out.push({ id: "i130-spouse-photos", en: "Two passport-style photos of you and two of your spouse (if your spouse is in the U.S.), taken within 30 days of filing.", es: "Dos fotos tamaño pasaporte tuyas y dos de tu cónyuge (si está en EE. UU.), tomadas dentro de los 30 días antes de presentar.", required: true, reason: R("I-130 instructions (04/01/24): spouse petitions include passport-style photos of both spouses.", "Instrucciones del I-130 (04/01/24): las peticiones de cónyuge incluyen fotos de ambos cónyuges.") });
   if (spaceId === "i-130" && a.relation === "spouse") out.push({ id: "i130-i130a", en: "Form I-130A for the spouse beneficiary", es: "Formulario I-130A del cónyuge beneficiario", required: true, reason: R("Spouse petitions include Form I-130A.", "Las peticiones de cónyuge incluyen el I-130A.") });
   if (spaceId === "n-400" && a.basis === "three") out.push({ id: "n400-marriage", en: "Proof of your spouse's U.S. citizenship and your marriage for the last 3 years", es: "Prueba de la ciudadanía de tu cónyuge y del matrimonio de los últimos 3 años", required: true, reason: R("The 3-year path depends on the marriage to a citizen.", "La vía de 3 años depende del matrimonio con un ciudadano.") });
+  if (spaceId === "i-765" && ["asylum", "parole", "tps"].includes(a.category)) out.push({ id: "i765-hr1", en: "Separate payment for the H.R. 1 fee on asylum, parole, and TPS work permits. It is on top of any filing fee, cannot be waived, and changes every year. Check the I-765 rows of Form G-1055 the day you file.", es: "Pago aparte de la tarifa de H.R. 1 para permisos de trabajo por asilo, parole y TPS. Se suma a cualquier tarifa, no se puede exonerar y cambia cada año. Revisa las filas del I-765 en el G-1055 el día que presentes.", required: true, reason: R("Form G-1055 lists an extra Pub. L. 119-21 fee for these categories, paid as its own payment. A filing without it is rejected.", "El G-1055 incluye una tarifa extra de la Ley Pública 119-21 para estas categorías, pagada por separado. Una solicitud sin ella se rechaza.") });
+  if (spaceId === "i-131" && a.docType === "refugee") out.push({ id: "i131-photos-abroad", en: "2 passport-style photos, only if you file for the refugee travel document from outside the U.S.", es: "2 fotos tamaño pasaporte, solo si pides el documento de refugiado desde fuera de EE. UU.", required: false, reason: R("I-131 instructions, item 8: photos are required for a refugee travel document filed from outside the U.S.", "Instrucciones del I-131, punto 8: se piden fotos para el documento de refugiado presentado desde fuera de EE. UU.") });
   if (spaceId === "i-765" && a.renewal === "yes") out.push({ id: "i765-prior", en: "Copy of the current or last work permit (front and back)", es: "Copia del permiso de trabajo actual o anterior (frente y dorso)", required: true, reason: R("Renewals include the previous card.", "Las renovaciones incluyen la tarjeta anterior.") });
   return out;
 }
@@ -249,12 +262,15 @@ export function inferFromDescription(text) {
     if (/\b(our (son|daughter|baby|kids?|children)|had a (baby|child))\b/.test(s)) answers.children = "yes";
   }
   if (form === "n-400") {
+    if (marriage) answers.married = "yes";
     if (/\b3 years|three years\b/.test(s) && marriage) answers.basis = "three";
     else if (/\b5 years|five years\b/.test(s)) answers.basis = "five";
   }
   if (form === "i-765") {
     if (/\b(i-?485|adjust|green card)\b/.test(s)) answers.category = "pending485";
     else if (/\basylum\b/.test(s)) answers.category = "asylum";
+    else if (/\b(tps|temporary protected status)\b/.test(s)) answers.category = "tps";
+    else if (/\bparole[ed]?\b/.test(s)) answers.category = "parole";
     else if (/\b(opt|f-?1|student)\b/.test(s)) answers.category = "student";
     if (/\brenew\w*\b/.test(s)) answers.renewal = "yes";
   }

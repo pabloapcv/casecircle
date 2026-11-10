@@ -21,15 +21,16 @@ export const ROUTE_ALIASES = {
   account: "you", you: "you", profile: "you", settings: "settings", ajustes: "settings",
   new: "ask", ask: "ask", "new-post": "ask",
   interview: "interview", search: "search",
+  civics: "civics", civica: "civics", "civics-test": "civics",
   pricing: "pricing", price: "pricing", "case-pass": "pricing",
   form: "form",
   insights: "insights", datos: "insights", data: "insights",
   builder: "prepare", "folder-builder": "prepare"
 };
-export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", settings: "settings", ask: "new", interview: "interview", search: "search", pricing: "pricing", insights: "insights" };
+export const ROUTE_SLUG = { home: "feed", spaces: "groups", timelines: "wait", prepare: "papers", bot: "answers", questions: "faq", you: "account", settings: "settings", ask: "new", interview: "interview", civics: "civics", search: "search", pricing: "pricing", insights: "insights" };
 export const SECTION_OF = {
   home: "feed", post: "feed", search: "feed", spaces: "feed", space: "feed", ask: "feed", form: "feed",
-  interview: "interview",
+  interview: "interview", civics: "interview",
   insights: "insights",
   timelines: "wait", "profile-edit": "wait",
   prepare: "papers",

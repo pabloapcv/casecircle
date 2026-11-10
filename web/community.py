@@ -1,5 +1,8 @@
 """CaseCircle accounts, community posts, moderation and waitlist on SQLite (stdlib only).
 
+When SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are set, every route below is served by supa.py instead
+(Supabase Auth + Postgres with Row Level Security); this SQLite path stays for local runs and the tests.
+
 Everything here is plain JSON over same-origin requests:
 
 GET  /api/me                      current account (or null) + group member counts
@@ -579,11 +582,21 @@ def current_user(conn: sqlite3.Connection, handler: Any) -> sqlite3.Row | None:
 
 
 def is_admin(user: sqlite3.Row | None) -> bool:
+    if isinstance(user, dict):  # a Supabase account (supa.py): the admin flag lives in the database
+        return bool(user.get("is_admin"))
     return bool(user) and user["email"].lower() in admin_emails()
+
+
+def supabase():
+    """The Supabase backend module when SUPABASE_URL + SUPABASE_PUBLISHABLE_KEY are set, else None (SQLite)."""
+    import supa
+    return supa if supa.enabled() else None
 
 
 def feature_refusal(handler: Any, feature: str) -> tuple[int, dict[str, Any]] | None:
     """Open a short DB connection and apply entitlements.user_gate to this request's session."""
+    if supabase():
+        return supabase().feature_refusal(handler, feature)
     conn = connect()
     try:
         user = current_user(conn, handler)
@@ -1413,6 +1426,9 @@ def handles(method: str, path: str) -> bool:
 
 
 def dispatch(handler: Any, method: str) -> None:
+    if supabase():
+        supabase().dispatch(handler, method)
+        return
     parsed = urlparse(handler.path)
     path = parsed.path
     conn = None
@@ -1448,6 +1464,9 @@ def dispatch(handler: Any, method: str) -> None:
 
 
 def healthz(handler: Any) -> None:
+    if supabase():
+        supabase().healthz(handler)
+        return
     try:
         conn = connect()
         conn.execute("SELECT 1").fetchone()

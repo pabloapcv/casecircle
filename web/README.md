@@ -4,7 +4,7 @@ The calm, bilingual companion for the USCIS wait / El acompañante bilingüe y t
 
 CaseCircle is a free-to-start community and case companion for people with family-based and naturalization cases: compare your wait, gather papers on the device, prepare for interviews, and learn from moderated community experiences. It is **not** affiliated with USCIS, not legal advice, and not a filing service.
 
-The site is static files plus same-origin JSON endpoints served by `serve.py` (Python standard library only), with accounts, community posts and the waitlist stored in SQLite. Tools come first — **Folder Builder, Check the wait, Interview prep, Insights** — and the community is second.
+The site is static files plus same-origin JSON endpoints served by `serve.py` (Python standard library only), with accounts, community posts and the waitlist stored in **Supabase** (Auth + Postgres with Row Level Security) when `SUPABASE_URL` is set, or in a local SQLite file otherwise (local runs and tests). Tools come first — **Folder Builder, Check the wait, Interview prep, Insights** — and the community is second.
 
 ## Preview on your Mac (port 8766)
 
@@ -150,6 +150,26 @@ Not sent: documents, receipt numbers, A-numbers, emails, usernames, filing dates
 
 **Privacy and Terms pages** (`#privacy`, `#terms`, copy in `auth-text.js`, English and Spanish) are a **draft for attorney review** before launch. They state what is stored (account email, hashed password, handle, groups/profile, posts, saves, votes, reports, waitlist email), that documents never leave the device, and that CaseCircle is not legal advice.
 
+## Supabase (accounts + data that survive deploys)
+
+When `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are set, `supa.py` serves every account/community/waitlist route instead of SQLite. Nothing lives on the Render disk any more, so deploys and restarts no longer wipe accounts.
+
+- **Who talks to Supabase:** only the Python server, with the project's public **publishable** key (`sb_publishable_…`; the legacy `anon` key also works as `SUPABASE_ANON_KEY`). There is no service-role/secret key and no database password anywhere. The browser keeps talking to our own `/api/*`, so the UI, CSP and CSRF guard are unchanged.
+- **Sign-in:** Supabase Auth REST — `/auth/v1/signup`, `/auth/v1/token?grant_type=password|refresh_token`, `/auth/v1/logout`, `/auth/v1/recover`, `/auth/v1/user`. The access and refresh tokens are kept in `HttpOnly; SameSite=Lax` cookies (`cc_at`, `cc_rt`, `Secure` over HTTPS); an access token that is about to expire is refreshed once per request (parallel requests share one refresh).
+- **Data:** PostgREST calls carry the signed-in user's JWT, so the **RLS policies are the security boundary** (anyone could call PostgREST directly with the public key and their own login). Schema + policies: `supabase/migrations/*.sql`. Users can only read/write their own `accounts` row (locale, groups, case profiles — never `is_admin`, `trial_started_at` or `pass_until`); posts and replies are public when live, writable only by their author; votes, saves and reports are per user; the waitlist is insert-only. Counters (votes, reply counts, reputation, group sizes) are kept by triggers in the unexposed `private` schema, and the same identifier/abuse/scam rules and post/reply rate limits run in the database too.
+- **Trial:** starts at account creation (`accounts.trial_started_at`), length still `CASECIRCLE_TRIAL_DAYS` (default 3); `GATED_FEATURES`, 401 signed-out and 402 trial-ended are unchanged.
+- **Admin:** `accounts.is_admin`, set only with SQL (Supabase SQL editor): `update public.accounts set is_admin = true where user_id = (select id from auth.users where email = 'pabloapcv@gmail.com');` `CASECIRCLE_ADMIN_EMAILS` is not used in Supabase mode, and the owner-email bypass only applies with that flag (an email can be auto-confirmed without proof).
+- **Emails** (confirm sign-up, reset password, change email) are sent by Supabase, not `mailer.py`. Supabase's built-in sender only delivers to the project team's addresses and allows **2 emails per hour**; for real users set up custom SMTP (e.g. Resend) under Authentication → Emails → SMTP. If "Confirm email" is on, sign-up shows "Check your email" and sign-in before confirming returns `403 unconfirmed`. Email links land on `/#access_token=…&type=signup|recovery|email_change`, which the page hands to `/api/verify` or the reset form.
+- **Dashboard settings:** Authentication → URL Configuration: Site URL `https://casecircle.us`; Redirect URLs `https://casecircle.us/**` and `https://casecircle.onrender.com/**`. Set `CASECIRCLE_PUBLIC_ORIGIN` so `redirect_to` uses the real domain.
+- **Free plan:** Supabase may pause a Free project after a week of low activity (restore it from the dashboard within 90 days); paid plans are never paused.
+
+| Name | Needed | Value |
+| --- | --- | --- |
+| `SUPABASE_URL` | for Supabase | `https://<project-ref>.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | for Supabase | the project's publishable key (public, but keep it in env, not in code) |
+
+Without these two variables everything below (SQLite, `mailer.py`) applies as before.
+
 ## Deploy
 
 The repo root has a `render.yaml` Blueprint: one Python web service (`rootDir: web`, `python3 serve.py`, health check `/healthz`) with a 1 GB persistent disk at `/var/data` for SQLite. On Render: **New → Blueprint**, pick the repo, fill the `sync: false` values, deploy. Disks need a paid instance (the Blueprint uses `starter`) and keep the service at **one instance**; deploys have a few seconds of downtime. Render snapshots the disk daily.
@@ -201,7 +221,7 @@ The landing page points only to real free/low-cost resources (no paid lead-gen):
 npm test
 ```
 
-That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, `mailer_test.py`: templates, escaping, console/Resend/SMTP delivery and quiet logs, and `community_test.py`: accounts, scrypt hashing, sessions, email confirmation, forgot/reset, settings, lockout, idle expiry, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
+That runs the Node tests (logic, prepare, nav, sidebar, folder-chat, redaction regexes, readiness math, timeline extraction, builder/insights/copy, API client + bilingual auth copy) and the Python tests (folder chat, `/api/folder-check` + `/api/folder-plan` validation and mock HTTP, processing-times cache/fallback, `mailer_test.py`: templates, escaping, console/Resend/SMTP delivery and quiet logs, `supa_test.py`: the Supabase backend against a fake Auth/PostgREST (cookies, refresh rotation, error mapping, signup/confirm, trial/pass/admin gating), and `community_test.py`: accounts, scrypt hashing, sessions, email confirmation, forgot/reset, settings, lockout, idle expiry, CSRF, posts, replies, filters, votes/saves/helpful, reports + admin, rate limits, waitlist, restart persistence, headers, migrations).
 
 To smoke the UI against the mock (clearly test-only):
 

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { api, errorKey, feedKey } from "./api.js";
+import { api, errorKey, feedKey, parseEmailLink } from "./api.js";
 import { AUTH_TEXT_KEYS, authText, authTextEntry } from "./auth-text.js";
 
 function fakeFetch(status, body, seen) {
@@ -79,7 +79,7 @@ describe("auth copy", () => {
 
 describe("auth recovery and settings copy", () => {
   it("maps every new server error to bilingual copy", () => {
-    for (const code of ["unverified", "password_common", "token", "current", "same_email", "confirm", "mismatch"]) {
+    for (const code of ["unverified", "unconfirmed", "password_common", "token", "current", "same_email", "confirm", "mismatch"]) {
       const key = errorKey(code);
       assert.notEqual(key, "errServer", code);
       assert.ok(AUTH_TEXT_KEYS.includes(key), key);
@@ -91,5 +91,31 @@ describe("auth recovery and settings copy", () => {
     assert.match(authText("es", "passwordHelp"), /10 caracteres/);
     assert.match(authText("en", "forgotSent", { email: "a@b.co" }), /If an account exists for a@b\.co/);
     assert.match(authText("es", "forgotSent", { email: "a@b.co" }), /1 hora/);
+  });
+});
+
+describe("email links (built-in and Supabase)", () => {
+  const jwt = "eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ1MSJ9.c2lnbmF0dXJl";
+  it("keeps the built-in #verify= / #reset= links", () => {
+    assert.deepEqual(parseEmailLink("#verify=abcdefghijklmnopqrstuvwxyz"), { kind: "verify", token: "abcdefghijklmnopqrstuvwxyz" });
+    assert.deepEqual(parseEmailLink("#reset=abcdefghijklmnopqrstuvwxyz"), { kind: "reset", token: "abcdefghijklmnopqrstuvwxyz" });
+  });
+  it("reads Supabase confirmation and recovery fragments", () => {
+    assert.deepEqual(parseEmailLink(`#access_token=${jwt}&expires_at=1&expires_in=3600&refresh_token=abc123xyz&token_type=bearer&type=signup`),
+      { kind: "verify", token: jwt, refresh: "abc123xyz", type: "signup" });
+    assert.deepEqual(parseEmailLink(`#access_token=${jwt}&refresh_token=abc123xyz&type=recovery`), { kind: "reset", token: jwt });
+    assert.deepEqual(parseEmailLink("#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid"), { kind: "error" });
+    assert.deepEqual(parseEmailLink("#message=Confirmation+link+accepted"), { kind: "message" });
+  });
+  it("ignores routes and malformed tokens", () => {
+    assert.equal(parseEmailLink("#post=p12"), null);
+    assert.equal(parseEmailLink(""), null);
+    assert.equal(parseEmailLink("#access_token=<script>&refresh_token=x&type=signup"), null);
+    assert.equal(parseEmailLink(`#access_token=${jwt}&type=signup`), null);
+  });
+  it("has bilingual copy for the confirm-your-email signup step", () => {
+    assert.match(authText("en", "signupSent", { email: "a@b.co" }), /a@b\.co/);
+    assert.match(authText("es", "signupSent", { email: "a@b.co" }), /enlace de confirmación/);
+    assert.ok(authTextEntry("errUnconfirmed")[1].length > 10);
   });
 });

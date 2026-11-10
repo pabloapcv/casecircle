@@ -10,6 +10,9 @@ from unittest import mock
 import community
 import mailer
 
+for _name in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"):
+    os.environ.pop(_name, None)  # this suite tests the offline SQLite backend
+
 KINDS = {"verify": {}, "email_change": {}, "reset": {}, "password_changed": {}, "email_changed": {"new_email": "new@example.com"}}
 
 

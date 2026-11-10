@@ -14,6 +14,9 @@ import mailer
 import serve
 from community_test import Client
 
+for _name in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"):
+    os.environ.pop(_name, None)  # this suite tests the offline SQLite backend
+
 
 class ValidateTests(unittest.TestCase):
     def test_requires_consent(self):

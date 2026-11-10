@@ -17,6 +17,9 @@ import processing_times
 import serve
 from community_test import Client
 
+for _name in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"):
+    os.environ.pop(_name, None)  # this suite tests the offline SQLite backend
+
 GOOD_TEXT = (
     "ACTA DE MATRIMONIO. Registro Civil. Contrayente: MARIA ELENA LOPEZ GARCIA. "
     "Contrayente: JOHN MICHAEL SMITH. Fecha del matrimonio: 14 de febrero de 2024. Pagina 1 de 2."

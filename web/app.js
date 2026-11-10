@@ -6,7 +6,7 @@ import {
   stageLabel, stages, t, ago, usernameIssue, waitComparison,
   normalizeWebState
 } from "./logic.js";
-import { api, errorKey, feedKey } from "./api.js";
+import { api, errorKey, feedKey, parseEmailLink } from "./api.js";
 import { authText } from "./auth-text.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { buildFolderChatPayload, scanFolderChatPayload } from "./folder-chat.js";
@@ -326,9 +326,9 @@ function boot() {
     if (fromHash) state.route = fromHash;
   }
   ensureData();
-  if (emailLink?.kind === "reset") handleEmailLink(emailLink);
+  if (emailLink && emailLink.kind !== "verify") handleEmailLink(emailLink);
   render();
-  refreshSession().then(() => { if (emailLink?.kind === "verify") confirmEmail(emailLink.token); });
+  refreshSession().then(() => { if (emailLink?.kind === "verify") confirmEmail(emailLink); });
 }
 
 let restoreFocus = "";
@@ -595,7 +595,9 @@ document.addEventListener("keydown", (event) => {
 
 function handleEmailLink(link) {
   if (link.kind === "reset") { resetToken = link.token; openAuth("reset"); return; }
-  confirmEmail(link.token);
+  if (link.kind === "error") { toast = A("errToken"); render(); return; }
+  if (link.kind === "message") { toast = A("emailLinkHalf"); render(); return; }
+  confirmEmail(link);
 }
 
 function applyHashRoute() {
@@ -894,6 +896,11 @@ function authScreen() {
   const error = f.error ? `<p class="danger" role="alert">${esc(f.error)}</p>` : "";
   const toSignIn = `<p class="auth-switch"><button type="button" class="link-btn" data-act="auth-mode" data-mode="signin">${esc(A("backToSignIn"))}</button></p>`;
   const foot = `<p class="note">${icon("lock", 14)} ${esc(T("heroPrivacy"))}</p></section>`;
+  if (mode === "signup-sent") {
+    return `${head(A("signupSentTitle"), "")}
+    <p class="auth-sent" role="status">${icon("mail", 18)}<span>${esc(A("signupSent", { email: f.email }))}</span></p>
+    ${toSignIn}${foot}`;
+  }
   if (mode === "forgot-sent") {
     return `${head(A("forgotSentTitle"), "")}
     <p class="auth-sent" role="status">${icon("mail", 18)}<span>${esc(A("forgotSent", { email: f.email }))}</span></p>
@@ -996,16 +1003,18 @@ async function resendVerify() {
   render();
 }
 
-/* Links from emails land on #verify=TOKEN or #reset=TOKEN. The token is read once, kept in memory and wiped from the address bar. */
+/* Links from emails land on #verify=TOKEN or #reset=TOKEN (built-in accounts), or on Supabase's
+   #access_token=…&refresh_token=…&type=signup|recovery|email_change (Supabase accounts).
+   The tokens are read once, kept in memory only and wiped from the address bar. */
 function takeEmailLink() {
-  const match = /^#(verify|reset)=([A-Za-z0-9_-]{20,200})$/.exec(location.hash || "");
-  if (!match) return null;
+  const link = parseEmailLink(location.hash || "");
+  if (!link) return null;
   try { history.replaceState(null, "", `${location.pathname}${location.search}`); } catch { /* sandboxed */ }
-  return { kind: match[1], token: match[2] };
+  return link;
 }
 
-async function confirmEmail(token) {
-  const res = await api("/api/verify", { method: "POST", body: { token } });
+async function confirmEmail(link) {
+  const res = await api("/api/verify", { method: "POST", body: { token: link.token, refresh: link.refresh, kind: link.type } });
   if (!res.ok) { failToast(res); return; }
   await refreshSession();
   if (res.data.kind === "email_change" && account()) toast = A("emailChangedDone", { email: account().email });
@@ -3718,6 +3727,7 @@ async function submitAuth() {
   const res = await api(signup ? "/api/signup" : "/api/login", { method: "POST", body });
   authForm.busy = false;
   if (!res.ok) { authForm.error = A(errorKey(res.error)); render(); return; }
+  if (signup && res.data.confirm && !res.data.user) { authForm = { ...blankAuth("signup-sent"), email }; render(); return; }
   adoptAccount(res.data.user);
   if (!signup && res.data.user?.locale) state.lang = res.data.user.locale;
   const next = authReturn && authReturn.name !== "auth" ? authReturn : { name: "home" };

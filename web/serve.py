@@ -7,7 +7,7 @@ GET  /api/ai-status         provider + Demo AI flag    POST /api/folder-check  o
 GET  /api/processing-times  official times (cached)    POST /api/folder-plan   tailor the checklist
 GET  /api/extras, /api/extras/civics, /api/extras/interview   extras (signed-in, trial or pass; extras.py)
 /api/me, /api/signup, /api/login, /api/logout, /api/posts…, /api/vote, /api/report, /api/mod…, /api/waitlist
-                            accounts + community + waitlist (community.py, SQLite)
+                            accounts + community + waitlist (supa.py on Supabase when SUPABASE_URL is set; else community.py, SQLite)
 
 Host/port: ``python3 serve.py [port]``; otherwise ``PORT`` / ``HOST`` from the environment.
 Locally the default is 127.0.0.1:8766. When a host sets ``PORT`` (Render, Fly, …) the default host is 0.0.0.0.
@@ -144,6 +144,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Security-Policy", CSP)
         if community.is_https(self):
             self.send_header("Strict-Transport-Security", "max-age=31536000")
+        for cookie in self.__dict__.pop("_cc_set_cookies", None) or []:  # refreshed Supabase session (supa.py)
+            self.send_header("Set-Cookie", cookie)
         super().end_headers()
 
     def do_PUT(self) -> None:
@@ -166,14 +168,21 @@ def main() -> None:
     host, port = bind_address(sys.argv, dict(os.environ))
     os.chdir(HERE)
     Handler.server_port = port
-    conn = community.connect()  # run migrations before taking traffic
-    conn.close()
+    supabase = community.supabase()
+    if supabase:
+        store = f"Supabase {supabase.base_url()}"
+    else:
+        conn = community.connect()  # run migrations before taking traffic
+        conn.close()
+        store = community.db_path()
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
     shown = "127.0.0.1" if host in ("0.0.0.0", "") else host
-    print(f"Serving at http://{shown}:{port}/  (db: {community.db_path()})", flush=True)
+    print(f"Serving at http://{shown}:{port}/  (db: {store})", flush=True)
     mail = mailer.provider()
-    if mail == "console" and os.environ.get("PORT"):
+    if supabase:
+        print("Accounts: Supabase Auth (confirmation and reset emails are sent by Supabase).", flush=True)
+    elif mail == "console" and os.environ.get("PORT"):
         print("WARNING: CASECIRCLE_EMAIL_PROVIDER is console — verification and reset links only go to the server log. "
               "Set it to resend or smtp in production.", flush=True)
     elif mail != "console" and not os.environ.get("CASECIRCLE_PUBLIC_ORIGIN"):

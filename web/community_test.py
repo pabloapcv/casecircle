@@ -13,6 +13,9 @@ import community
 import mailer
 import serve
 
+for _name in ("SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY"):
+    os.environ.pop(_name, None)  # this suite tests the offline SQLite backend
+
 
 class Client:
     """One browser: its own cookie jar."""

@@ -1345,10 +1345,132 @@ def api_twins_off(handler, user, data):
     return 200, _twins_payload(user)
 
 
+# ───────────────────────── Reddit highlights (This week on Reddit) ─────────────────────────
+
+def _highlight_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row.get("id"),
+        "titleEn": row.get("title_en", ""),
+        "titleEs": row.get("title_es", ""),
+        "storyEn": row.get("story_en", ""),
+        "storyEs": row.get("story_es", ""),
+        "insightEn": row.get("insight_en", ""),
+        "insightEs": row.get("insight_es", ""),
+        "moodEn": row.get("mood_en", ""),
+        "moodEs": row.get("mood_es", ""),
+        "moodTag": row.get("mood_tag", ""),
+        "formType": row.get("form_type"),
+        "subreddit": row.get("subreddit", ""),
+        "threadUrl": row.get("thread_url", ""),
+        "postDate": row.get("post_date", ""),
+        "status": row.get("status", "draft"),
+    }
+
+
+def _trends_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row.get("id"),
+        "weekStart": row.get("week_start", ""),
+        "trendsEn": row.get("trends_en", ""),
+        "trendsEs": row.get("trends_es", ""),
+        "status": row.get("status", "draft"),
+    }
+
+
+def api_reddit_highlights(handler, user, query):
+    """Fetch published Reddit highlights for the community page. Optional ?limit= parameter (default 10, max 50)."""
+    try:
+        limit_str = (query.get("limit") or ["10"])[0]
+        limit = max(1, min(50, int(limit_str)))
+    except ValueError:
+        limit = 10
+    try:
+        highlights = rest("GET", "reddit_highlights", params=[
+            ("status", "eq.published"),
+            ("order", "post_date.desc"),
+            ("limit", str(limit)),
+        ])
+        trends = rest("GET", "reddit_weekly_trends", params=[
+            ("status", "eq.published"),
+            ("order", "week_start.desc"),
+            ("limit", "1"),
+        ])
+    except cc.ApiError as error:
+        if error.status == 404:
+            return 200, {"highlights": [], "trends": None, "available": False}
+        raise
+    return 200, {
+        "highlights": [_highlight_row(row) for row in (highlights or [])],
+        "trends": _trends_row(trends[0]) if trends else None,
+        "available": True,
+    }
+
+
+def api_reddit_highlights_admin(handler, user, query):
+    """Fetch all Reddit highlights (including drafts) for the admin view."""
+    if not user or not user.get("is_admin"):
+        raise cc.ApiError(403, "auth")
+    try:
+        highlights = rest("GET", "reddit_highlights", token=tok(user), params=[
+            ("order", "post_date.desc,created_at.desc"),
+            ("limit", "100"),
+        ])
+        trends = rest("GET", "reddit_weekly_trends", token=tok(user), params=[
+            ("order", "week_start.desc"),
+            ("limit", "10"),
+        ])
+    except cc.ApiError as error:
+        if error.status == 404:
+            return 200, {"highlights": [], "trends": [], "available": False}
+        raise
+    return 200, {
+        "highlights": [_highlight_row(row) for row in (highlights or [])],
+        "trends": [_trends_row(row) for row in (trends or [])],
+        "available": True,
+    }
+
+
+def api_reddit_highlights_publish(handler, user, data):
+    """Publish or unpublish a Reddit highlight (admin only)."""
+    if not user or not user.get("is_admin"):
+        raise cc.ApiError(403, "auth")
+    highlight_id = data.get("id")
+    new_status = "published" if data.get("publish") else "draft"
+    table = "reddit_weekly_trends" if data.get("isTrends") else "reddit_highlights"
+    if not highlight_id or not isinstance(highlight_id, int):
+        raise cc.ApiError(400, "bad_request")
+    try:
+        rest("PATCH", table, token=tok(user), params={"id": f"eq.{highlight_id}"},
+             body={"status": new_status}, prefer="return=minimal")
+    except cc.ApiError as error:
+        if error.status == 404:
+            raise cc.ApiError(404, "not_found") from None
+        raise
+    return 200, {"ok": True, "status": new_status}
+
+
+def api_reddit_highlights_delete(handler, user, data):
+    """Delete a Reddit highlight (admin only)."""
+    if not user or not user.get("is_admin"):
+        raise cc.ApiError(403, "auth")
+    highlight_id = data.get("id")
+    table = "reddit_weekly_trends" if data.get("isTrends") else "reddit_highlights"
+    if not highlight_id or not isinstance(highlight_id, int):
+        raise cc.ApiError(400, "bad_request")
+    try:
+        rest("DELETE", table, token=tok(user), params={"id": f"eq.{highlight_id}"}, prefer="return=minimal")
+    except cc.ApiError as error:
+        if error.status == 404:
+            raise cc.ApiError(404, "not_found") from None
+        raise
+    return 200, {"ok": True}
+
+
 # ───────────────────────── router ─────────────────────────
 
 GET_ROUTES = {"/api/me": api_me, "/api/posts": api_list_posts, "/api/handle-check": api_handle_check,
-              "/api/mod/queue": api_mod_queue, "/api/twins": api_twins}
+              "/api/mod/queue": api_mod_queue, "/api/twins": api_twins,
+              "/api/reddit-highlights": api_reddit_highlights, "/api/reddit-highlights/admin": api_reddit_highlights_admin}
 POST_ROUTES = {
     "/api/signup": api_signup, "/api/login": api_login, "/api/logout": api_logout, "/api/me": api_update_me,
     "/api/account/delete": api_delete_account, "/api/posts": api_create_post, "/api/vote": api_vote,
@@ -1357,6 +1479,7 @@ POST_ROUTES = {
     "/api/account/password": api_change_password, "/api/account/email": api_change_email,
     "/api/account/logout-all": api_logout_all, "/api/auth/complete-profile": api_complete_profile,
     "/api/twins": api_twins_on, "/api/twins/off": api_twins_off,
+    "/api/reddit-highlights/publish": api_reddit_highlights_publish, "/api/reddit-highlights/delete": api_reddit_highlights_delete,
 }
 
 

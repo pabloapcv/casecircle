@@ -73,6 +73,9 @@ let folderChatAbort = null;
 /* Case twins (server: /api/twins, Supabase my_case_twins) and the approval card builder. */
 const twins = { loaded: false, loading: false, available: false, cohorts: [], busy: false, error: "", showForm: false, draft: null };
 let approvalUi = { spaceId: "", month: "", nameMode: "none", firstName: "", showOffice: false, error: "" };
+/* This week on Reddit: curated highlights from immigration subreddits. */
+const redditHighlightsCache = { loaded: false, loading: false, available: false, highlights: [], trends: null };
+const redditHighlightsAdmin = { loaded: false, loading: false, highlights: [], trends: [], busy: {} };
 
 function withoutSamples(saved) {
   const sampleIds = new Set((saved.members || []).filter((person) => person.sample).map((person) => person.id));
@@ -558,6 +561,7 @@ function topbar() {
             <button type="button" role="menuitem" data-act="tab" data-tab="spaces">${icon("groups", 18)}<span>${esc(H("menuGroups"))}</span></button>
             ${signed ? `<button type="button" role="menuitem" data-act="open-settings">${icon("lock", 18)}<span>${esc(A("settings"))}</span></button>` : ""}
             ${mod ? `<button type="button" role="menuitem" data-act="mod">${icon("shield", 18)}<span>${esc(L("modQueue"))}</span></button>` : ""}
+            ${mod ? `<button type="button" role="menuitem" data-act="reddit-admin">${icon("chat", 18)}<span>${esc(RH("title"))}</span></button>` : ""}
             <div class="menu-sep" role="separator"></div>
             <div class="menu-label" role="presentation">${icon("globe", 16)}<span>${esc(L("language"))}</span></div>
             <div class="menu-lang" role="group" aria-label="${esc(L("language"))}">
@@ -725,6 +729,7 @@ function screen() {
   if (route.name === "search") return searchScreen();
   if (route.name === "page") return pageScreen(route.page);
   if (route.name === "mod") return modScreen();
+  if (route.name === "reddit-admin") return redditHighlightsAdminScreen();
   if (route.name === "profile-edit") return profileEditor(route.spaceId, route.existing || false);
   if (route.name === "ask") return askScreen();
   if (route.name === "prepare") return prepareScreen(route.spaceId);
@@ -823,6 +828,7 @@ function landing({ signed = false } = {}) {
       <h2>${esc(Q("sayingTitle"))}</h2>
       <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalog().length))} ${esc(Q("dataListed"))}</p>
       <button class="btn" data-act="open-bot">${esc(Q("botTitle"))}</button>
+      ${redditHighlightsTeaserSection()}
       ${redditStatsBlock()}
       <h3>${esc(Q("dataTitles"))}</h3>
       <div class="feed">${redditCatalog().slice(0, webShown.home).map((item) => webCard(item, signed)).join("")}</div>
@@ -1368,6 +1374,7 @@ function homeScreen() {
       </div>
       <div class="chips" role="group" aria-label="${esc(H("postTypeLabel"))}">${chip(L("allPosts"), filters.kind === "", "")}${kinds.map((kind) => chip(kindLabel(lang(), kind), filters.kind === kind, kind)).join("")}</div>
       ${feedList(entry, emptyFeed())}
+      ${redditHighlightsSection()}
       <h2 class="section-title">${esc(Q("dataTitles"))}</h2>
       <div class="feed">${redditFeed(user?.spaces || []).slice(0, webShown.feed).map((item) => webCard(item, true)).join("")}</div>
       ${redditFeed(user?.spaces || []).length > webShown.feed ? `<button class="btn-secondary more" data-act="more-web" data-list="feed">${esc(Q("dataMore"))}</button>` : ""}
@@ -2782,6 +2789,237 @@ async function twinsAction(act, node) {
   render();
 }
 
+/* ───────────── This week on Reddit ───────────── */
+const RH = (key, values = {}) => fill(redditHighlightsText(lang())[key] || key, values);
+
+function redditHighlightsText(locale) {
+  const es = locale === "es";
+  return {
+    title: es ? "Esta semana en Reddit" : "This week on Reddit",
+    trends: es ? "Tendencias esta semana" : "Trends this week",
+    story: es ? "Historia" : "Story",
+    insight: es ? "Insight" : "Insight",
+    mood: es ? "Lo que dice la gente" : "What people are saying",
+    viewThread: es ? "Ver hilo" : "View thread",
+    sharedOn: es ? "Compartido en r/{sub}" : "Shared on r/{sub}",
+    disclaimer: es ? "Parafraseado de publicaciones públicas de Reddit. No es asesoría legal. Sin afiliación con USCIS ni Reddit." : "Paraphrased from public Reddit posts. Not legal advice. Not affiliated with USCIS or Reddit.",
+    empty: es ? "No hay historias destacadas esta semana todavía." : "No featured stories this week yet.",
+    adminTitle: es ? "Administrar destacados de Reddit" : "Manage Reddit Highlights",
+    adminDrafts: es ? "Borradores" : "Drafts",
+    adminPublished: es ? "Publicados" : "Published",
+    publish: es ? "Publicar" : "Publish",
+    unpublish: es ? "Despublicar" : "Unpublish",
+    delete: es ? "Eliminar" : "Delete",
+    confirmDelete: es ? "¿Seguro que deseas eliminar esto?" : "Are you sure you want to delete this?",
+    working: es ? "Procesando..." : "Processing...",
+    tagApproval: es ? "Aprobación" : "Approval",
+    tagDelay: es ? "Demora" : "Delay",
+    tagRfe: es ? "RFE" : "RFE",
+    tagInterview: es ? "Entrevista" : "Interview",
+    tagCivics: es ? "Civismo" : "Civics",
+    tagRules: es ? "Reglas" : "Rules",
+    tagTip: es ? "Consejo" : "Tip",
+    tagWarning: es ? "Advertencia" : "Warning",
+    tagSuccess: es ? "Éxito" : "Success",
+    tagQuestion: es ? "Pregunta" : "Question",
+  };
+}
+
+function moodTagLabel(tag) {
+  const map = { approval: "tagApproval", delay: "tagDelay", rfe: "tagRfe", interview: "tagInterview", civics: "tagCivics", rules: "tagRules", tip: "tagTip", warning: "tagWarning", success: "tagSuccess", question: "tagQuestion" };
+  return RH(map[tag] || tag);
+}
+
+async function loadRedditHighlights(force = false) {
+  if (redditHighlightsCache.loading || (redditHighlightsCache.loaded && !force)) return;
+  redditHighlightsCache.loading = true;
+  const res = await api("/api/reddit-highlights");
+  redditHighlightsCache.loading = false;
+  redditHighlightsCache.loaded = true;
+  if (res.ok) {
+    redditHighlightsCache.available = res.data.available !== false;
+    redditHighlightsCache.highlights = res.data.highlights || [];
+    redditHighlightsCache.trends = res.data.trends || null;
+  }
+  render();
+}
+
+async function loadRedditHighlightsAdminData(force = false) {
+  const user = me(state);
+  if (!user || user.role !== "mod") return;
+  if (redditHighlightsAdmin.loading || (redditHighlightsAdmin.loaded && !force)) return;
+  redditHighlightsAdmin.loading = true;
+  const res = await api("/api/reddit-highlights/admin");
+  redditHighlightsAdmin.loading = false;
+  redditHighlightsAdmin.loaded = true;
+  if (res.ok) {
+    redditHighlightsAdmin.highlights = res.data.highlights || [];
+    redditHighlightsAdmin.trends = res.data.trends || [];
+  }
+  render();
+}
+
+async function redditHighlightsAdminAction(act, node) {
+  const id = Number(node.dataset.id);
+  const isTrends = node.dataset.trends === "true";
+  if (!id) return;
+  if (redditHighlightsAdmin.busy[id]) return;
+
+  if (act === "rh-publish" || act === "rh-unpublish") {
+    redditHighlightsAdmin.busy[id] = true; render();
+    const res = await api("/api/reddit-highlights/publish", { method: "POST", body: { id, publish: act === "rh-publish", isTrends } });
+    redditHighlightsAdmin.busy[id] = false;
+    if (res.ok) {
+      toast = act === "rh-publish" ? "Published" : "Unpublished";
+      await loadRedditHighlightsAdminData(true);
+    } else {
+      toast = A(errorKey(res.error));
+    }
+    render();
+    return;
+  }
+
+  if (act === "rh-delete") {
+    if (!confirm(RH("confirmDelete"))) return;
+    redditHighlightsAdmin.busy[id] = true; render();
+    const res = await api("/api/reddit-highlights/delete", { method: "POST", body: { id, isTrends } });
+    redditHighlightsAdmin.busy[id] = false;
+    if (res.ok) {
+      toast = "Deleted";
+      await loadRedditHighlightsAdminData(true);
+    } else {
+      toast = A(errorKey(res.error));
+    }
+    render();
+  }
+}
+
+function redditHighlightCard(item) {
+  const es = lang() === "es";
+  const title = es ? item.titleEs : item.titleEn;
+  const story = es ? item.storyEs : item.storyEn;
+  const insight = es ? item.insightEs : item.insightEn;
+  const mood = es ? item.moodEs : item.moodEn;
+  return `<article class="reddit-highlight card">
+    <div class="rh-tags">
+      <span class="pill rh-tag-${esc(item.moodTag)}">${esc(moodTagLabel(item.moodTag))}</span>
+      ${item.formType ? `<span class="pill plain">${esc(item.formType)}</span>` : ""}
+    </div>
+    <h3 class="rh-title">${esc(title)}</h3>
+    <p class="rh-story">${esc(story)}</p>
+    <div class="rh-insight">
+      <span class="rh-insight-label">${icon("spark", 14)} ${esc(RH("insight"))}</span>
+      <p>${esc(insight)}</p>
+    </div>
+    <div class="rh-mood">
+      <span class="rh-mood-label">${icon("chat", 14)} ${esc(RH("mood"))}</span>
+      <p>${esc(mood)}</p>
+    </div>
+    <div class="rh-footer">
+      <span class="rh-source">${esc(RH("sharedOn", { sub: item.subreddit }))}</span>
+      <a class="rh-link" href="${esc(item.threadUrl)}" target="_blank" rel="noopener noreferrer">${esc(RH("viewThread"))} →</a>
+    </div>
+  </article>`;
+}
+
+function redditHighlightsSection() {
+  if (!redditHighlightsCache.loaded) {
+    loadRedditHighlights();
+    return "";
+  }
+  if (!redditHighlightsCache.available || !redditHighlightsCache.highlights.length) return "";
+
+  const es = lang() === "es";
+  const trends = redditHighlightsCache.trends;
+  const trendsText = trends ? (es ? trends.trendsEs : trends.trendsEn) : "";
+
+  return `<section class="reddit-highlights-section" aria-labelledby="rh-title">
+    <h2 class="section-title" id="rh-title">${esc(RH("title"))}</h2>
+    ${trendsText ? `<div class="rh-trends"><span class="kicker">${esc(RH("trends"))}</span><p>${esc(trendsText)}</p></div>` : ""}
+    <div class="reddit-highlights-grid">
+      ${redditHighlightsCache.highlights.slice(0, 6).map(redditHighlightCard).join("")}
+    </div>
+    <p class="rh-disclaimer">${esc(RH("disclaimer"))}</p>
+  </section>`;
+}
+
+function redditHighlightsTeaserSection() {
+  if (!redditHighlightsCache.loaded) {
+    loadRedditHighlights();
+    return "";
+  }
+  if (!redditHighlightsCache.available || !redditHighlightsCache.highlights.length) return "";
+
+  const es = lang() === "es";
+  const trends = redditHighlightsCache.trends;
+  const trendsText = trends ? (es ? trends.trendsEs : trends.trendsEn) : "";
+
+  return `<div class="reddit-highlights-teaser">
+    <h3>${esc(RH("title"))}</h3>
+    ${trendsText ? `<div class="rh-trends"><span class="kicker">${esc(RH("trends"))}</span><p>${esc(trendsText)}</p></div>` : ""}
+    <div class="reddit-highlights-grid">
+      ${redditHighlightsCache.highlights.slice(0, 3).map(redditHighlightCard).join("")}
+    </div>
+    <p class="rh-disclaimer">${esc(RH("disclaimer"))}</p>
+  </div>`;
+}
+
+function redditHighlightsAdminScreen() {
+  const user = me(state);
+  if (!user || user.role !== "mod") {
+    state.route = { name: "home" };
+    save(); render();
+    return "";
+  }
+
+  if (!redditHighlightsAdmin.loaded) {
+    loadRedditHighlightsAdminData();
+    return `<div class="narrow">${backButton()}<h1>${esc(RH("adminTitle"))}</h1><p class="muted">${esc(A("loading"))}</p></div>`;
+  }
+
+  const es = lang() === "es";
+  const drafts = redditHighlightsAdmin.highlights.filter((h) => h.status === "draft");
+  const published = redditHighlightsAdmin.highlights.filter((h) => h.status === "published");
+  const draftTrends = redditHighlightsAdmin.trends.filter((t) => t.status === "draft");
+  const publishedTrends = redditHighlightsAdmin.trends.filter((t) => t.status === "published");
+
+  const adminCard = (item, isTrends = false) => {
+    const title = es ? (isTrends ? item.trendsEs : item.titleEs) : (isTrends ? item.trendsEn : item.titleEn);
+    const busy = redditHighlightsAdmin.busy[item.id];
+    const isPublished = item.status === "published";
+    return `<article class="card rh-admin-card">
+      <div class="spread">
+        <strong>${esc(title?.slice(0, 80) || "(no title)")}${title?.length > 80 ? "…" : ""}</strong>
+        <span class="pill ${isPublished ? "green" : "plain"}">${esc(isPublished ? RH("adminPublished") : RH("adminDrafts"))}</span>
+      </div>
+      ${!isTrends ? `<p class="meta">${esc(item.subreddit)} · ${esc(moodTagLabel(item.moodTag))}${item.formType ? ` · ${esc(item.formType)}` : ""} · ${esc(item.postDate)}</p>` : `<p class="meta">${esc(item.weekStart)}</p>`}
+      <div class="row">
+        ${isPublished
+          ? `<button class="btn-secondary small" data-act="rh-unpublish" data-id="${item.id}" data-trends="${isTrends}" ${busy ? "disabled" : ""}>${esc(busy ? RH("working") : RH("unpublish"))}</button>`
+          : `<button class="btn small" data-act="rh-publish" data-id="${item.id}" data-trends="${isTrends}" ${busy ? "disabled" : ""}>${esc(busy ? RH("working") : RH("publish"))}</button>`}
+        <button class="btn-secondary small danger-btn" data-act="rh-delete" data-id="${item.id}" data-trends="${isTrends}" ${busy ? "disabled" : ""}>${esc(RH("delete"))}</button>
+      </div>
+    </article>`;
+  };
+
+  return `<div class="narrow">
+    ${backButton()}
+    <h1>${esc(RH("adminTitle"))}</h1>
+    <p class="muted">${esc(es ? "Los datos se insertan mediante una rutina diaria externa." : "Data is inserted via an external daily routine.")}</p>
+    
+    <h2>${esc(RH("trends"))}</h2>
+    ${draftTrends.length || publishedTrends.length ? `<div class="stack">${[...publishedTrends, ...draftTrends].map((t) => adminCard(t, true)).join("")}</div>` : `<p class="muted">${esc(es ? "No hay tendencias" : "No trends")}</p>`}
+    
+    <h2>${esc(RH("adminDrafts"))} (${drafts.length})</h2>
+    ${drafts.length ? `<div class="stack">${drafts.map((h) => adminCard(h)).join("")}</div>` : `<p class="muted">${esc(RH("empty"))}</p>`}
+    
+    <h2>${esc(RH("adminPublished"))} (${published.length})</h2>
+    ${published.length ? `<div class="stack">${published.map((h) => adminCard(h)).join("")}</div>` : `<p class="muted">${esc(RH("empty"))}</p>`}
+    
+    <p class="disclaimer">${esc(RH("disclaimer"))}</p>
+  </div>`;
+}
+
 /* ───────────── Approval: mark approved + shareable card ───────────── */
 function currentMonth() {
   const now = new Date();
@@ -3540,7 +3778,7 @@ function youScreen() {
   const mine = mineEntry.posts;
   const saved = notBlocked(savedEntry.posts);
   return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(acct ? user.username : A("guest"))}</h1>${acct ? `<div class="kicker">${esc(levelName(lang(), acct.reputation || 0))}</div><div class="muted">${esc(L("reputation"))} ${acct.reputation || 0} · ${esc(A("accountEmail", { email: acct.email }))}</div>` : ""}</div></div>
-    ${acct ? `<div class="row"><button class="btn-secondary" data-act="open-settings">${esc(A("settings"))}</button><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button>` : ""}</div>` : guestCard()}
+    ${acct ? `<div class="row"><button class="btn-secondary" data-act="open-settings">${esc(A("settings"))}</button><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button><button class="btn-secondary" data-act="reddit-admin">${esc(RH("title"))}</button>` : ""}</div>` : guestCard()}
     <h2>${esc(L("caseProfiles"))}</h2>
     <div class="stack">${user.profiles.length ? user.profiles.map(caseCard).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
     ${twinsSection("you")}
@@ -4116,6 +4354,8 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (act === "mod") { state.route = { name: "mod" }; render(); return; }
+  if (act === "reddit-admin") { state.route = { name: "reddit-admin" }; render(); return; }
+  if (act === "rh-publish" || act === "rh-unpublish" || act === "rh-delete") { redditHighlightsAdminAction(act, node); return; }
   if (act === "mod-act") {
     api("/api/mod", { method: "POST", body: { target: node.dataset.id, action: node.dataset.do } }).then((res) => {
       if (!res.ok) { failToast(res); return; }

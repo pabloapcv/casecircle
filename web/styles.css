@@ -1525,3 +1525,96 @@ button.card.civics-test-card,
   .civics-test-card, .flashcard, .civics-chosen { padding: 20px 18px; }
 }
 
+/* ───────── This week on Reddit ───────── */
+.reddit-highlights-section { margin: 32px 0 0; }
+.reddit-highlights-section > .section-title { margin-bottom: 12px; }
+.reddit-highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.reddit-highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+.rh-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.rh-tag-approval { background: var(--accent-soft); color: var(--accent-deep); }
+.rh-tag-success { background: var(--accent-soft); color: var(--accent-deep); }
+.rh-tag-delay { background: var(--amber-soft); color: var(--amber); }
+.rh-tag-rfe { background: var(--amber-soft); color: var(--amber); }
+.rh-tag-warning { background: var(--amber-soft); color: var(--amber); }
+.rh-tag-interview { background: #ECE8F6; color: #4B3F7A; }
+.rh-tag-civics { background: #ECE8F6; color: #4B3F7A; }
+.rh-tag-rules { background: var(--ground); color: var(--secondary); }
+.rh-tag-tip { background: var(--accent-soft); color: var(--accent-deep); }
+.rh-tag-question { background: var(--ground); color: var(--secondary); }
+.rh-title { margin: 0; font-size: 1.0625rem; font-weight: 700; line-height: 1.35; }
+.rh-story { margin: 0; font-size: 0.9375rem; color: var(--ink); line-height: 1.55; }
+.rh-insight, .rh-mood {
+  padding: 10px 12px;
+  background: var(--ground);
+  border-radius: var(--radius-card);
+}
+.rh-insight-label, .rh-mood-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.rh-insight p, .rh-mood p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.rh-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.rh-source { font-size: 0.8125rem; color: var(--secondary); }
+.rh-link { font-size: 0.875rem; font-weight: 600; }
+.rh-trends {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-card);
+  color: var(--accent-deep);
+}
+.rh-trends .kicker { display: block; margin-bottom: 6px; }
+.rh-trends p { margin: 0; font-size: 0.9375rem; line-height: 1.5; }
+.rh-disclaimer {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--secondary);
+  text-align: center;
+}
+
+/* Reddit highlights admin */
+.rh-admin-card { gap: 8px; }
+.rh-admin-card .spread { gap: 10px; flex-wrap: wrap; }
+.rh-admin-card .meta { color: var(--secondary); }
+.rh-admin-card .row { margin-top: 4px; gap: 8px; }
+
+/* Reddit highlights teaser (landing page) */
+.reddit-highlights-teaser { margin: 24px 0; }
+.reddit-highlights-teaser h3 { margin: 0 0 14px; font-size: 1.25rem; }
+
+@media (max-width: 599px) {
+  .reddit-highlights-grid { grid-template-columns: 1fr; }
+  .reddit-highlight { padding: 16px; }
+}
+

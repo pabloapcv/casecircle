@@ -1,0 +1,27 @@
+name: Keep-alive ping
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping casecircle.us
+        run: |
+          ping_site() {
+            curl -fsS -o /dev/null -w '%{http_code}' --max-time 90 https://casecircle.us
+          }
+          code="$(ping_site)" || true
+          echo "First attempt HTTP ${code:-none}"
+          if [ "$code" != "200" ]; then
+            echo "Retrying once..."
+            sleep 5
+            code="$(ping_site)" || true
+            echo "Retry HTTP ${code:-none}"
+          fi
+          if [ "$code" != "200" ]; then
+            exit 1
+          fi

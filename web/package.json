@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test logic.test.js prepare.test.js",
-    "start": "python3 -m http.server 8080"
+    "start": "python3 serve.py 8080"
   }
 }

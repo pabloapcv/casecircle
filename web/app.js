@@ -3,7 +3,8 @@ import {
   deleteAccount, emailOk, enterDemo, evaluate, initialState, kindHelp, kindLabel, kinds, levelName,
   markHelpful, me, member, moderate, monthLabel, monthsSince, officeById, officeName, offices,
   publish, queuedPosts, report, saveProfile, similarThreads, spaceById, spaceName, spaces,
-  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue, waitComparison
+  stageLabel, stages, t, toggleBookmark, toggleVote, visiblePosts, ago, usernameIssue, waitComparison,
+  normalizeWebState
 } from "./logic.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
@@ -48,7 +49,7 @@ function load() {
     const saved = localStorage.getItem(KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      const clean = withoutSamples(parsed);
+      const clean = normalizeWebState(withoutSamples(parsed));
       localStorage.setItem(KEY, JSON.stringify(clean));
       return clean;
     }
@@ -58,7 +59,9 @@ function load() {
 }
 
 function save() {
-  localStorage.setItem(KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch { /* keep the rendered UI if storage is unavailable */ }
 }
 
 function blankOnboard() {
@@ -526,9 +529,9 @@ function chip(label, on, kind) {
 
 function postCard(post, options = {}) {
   const author = member(state, post.authorId);
-  const replies = post.comments.filter((comment) => comment.status === "live").length;
+  const replies = (post.comments || []).filter((comment) => comment.status === "live").length;
   const space = post.spaceIds?.[0];
-  const body = post.body.length > 180 ? `${post.body.slice(0, 177)}…` : post.body;
+  const body = String(post.body || "").length > 180 ? `${post.body.slice(0, 177)}…` : post.body;
   return `<article class="thread">
     <div class="vote-col"><button data-act="vote" data-id="${esc(post.id)}" aria-label="${esc(lang() === "es" ? "Votar" : "Vote")}">↑</button><span>${post.votes}</span></div>
     <button class="thread-main" data-act="open-post" data-id="${esc(post.id)}">
@@ -560,10 +563,10 @@ function postScreen(id) {
   if (!post) return `<button class="ghost" data-act="back">${esc(L("back"))}</button><div class="empty-state"><h3>${esc(lang() === "es" ? "Publicación no encontrada" : "Post not found")}</h3></div>`;
   const author = member(state, post.authorId);
   const user = me(state);
-  const voted = Boolean(user?.votes[post.id]);
-  const saved = user?.bookmarks.includes(post.id);
+  const voted = Boolean(user?.votes?.[post.id]);
+  const saved = user?.bookmarks?.includes(post.id);
   const space = post.spaceIds?.[0];
-  const comments = post.comments.filter((comment) => comment.status === "live" || user?.role === "mod");
+  const comments = (post.comments || []).filter((comment) => comment.status === "live" || user?.role === "mod");
   const context = [kindLabel(lang(), post.type), space ? spaceName(lang(), space) : "", ago(lang(), post.createdAt)].filter(Boolean);
   
   const decoded = post.stage ? statusDecoder(lang(), post.stage) : null;
@@ -656,14 +659,14 @@ function spaceRow(item) {
 }
 
 function countMembers(spaceId) {
-  return state.members.filter((person) => person.spaces.includes(spaceId) && !String(person.username).startsWith("path_")).length;
+  return state.members.filter((person) => (person.spaces || []).includes(spaceId) && !String(person.username).startsWith("path_")).length;
 }
 
 function spaceScreen(id) {
   const item = spaceById(id);
   if (!item) return "";
   const user = me(state);
-  const joined = user?.spaces.includes(id);
+  const joined = user?.spaces?.includes(id);
   const posts = visiblePosts(state, { ...filters, spaceId: id, sort: "new" });
   const web = redditForSpace(id);
   const theme = themeForSpace(id);
@@ -1024,8 +1027,9 @@ function marriageEvidenceChecklist() {
 
 function youScreen() {
   const user = me(state);
+  if (!user) return homeScreen();
   const mine = state.posts.filter((post) => post.authorId === user.id);
-  const saved = state.posts.filter((post) => user.bookmarks.includes(post.id));
+  const saved = state.posts.filter((post) => (user.bookmarks || []).includes(post.id));
   return `<div class="brand"><div class="mark" aria-hidden="true"></div><div><h1 style="margin:0">${esc(user.username)}</h1><div class="kicker">${esc(levelName(lang(), user.reputation))}</div><div class="muted">${esc(L("reputation"))} ${user.reputation}</div></div></div>
     ${user.username === "app_review" ? `<div class="banner"><strong>${esc(L("reviewerNotes"))}</strong><p>${esc(L("reviewerBody"))}</p><button class="btn inline" data-act="mod">${esc(L("modQueue"))}</button></div>` : ""}
     <h2>${esc(L("caseProfiles"))}</h2>
@@ -1504,5 +1508,10 @@ function publishAsk() {
   });
 }
 
-boot();
-save();
+try {
+  boot();
+  save();
+} catch (error) {
+  const root = document.querySelector("#app");
+  if (root) root.textContent = error && (error.stack || error.message) || String(error);
+}

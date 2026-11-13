@@ -1466,11 +1466,175 @@ def api_reddit_highlights_delete(handler, user, data):
     return 200, {"ok": True}
 
 
+# ───────────────────────── blog ─────────────────────────
+
+def _blog_post_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row.get("id"),
+        "slug": row.get("slug", ""),
+        "lang": row.get("lang", "en"),
+        "translationSlug": row.get("translation_slug"),
+        "title": row.get("title", ""),
+        "metaDescription": row.get("meta_description", ""),
+        "bodyMarkdown": row.get("body_markdown", ""),
+        "sources": row.get("sources") or [],
+        "coverImageUrl": row.get("cover_image_url"),
+        "status": row.get("status", "draft"),
+        "publishedAt": row.get("published_at"),
+        "updatedAt": row.get("updated_at"),
+        "createdAt": row.get("created_at"),
+    }
+
+
+def api_blog_posts(handler, user, query):
+    """Fetch published blog posts for the index. Optional ?lang= parameter (default 'en'), ?limit= (default 20, max 50)."""
+    try:
+        lang = (query.get("lang") or ["en"])[0]
+        if lang not in ("en", "es"):
+            lang = "en"
+        limit_str = (query.get("limit") or ["20"])[0]
+        limit = max(1, min(50, int(limit_str)))
+    except ValueError:
+        limit = 20
+    try:
+        posts = rest("GET", "blog_posts", params=[
+            ("status", "eq.published"),
+            ("lang", f"eq.{lang}"),
+            ("order", "published_at.desc"),
+            ("limit", str(limit)),
+        ])
+    except cc.ApiError as error:
+        if error.status == 404:
+            return 200, {"posts": [], "available": False}
+        raise
+    return 200, {
+        "posts": [_blog_post_row(row) for row in (posts or [])],
+        "available": True,
+    }
+
+
+def api_blog_post(handler, user, query):
+    """Fetch a single blog post by slug and lang. Returns 404 if not found or not published (for non-admins)."""
+    slug = (query.get("slug") or [""])[0]
+    lang = (query.get("lang") or ["en"])[0]
+    if lang not in ("en", "es"):
+        lang = "en"
+    if not slug or not slug.strip():
+        raise cc.ApiError(400, "bad_request")
+    try:
+        posts = rest("GET", "blog_posts", params=[
+            ("slug", f"eq.{slug}"),
+            ("lang", f"eq.{lang}"),
+            ("limit", "1"),
+        ])
+    except cc.ApiError as error:
+        if error.status == 404:
+            raise cc.ApiError(404, "not_found") from None
+        raise
+    if not posts:
+        raise cc.ApiError(404, "not_found")
+    post = posts[0]
+    if post.get("status") != "published" and not is_admin(user):
+        raise cc.ApiError(404, "not_found")
+    translation = None
+    if post.get("translation_slug"):
+        other_lang = "es" if lang == "en" else "en"
+        try:
+            trans_posts = rest("GET", "blog_posts", params=[
+                ("slug", f"eq.{post['translation_slug']}"),
+                ("lang", f"eq.{other_lang}"),
+                ("status", "eq.published"),
+                ("limit", "1"),
+            ])
+            if trans_posts:
+                translation = _blog_post_row(trans_posts[0])
+        except cc.ApiError:
+            pass
+    return 200, {
+        "post": _blog_post_row(post),
+        "translation": translation,
+    }
+
+
+def api_blog_all_published(handler, user, query):
+    """Fetch all published blog posts (for sitemap). No user needed."""
+    try:
+        posts = rest("GET", "blog_posts", params=[
+            ("status", "eq.published"),
+            ("order", "published_at.desc"),
+            ("select", "slug,lang,published_at,updated_at"),
+        ])
+    except cc.ApiError as error:
+        if error.status == 404:
+            return 200, {"posts": []}
+        raise
+    return 200, {"posts": posts or []}
+
+
+def api_blog_admin(handler, user, query):
+    """Fetch all blog posts (including drafts) for the admin view."""
+    if not user or not user.get("is_admin"):
+        raise cc.ApiError(403, "auth")
+    try:
+        posts = rest("GET", "blog_posts", token=tok(user), params=[
+            ("order", "created_at.desc"),
+            ("limit", "100"),
+        ])
+    except cc.ApiError as error:
+        if error.status == 404:
+            return 200, {"posts": [], "available": False}
+        raise
+    return 200, {
+        "posts": [_blog_post_row(row) for row in (posts or [])],
+        "available": True,
+    }
+
+
+def api_blog_publish(handler, user, data):
+    """Publish or unpublish a blog post (admin only)."""
+    if not user or not user.get("is_admin"):
+        raise cc.ApiError(403, "auth")
+    post_id = data.get("id")
+    publish = data.get("publish", False)
+    if not post_id or not isinstance(post_id, int):
+        raise cc.ApiError(400, "bad_request")
+    new_status = "published" if publish else "draft"
+    body = {"status": new_status}
+    if publish:
+        body["published_at"] = datetime.now(timezone.utc).isoformat()
+    try:
+        rest("PATCH", "blog_posts", token=tok(user), params={"id": f"eq.{post_id}"},
+             body=body, prefer="return=minimal")
+    except cc.ApiError as error:
+        if error.status == 404:
+            raise cc.ApiError(404, "not_found") from None
+        raise
+    return 200, {"ok": True, "status": new_status}
+
+
+def api_blog_delete(handler, user, data):
+    """Delete a blog post (admin only)."""
+    if not user or not user.get("is_admin"):
+        raise cc.ApiError(403, "auth")
+    post_id = data.get("id")
+    if not post_id or not isinstance(post_id, int):
+        raise cc.ApiError(400, "bad_request")
+    try:
+        rest("DELETE", "blog_posts", token=tok(user), params={"id": f"eq.{post_id}"}, prefer="return=minimal")
+    except cc.ApiError as error:
+        if error.status == 404:
+            raise cc.ApiError(404, "not_found") from None
+        raise
+    return 200, {"ok": True}
+
+
 # ───────────────────────── router ─────────────────────────
 
 GET_ROUTES = {"/api/me": api_me, "/api/posts": api_list_posts, "/api/handle-check": api_handle_check,
               "/api/mod/queue": api_mod_queue, "/api/twins": api_twins,
-              "/api/reddit-highlights": api_reddit_highlights, "/api/reddit-highlights/admin": api_reddit_highlights_admin}
+              "/api/reddit-highlights": api_reddit_highlights, "/api/reddit-highlights/admin": api_reddit_highlights_admin,
+              "/api/blog": api_blog_posts, "/api/blog/post": api_blog_post, "/api/blog/all": api_blog_all_published,
+              "/api/blog/admin": api_blog_admin}
 POST_ROUTES = {
     "/api/signup": api_signup, "/api/login": api_login, "/api/logout": api_logout, "/api/me": api_update_me,
     "/api/account/delete": api_delete_account, "/api/posts": api_create_post, "/api/vote": api_vote,
@@ -1480,6 +1644,7 @@ POST_ROUTES = {
     "/api/account/logout-all": api_logout_all, "/api/auth/complete-profile": api_complete_profile,
     "/api/twins": api_twins_on, "/api/twins/off": api_twins_off,
     "/api/reddit-highlights/publish": api_reddit_highlights_publish, "/api/reddit-highlights/delete": api_reddit_highlights_delete,
+    "/api/blog/publish": api_blog_publish, "/api/blog/delete": api_blog_delete,
 }
 
 

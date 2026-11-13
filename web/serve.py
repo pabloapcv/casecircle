@@ -20,12 +20,14 @@ import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
+import blog
 import community
 import extras  # noqa: F401  (registers /api/extras* on community.GET_ROUTES)
 import folder_chat
 import mailer
 import folder_check
 import processing_times
+import re
 import reddit_ask
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +42,7 @@ CSP = "; ".join([
     f"script-src 'self' {JSDELIVR} 'wasm-unsafe-eval' 'unsafe-hashes' 'sha256-MguIPR6qNR8D3B+eAlK+bIRTZe8t3wkOY4B/56Me9FU='",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: https:",
     f"connect-src 'self' {JSDELIVR} https://tessdata.projectnaptha.com",
     f"worker-src 'self' blob: {JSDELIVR}",
     "object-src 'none'",
@@ -48,6 +50,136 @@ CSP = "; ".join([
     "form-action 'self'",
     "frame-ancestors 'none'",
 ])
+
+BLOG_POST_PATTERN = re.compile(r'^(/es)?/blog/([a-z0-9][a-z0-9-]{2,100})$')
+
+
+def send_html(handler, status: int, html: str, cache: str = "no-cache, must-revalidate") -> None:
+    """Send an HTML response with proper headers."""
+    body = html.encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "text/html; charset=utf-8")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Cache-Control", cache)
+    handler.send_header("X-Content-Type-Options", "nosniff")
+    handler.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+    handler.send_header("X-Frame-Options", "DENY")
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def send_xml(handler, status: int, xml: str, cache: str = "public, max-age=3600") -> None:
+    """Send an XML response (for sitemap)."""
+    body = xml.encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/xml; charset=utf-8")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Cache-Control", cache)
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def send_text(handler, status: int, text: str, cache: str = "public, max-age=86400") -> None:
+    """Send a plain text response (for robots.txt)."""
+    body = text.encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "text/plain; charset=utf-8")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.send_header("Cache-Control", cache)
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def fetch_blog_posts(lang: str | None = None) -> list[dict]:
+    """Fetch published blog posts from Supabase (or return empty if not available)."""
+    supabase = community.supabase()
+    if not supabase:
+        return []
+    try:
+        params = [
+            ("status", "eq.published"),
+            ("order", "published_at.desc"),
+        ]
+        if lang:
+            params.append(("lang", f"eq.{lang}"))
+        posts = supabase.rest("GET", "blog_posts", params=params)
+        return posts or []
+    except Exception:
+        return []
+
+
+def fetch_blog_post(slug: str, lang: str) -> tuple[dict | None, dict | None]:
+    """Fetch a single blog post and its translation if available."""
+    supabase = community.supabase()
+    if not supabase:
+        return None, None
+    try:
+        posts = supabase.rest("GET", "blog_posts", params=[
+            ("slug", f"eq.{slug}"),
+            ("lang", f"eq.{lang}"),
+            ("status", "eq.published"),
+            ("limit", "1"),
+        ])
+        if not posts:
+            return None, None
+        post = posts[0]
+        translation = None
+        if post.get("translation_slug"):
+            other_lang = "es" if lang == "en" else "en"
+            try:
+                trans_posts = supabase.rest("GET", "blog_posts", params=[
+                    ("slug", f"eq.{post['translation_slug']}"),
+                    ("lang", f"eq.{other_lang}"),
+                    ("status", "eq.published"),
+                    ("limit", "1"),
+                ])
+                if trans_posts:
+                    translation = trans_posts[0]
+            except Exception:
+                pass
+        return post, translation
+    except Exception:
+        return None, None
+
+
+def handle_blog_route(handler, path: str) -> bool | None:
+    """Handle blog routes, sitemap.xml, and robots.txt. Returns True if handled, None if not a blog route."""
+    if path == "/robots.txt":
+        send_text(handler, 200, blog.robots_txt())
+        return True
+    
+    if path == "/sitemap.xml":
+        posts = fetch_blog_posts()
+        send_xml(handler, 200, blog.sitemap_xml(posts))
+        return True
+    
+    if path == "/blog":
+        posts = fetch_blog_posts("en")
+        html = blog.blog_index_html(posts, "en")
+        send_html(handler, 200, html)
+        return True
+    
+    if path == "/es/blog":
+        posts = fetch_blog_posts("es")
+        html = blog.blog_index_html(posts, "es")
+        send_html(handler, 200, html)
+        return True
+    
+    match = BLOG_POST_PATTERN.match(path)
+    if match:
+        is_es = match.group(1) == "/es"
+        lang = "es" if is_es else "en"
+        slug = match.group(2)
+        post, translation = fetch_blog_post(slug, lang)
+        if post:
+            html = blog.blog_post_html(post, translation, lang)
+            send_html(handler, 200, html)
+        else:
+            html = blog.blog_404_html(lang)
+            send_html(handler, 404, html)
+        return True
+    
+    return None
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -100,6 +232,9 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/healthz":
             community.healthz(self)
+            return
+        blog_result = handle_blog_route(self, parsed.path)
+        if blog_result is not None:
             return
         if parsed.path == "/api/folder-chat":
             folder_chat.handle_status(self, self.server_port)

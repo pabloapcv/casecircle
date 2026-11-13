@@ -65,9 +65,9 @@ describe("USCIS Official Data files", () => {
     assert.equal(chicago.fy23q4_approvals, 7664, "Chicago FY23 Q4 approvals should be 7,664");
     assert.equal(chicago.fy26q3_approvals, 557, "Chicago FY26 Q3 approvals should be 557");
     assert.equal(chicago.change_pct_approvals, -92.7, "Chicago approvals change should be -92.7%");
-    assert.equal(chicago.fy23q4_pending, 12500, "Chicago FY23 Q4 pending should be 12,500");
-    assert.equal(chicago.fy26q3_pending, 28400, "Chicago FY26 Q3 pending should be 28,400");
-    assert.equal(chicago.change_pct_pending, 127.2, "Chicago pending change should be +127.2%");
+    assert.equal(chicago.fy23q4_pending, 12048, "Chicago FY23 Q4 pending should be 12,048");
+    assert.equal(chicago.fy26q3_pending, 22685, "Chicago FY26 Q3 pending should be 22,685");
+    assert.equal(chicago.change_pct_pending, 88.3, "Chicago pending change should be +88.3%");
   });
 
   it("all data files have bilingual labels where applicable", async () => {

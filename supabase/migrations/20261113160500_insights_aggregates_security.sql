@@ -6,59 +6,68 @@
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- PART 1: Idempotent table creation (IF NOT EXISTS)
--- These match what was applied to prod, for repo documentation purposes.
+-- These match the prod schema exactly (from information_schema).
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS public.insights_form_counts (
   form text PRIMARY KEY,
-  post_count int NOT NULL DEFAULT 0,
-  question_count int NOT NULL DEFAULT 0
+  post_count bigint NOT NULL,
+  question_count bigint NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.insights_step_counts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   form text NOT NULL,
   step text NOT NULL,
-  post_count int NOT NULL DEFAULT 0,
-  UNIQUE(form, step)
+  post_count bigint NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.insights_year_trends (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   form text NOT NULL,
   year int NOT NULL,
-  post_count int NOT NULL DEFAULT 0,
-  UNIQUE(form, year)
+  post_count bigint NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.insights_subreddit_counts (
   subreddit text PRIMARY KEY,
-  post_count int NOT NULL DEFAULT 0
+  post_count bigint NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.insights_rfe_topics (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   form text NOT NULL,
-  post_count int NOT NULL DEFAULT 0,
-  example_permalink text
+  post_count bigint NOT NULL,
+  example_reddit_id text,
+  example_title text,
+  example_permalink text,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.insights_example_posts (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   form text,
+  step text,
+  reddit_id text NOT NULL,
   subreddit text NOT NULL,
   title text NOT NULL,
   permalink text NOT NULL,
-  score int NOT NULL DEFAULT 0,
-  num_comments int NOT NULL DEFAULT 0,
-  created_utc timestamptz
+  score int NOT NULL,
+  num_comments int NOT NULL,
+  created_utc timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.insights_meta (
   key text PRIMARY KEY,
   value_text text,
   value_int bigint,
-  value_json jsonb
+  value_json jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -74,24 +83,24 @@ ALTER TABLE public.insights_example_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.insights_meta ENABLE ROW LEVEL SECURITY;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- PART 3: Drop existing policies and create strict SELECT-only policies for anon
+-- PART 3: Drop existing policies (using live policy names) and create strict SELECT-only policies for anon
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-DROP POLICY IF EXISTS "anon can read form counts" ON public.insights_form_counts;
-DROP POLICY IF EXISTS "anon can read step counts" ON public.insights_step_counts;
-DROP POLICY IF EXISTS "anon can read year trends" ON public.insights_year_trends;
-DROP POLICY IF EXISTS "anon can read subreddit counts" ON public.insights_subreddit_counts;
-DROP POLICY IF EXISTS "anon can read rfe topics" ON public.insights_rfe_topics;
-DROP POLICY IF EXISTS "anon can read example posts" ON public.insights_example_posts;
-DROP POLICY IF EXISTS "anon can read meta" ON public.insights_meta;
+DROP POLICY IF EXISTS "anon can read insights_form_counts" ON public.insights_form_counts;
+DROP POLICY IF EXISTS "anon can read insights_step_counts" ON public.insights_step_counts;
+DROP POLICY IF EXISTS "anon can read insights_year_trends" ON public.insights_year_trends;
+DROP POLICY IF EXISTS "anon can read insights_subreddit_counts" ON public.insights_subreddit_counts;
+DROP POLICY IF EXISTS "anon can read insights_rfe_topics" ON public.insights_rfe_topics;
+DROP POLICY IF EXISTS "anon can read insights_example_posts" ON public.insights_example_posts;
+DROP POLICY IF EXISTS "anon can read insights_meta" ON public.insights_meta;
 
-CREATE POLICY "anon can read form counts" ON public.insights_form_counts FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can read step counts" ON public.insights_step_counts FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can read year trends" ON public.insights_year_trends FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can read subreddit counts" ON public.insights_subreddit_counts FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can read rfe topics" ON public.insights_rfe_topics FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can read example posts" ON public.insights_example_posts FOR SELECT TO anon USING (true);
-CREATE POLICY "anon can read meta" ON public.insights_meta FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_form_counts" ON public.insights_form_counts FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_step_counts" ON public.insights_step_counts FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_year_trends" ON public.insights_year_trends FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_subreddit_counts" ON public.insights_subreddit_counts FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_rfe_topics" ON public.insights_rfe_topics FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_example_posts" ON public.insights_example_posts FOR SELECT TO anon USING (true);
+CREATE POLICY "anon can read insights_meta" ON public.insights_meta FOR SELECT TO anon USING (true);
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- PART 4: Revoke all privileges from anon/authenticated, grant SELECT only
@@ -114,112 +123,122 @@ GRANT SELECT ON public.insights_example_posts TO anon;
 GRANT SELECT ON public.insights_meta TO anon;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
--- PART 5: Refresh function with FIXED question_count filter
--- Uses position('?' in title) > 0 instead of regex which matches everything
+-- PART 5: Refresh function matching the live prod function exactly,
+-- with ONE FIX: question_count uses position('?' in title) > 0 instead of regex
+-- Uses unnest(form_tags) and unnest(step_tags) since reddit_threads has no `form` column.
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.refresh_insights_aggregates()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-AS $$
+SET search_path TO 'public'
+AS $function$
 DECLARE
-  v_min_date date;
-  v_max_date date;
-  v_total int;
+  v_min_date timestamptz;
+  v_max_date timestamptz;
+  v_total bigint;
+  v_year_counts jsonb;
 BEGIN
-  -- Get date range
-  SELECT MIN(created_utc::date), MAX(created_utc::date), COUNT(*)
+  -- Get date range and totals
+  SELECT MIN(created_utc), MAX(created_utc), COUNT(*)
   INTO v_min_date, v_max_date, v_total
   FROM reddit_threads;
 
-  -- Clear existing aggregates
-  TRUNCATE insights_form_counts, insights_step_counts, insights_year_trends,
-           insights_subreddit_counts, insights_rfe_topics, insights_example_posts, insights_meta;
+  -- Year counts for coverage notes
+  SELECT jsonb_object_agg(year, cnt)
+  INTO v_year_counts
+  FROM (
+    SELECT EXTRACT(YEAR FROM created_utc)::int as year, COUNT(*) as cnt
+    FROM reddit_threads
+    GROUP BY 1
+  ) sub;
 
-  -- Form counts with FIXED question detection using position() for literal '?'
+  -- Clear and refresh form counts
+  -- FIX: Use position('?' in title) > 0 for literal question mark, not regex
+  TRUNCATE insights_form_counts;
   INSERT INTO insights_form_counts (form, post_count, question_count)
   SELECT 
-    form,
+    f.form,
     COUNT(*) as post_count,
-    COUNT(*) FILTER (WHERE position('?' in title) > 0) as question_count
-  FROM reddit_threads
-  WHERE form IS NOT NULL
-  GROUP BY form
-  ORDER BY post_count DESC;
+    COUNT(*) FILTER (WHERE position('?' in t.title) > 0) as question_count
+  FROM reddit_threads t, unnest(t.form_tags) f(form)
+  GROUP BY f.form;
 
-  -- Step counts (milestone mentions)
+  -- Clear and refresh step counts
+  TRUNCATE insights_step_counts;
   INSERT INTO insights_step_counts (form, step, post_count)
-  SELECT form, step, COUNT(*) as post_count
-  FROM (
-    SELECT form,
-      CASE
-        WHEN lower(title) ~ '\y(approv|green.?card.?received|card.?produc)\y' THEN 'approval'
-        WHEN lower(title) ~ '\y(interview|oath|ceremon)\y' THEN 'interview'
-        WHEN lower(title) ~ '\y(biometric|fingerprint)\y' THEN 'biometrics'
-        WHEN lower(title) ~ '\y(rfe|request.for.evidence|noid)\y' THEN 'rfe'
-        WHEN lower(title) ~ '\y(receiv|receipt|i-797)\y' THEN 'received'
-        WHEN lower(title) ~ '\y(schedul|notice)\y' THEN 'scheduled'
-        WHEN lower(title) ~ '\y(deni|reject)\y' THEN 'denial'
-        WHEN lower(title) ~ '\y(expedite)\y' THEN 'expedite'
-        ELSE NULL
-      END as step
-    FROM reddit_threads
-    WHERE form IS NOT NULL
-  ) sub
-  WHERE step IS NOT NULL
-  GROUP BY form, step
-  ORDER BY form, post_count DESC;
+  SELECT f.form, s.step, COUNT(*)
+  FROM reddit_threads t, unnest(t.form_tags) f(form), unnest(t.step_tags) s(step)
+  WHERE f.form IN ('I-485','I-130','I-765','N-400','I-751','I-129F','I-140','I-131','I-90','I-589')
+  GROUP BY f.form, s.step
+  HAVING COUNT(*) >= 5;
 
-  -- Year trends
+  -- Clear and refresh year trends
+  TRUNCATE insights_year_trends;
   INSERT INTO insights_year_trends (form, year, post_count)
-  SELECT form, EXTRACT(YEAR FROM created_utc)::int as year, COUNT(*) as post_count
-  FROM reddit_threads
-  WHERE form IS NOT NULL AND created_utc IS NOT NULL
-  GROUP BY form, year
-  ORDER BY form, year;
+  SELECT f.form, EXTRACT(YEAR FROM t.created_utc)::int, COUNT(*)
+  FROM reddit_threads t, unnest(t.form_tags) f(form)
+  WHERE f.form IN ('I-485','I-130','I-765','N-400','I-751','I-129F','I-140','I-131','I-90')
+  GROUP BY f.form, EXTRACT(YEAR FROM t.created_utc)::int;
 
-  -- Subreddit counts
+  -- Clear and refresh subreddit counts
+  TRUNCATE insights_subreddit_counts;
   INSERT INTO insights_subreddit_counts (subreddit, post_count)
-  SELECT subreddit, COUNT(*) as post_count
-  FROM reddit_threads
-  GROUP BY subreddit
-  ORDER BY post_count DESC;
+  SELECT subreddit, COUNT(*) FROM reddit_threads GROUP BY subreddit;
 
-  -- RFE topics by form
-  INSERT INTO insights_rfe_topics (form, post_count, example_permalink)
-  SELECT 
-    form,
-    COUNT(*) as post_count,
-    (SELECT permalink FROM reddit_threads r2 
-     WHERE r2.form = r1.form 
-       AND lower(r2.title) ~ '\y(rfe|request.for.evidence)\y'
-     ORDER BY score DESC NULLS LAST LIMIT 1) as example_permalink
-  FROM reddit_threads r1
-  WHERE form IS NOT NULL
-    AND lower(title) ~ '\y(rfe|request.for.evidence)\y'
-  GROUP BY form
-  ORDER BY post_count DESC;
+  -- Clear and refresh RFE topics
+  TRUNCATE insights_rfe_topics;
+  INSERT INTO insights_rfe_topics (form, post_count, example_reddit_id, example_title, example_permalink)
+  SELECT DISTINCT ON (f.form)
+    f.form,
+    COUNT(*) OVER (PARTITION BY f.form) as post_count,
+    t.reddit_id,
+    t.title,
+    t.permalink
+  FROM reddit_threads t, unnest(t.form_tags) f(form)
+  WHERE 'rfe' = ANY(t.step_tags)
+  ORDER BY f.form, t.score DESC;
 
-  -- Example posts (high engagement)
-  INSERT INTO insights_example_posts (form, subreddit, title, permalink, score, num_comments, created_utc)
-  SELECT form, subreddit, title, permalink, COALESCE(score, 0), COALESCE(num_comments, 0), created_utc
-  FROM reddit_threads
-  WHERE score >= 10 OR num_comments >= 10
-  ORDER BY COALESCE(score, 0) + COALESCE(num_comments, 0) DESC
-  LIMIT 100;
+  -- Clear and refresh example posts (top 5 per form by score)
+  TRUNCATE insights_example_posts;
+  INSERT INTO insights_example_posts (form, step, reddit_id, subreddit, title, permalink, score, num_comments, created_utc)
+  SELECT form, step, reddit_id, subreddit, title, permalink, score, num_comments, created_utc
+  FROM (
+    SELECT 
+      f.form,
+      COALESCE((SELECT unnest FROM unnest(t.step_tags) LIMIT 1), '') as step,
+      t.reddit_id, t.subreddit, t.title, t.permalink, t.score, t.num_comments, t.created_utc,
+      ROW_NUMBER() OVER (PARTITION BY f.form ORDER BY t.score DESC) as rn
+    FROM reddit_threads t, unnest(t.form_tags) f(form)
+    WHERE t.score > 5
+      AND f.form IN ('I-485','I-130','I-765','N-400','I-751','I-129F','I-140','I-131','I-90')
+  ) sub
+  WHERE rn <= 5;
 
-  -- Meta information
-  INSERT INTO insights_meta (key, value_text, value_int, value_json)
-  VALUES 
-    ('min_date', v_min_date::text, NULL, NULL),
-    ('max_date', v_max_date::text, NULL, NULL),
-    ('total_posts', NULL, v_total, NULL),
-    ('coverage_note', '2024 is most complete. 2023 has Nov-Dec only. 2025 and 2026 are sampled.', NULL, NULL),
-    ('refreshed_at', NOW()::text, NULL, NULL);
+  -- Also add top overall posts (no form filter)
+  INSERT INTO insights_example_posts (form, step, reddit_id, subreddit, title, permalink, score, num_comments, created_utc)
+  SELECT NULL, '', reddit_id, subreddit, title, permalink, score, num_comments, created_utc
+  FROM (
+    SELECT reddit_id, subreddit, title, permalink, score, num_comments, created_utc,
+           ROW_NUMBER() OVER (ORDER BY score DESC) as rn
+    FROM reddit_threads
+    WHERE score > 20
+  ) sub
+  WHERE rn <= 10;
+
+  -- Update metadata
+  -- FIX: Coverage note corrected to match actual data range (June 2023, not Nov 2023)
+  DELETE FROM insights_meta;
+  INSERT INTO insights_meta (key, value_text) VALUES ('min_date', v_min_date::text);
+  INSERT INTO insights_meta (key, value_text) VALUES ('max_date', v_max_date::text);
+  INSERT INTO insights_meta (key, value_int) VALUES ('total_posts', v_total);
+  INSERT INTO insights_meta (key, value_json) VALUES ('year_counts', v_year_counts);
+  INSERT INTO insights_meta (key, value_text) VALUES ('refreshed_at', now()::text);
+  INSERT INTO insights_meta (key, value_text) VALUES ('coverage_note', 
+    'Data is sampled: 2024 is most complete; 2023 starts June 14; 2025 and 2026 are sampled, not complete.');
 END;
-$$;
+$function$;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- PART 6: Revoke EXECUTE on function from PUBLIC/anon/authenticated, 

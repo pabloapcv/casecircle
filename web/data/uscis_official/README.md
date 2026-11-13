@@ -31,9 +31,9 @@ This directory contains ONLY figures taken directly from official USCIS data fil
 
 ### Field Office Changes (N-400)
 
-| Office | FY23 Q4 Approvals | FY26 Q3 Approvals | Change |
-|--------|-------------------|-------------------|--------|
-| Chicago | 7,664 | 557 | -92.7% |
+| Office | FY23 Q4 Approvals | FY26 Q3 Approvals | Change | FY23 Q4 Pending | FY26 Q3 Pending | Pending Change |
+|--------|-------------------|-------------------|--------|-----------------|-----------------|----------------|
+| Chicago | 7,664 | 557 | -92.7% | 12,048 | 22,685 | +88.3% |
 
 ## Excluded Data
 

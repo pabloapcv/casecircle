@@ -67,7 +67,28 @@ const copy = {
   botAsk: ["Ask", "Preguntar"],
   botTry: ["Or start with one of these", "O empieza con una de estas"],
   botSources: ["Titles that match", "Títulos que coinciden"],
-  botCountLine: ["In the count", "En el conteo"]
+  botCountLine: ["In the count", "En el conteo"],
+  askRedditTitle: ["Ask Reddit", "Pregunta a Reddit"],
+  askRedditLead: ["Ask a question and get an answer drawn from many public Reddit threads about USCIS experiences. These are self-reported experiences, not official data.", "Haz una pregunta y obtén una respuesta basada en muchos hilos públicos de Reddit sobre experiencias con USCIS. Estas son experiencias auto-reportadas, no datos oficiales."],
+  askRedditPlaceholder: ["e.g., What do people say about the N-400 interview in Sacramento?", "ej., ¿Qué dice la gente sobre la entrevista del N-400 en Sacramento?"],
+  askRedditBtn: ["Ask Reddit", "Preguntar a Reddit"],
+  askRedditFilters: ["Optional filters", "Filtros opcionales"],
+  askRedditForm: ["Form", "Formulario"],
+  askRedditOffice: ["Office or Service Center", "Oficina o Centro de Servicio"],
+  askRedditStep: ["Process step", "Paso del proceso"],
+  askRedditExamples: ["Example questions", "Ejemplos de preguntas"],
+  askRedditSources: ["Sources from {count} threads", "Fuentes de {count} hilos"],
+  askRedditDisclaimer: ["Self-reported experiences from public posts — not official data, not legal advice, not affiliated with USCIS.", "Experiencias auto-reportadas de publicaciones públicas — no son datos oficiales, no es asesoría legal, sin afiliación con USCIS."],
+  askRedditHelpful: ["Was this helpful?", "¿Te fue útil?"],
+  askRedditYes: ["Yes", "Sí"],
+  askRedditNo: ["No", "No"],
+  askRedditThanks: ["Thanks for your feedback!", "¡Gracias por tu opinión!"],
+  askRedditLimit: ["You've used your daily questions. Sign in for more, or try again tomorrow.", "Has usado tus preguntas del día. Inicia sesión para más, o inténtalo mañana."],
+  askRedditLoading: ["Looking through Reddit threads…", "Buscando en hilos de Reddit…"],
+  askRedditUnavailable: ["Ask Reddit is temporarily unavailable. Try again later.", "Pregunta a Reddit no está disponible temporalmente. Inténtalo más tarde."],
+  askRedditNoKey: ["The AI answer service is not configured. Here are relevant threads you can read directly.", "El servicio de respuestas con IA no está configurado. Aquí están los hilos relevantes que puedes leer directamente."],
+  askRedditViewThread: ["View thread", "Ver hilo"],
+  askRedditOfficialNote: ["For official information, visit uscis.gov. For case-specific questions, consult a licensed attorney or DOJ-accredited representative.", "Para información oficial, visita uscis.gov. Para preguntas sobre tu caso, consulta a un abogado o representante acreditado por el DOJ."]
 };
 
 const groups = [
@@ -360,9 +381,9 @@ const home = {
   browseGroups: ["Browse groups", "Ver grupos"],
   sortLabel: ["Sort posts", "Ordenar publicaciones"],
   postTypeLabel: ["Post type", "Tipo de publicación"],
-  answersAsk: ["Ask the posts", "Pregunta a las publicaciones"],
+  answersAsk: ["Ask Reddit", "Pregunta a Reddit"],
   answersFaq: ["Common questions", "Preguntas comunes"],
-  answersBody: ["Ask the public posts, or read the common questions.", "Pregunta a las publicaciones públicas o lee las preguntas comunes."],
+  answersBody: ["Ask Reddit about experiences, or read the common questions.", "Pregunta a Reddit sobre experiencias, o lee las preguntas comunes."],
   interviewPrep: ["Interview prep", "Preparar la entrevista"],
   interviewPrepBody: ["Tips and what people saw at their field office.", "Consejos y lo que la gente vio en su oficina."],
   emptyFeedBody: ["Post the first question, or join another case group.", "Publica la primera pregunta o únete a otro grupo de caso."],
@@ -448,13 +469,13 @@ const pricingCopy = {
   freeTitle: ["Free", "Gratis"],
   freePrice: ["$0", "$0"],
   freeBody: [
-    "Folder checklist, Check the wait, the community, common questions, general interview tips, and a small monthly allowance of Ask-the-posts questions.",
-    "Lista de la carpeta, Ver la espera, la comunidad, preguntas comunes, consejos generales de entrevista y un cupo mensual pequeño de Pregunta a las publicaciones."
+    "Folder checklist, Check the wait, the community, common questions, general interview tips, Ask Reddit (a few questions per day), and the printable folder summary.",
+    "Lista de la carpeta, Ver la espera, la comunidad, preguntas comunes, consejos generales de entrevista, Pregunta a Reddit (algunas preguntas por día) y el resumen imprimible de la carpeta."
   ],
   passTitle: ["Case Pass", "Case Pass"],
   passBody: [
-    "One-time, per case, for 12 months: Interview practice, Civics practice, the AI document check, folder chat, Tailor with AI, printable bilingual checklist, and wait alerts.",
-    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, la revisión de documentos con IA, el chat de la carpeta, Ajustar con IA, lista bilingüe imprimible y alertas de espera."
+    "One-time, per case, for 12 months: Interview practice, Civics practice, the AI document check, folder chat, Tailor with AI, and more Ask Reddit questions per day.",
+    "Una sola vez, por caso, por 12 meses: práctica de entrevista, práctica de educación cívica, la revisión de documentos con IA, el chat de la carpeta, Ajustar con IA y más preguntas de Pregunta a Reddit por día."
   ],
   passComing: ["Coming soon — Join the waitlist", "Próximamente — Únete a la lista de espera"],
   waitlistHelp: ["No checkout yet. Leave your email and we will write once when Case Pass is ready. We never charge you from this page.", "Aún no hay pago. Deja tu correo y te escribiremos una vez cuando Case Pass esté listo. Nunca te cobramos desde esta página."],

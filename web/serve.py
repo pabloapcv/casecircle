@@ -26,6 +26,7 @@ import folder_chat
 import mailer
 import folder_check
 import processing_times
+import reddit_ask
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 folder_chat.load_dotenv(os.path.join(HERE, ".env"))
@@ -109,6 +110,9 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/processing-times":
             processing_times.handle(self, parse_qs(parsed.query))
             return
+        if parsed.path == "/api/reddit-ask/status":
+            reddit_ask.handle_status(self, self.server_port)
+            return
         if parsed.path in ("/api/auth/google", "/auth/callback"):
             supabase = community.supabase()
             if not supabase:   # SQLite accounts: no Google sign-in
@@ -139,6 +143,15 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/folder-plan":
             folder_check.handle_plan(self, self.server_port)
+            return
+        if path == "/api/reddit-ask":
+            reddit_ask.handle_ask(self, self.server_port)
+            return
+        if path == "/api/reddit-ask/feedback":
+            reddit_ask.handle_feedback(self, self.server_port)
+            return
+        if path == "/api/reddit-ingest":
+            reddit_ask.handle_ingest(self, self.server_port)
             return
         if community.handles("POST", path):
             community.dispatch(self, "POST")

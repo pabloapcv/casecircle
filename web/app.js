@@ -58,6 +58,20 @@ let publicView = "home";
 let webShown = { home: 20, feed: 30, space: 30 };
 let botQuestion = "";
 let botAnswer = null;
+const askReddit = {
+  question: "",
+  form: "",
+  office: "",
+  step: "",
+  loading: false,
+  error: "",
+  answer: null,
+  citations: [],
+  threadsUsed: 0,
+  fallback: false,
+  feedbackGiven: false,
+  status: { loaded: false, available: false, limit: 5, used: 0 },
+};
 let rfeText = "";
 let rfeParsed = null;
 let waitCalcProfile = null;
@@ -608,7 +622,7 @@ function groupSwitcher(activeId) {
 
 function answersTabs(active) {
   const tab = (route, slug, label) => `<a href="#${slug}" data-act="tab" data-tab="${route}" class="${active === route ? "on" : ""}"${active === route ? ' aria-current="page"' : ""}>${esc(label)}</a>`;
-  return `<nav class="sub-tabs" aria-label="${esc(H("navAnswers"))}">${tab("bot", "answers", H("answersAsk"))}${tab("questions", "faq", H("answersFaq"))}</nav>`;
+  return `<nav class="sub-tabs" aria-label="${esc(H("navAnswers"))}">${tab("bot", "answers", Q("askRedditTitle"))}${tab("questions", "faq", H("answersFaq"))}</nav>`;
 }
 
 let accountMenuReturn = null;
@@ -739,7 +753,7 @@ function screen() {
   if (route.name === "timelines") return timelinesScreen();
   if (route.name === "approval") return approvalScreen(route.spaceId);
   if (route.name === "insights") return insightsScreen();
-  if (route.name === "bot") return botScreen();
+  if (route.name === "bot") return askRedditScreen();
   if (route.name === "you") return youScreen();
   if (route.name === "interview") return interviewScreen(route.spaceId);
   if (route.name === "civics") return civicsScreen();
@@ -754,7 +768,7 @@ function welcome() {
   const publicMain = () => {
     if (publicView === "home") return landing();
     if (publicView === "auth") return authScreen();
-    if (publicView === "bot") return botScreen();
+    if (publicView === "bot") return askRedditScreen();
     if (publicView === "pricing") return pricingScreen({ public: true });
     if (publicView.startsWith("form:")) return formSeoScreen(publicView.slice(5), { public: true });
     return publicPage(publicView);
@@ -827,7 +841,7 @@ function landing({ signed = false } = {}) {
     <section class="home-section" id="talk">
       <h2>${esc(Q("sayingTitle"))}</h2>
       <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalog().length))} ${esc(Q("dataListed"))}</p>
-      <button class="btn" data-act="open-bot">${esc(Q("botTitle"))}</button>
+      <button class="btn" data-act="open-bot">${esc(Q("askRedditTitle"))}</button>
       ${redditHighlightsTeaserSection()}
       ${redditStatsBlock()}
       <h3>${esc(Q("dataTitles"))}</h3>
@@ -1324,6 +1338,202 @@ function botScreen() {
     <h2>${esc(Q("botTry"))}</h2>
     <div class="post-types">${botPrompts(lang()).map((prompt) => `<button class="post-type" data-act="bot-prompt" data-q="${esc(prompt)}"><strong>${esc(prompt)}</strong></button>`).join("")}</div>
   </div>`;
+}
+
+function askRedditExamples() {
+  return lang() === "es" ? [
+    "¿Qué preguntan en la entrevista del N-400 en Sacramento?",
+    "¿Cuánto está tardando el I-751 en el Texas Service Center?",
+    "¿Qué pasa después de la entrevista de green card por matrimonio?",
+    "¿Cuánto tiempo después de la biometría llega la cita de entrevista del I-485?",
+    "¿Qué hacer si el caso dice en revisión activa por meses?",
+  ] : [
+    "What do they ask at the N-400 interview in Sacramento?",
+    "How long is I-751 taking at the Texas Service Center?",
+    "What happens after a marriage green card interview?",
+    "How long after biometrics until the I-485 interview is scheduled?",
+    "What to do if case says actively being reviewed for months?",
+  ];
+}
+
+function askRedditFormOptions() {
+  return [
+    { value: "", label: lang() === "es" ? "Cualquier formulario" : "Any form" },
+    { value: "N-400", label: "N-400" },
+    { value: "I-485", label: "I-485" },
+    { value: "I-130", label: "I-130" },
+    { value: "I-751", label: "I-751" },
+    { value: "I-765", label: "I-765 / EAD" },
+    { value: "I-131", label: "I-131 / Advance Parole" },
+    { value: "I-140", label: "I-140" },
+    { value: "I-129F", label: "I-129F / K-1" },
+    { value: "I-90", label: "I-90" },
+  ];
+}
+
+function askRedditStepOptions() {
+  return [
+    { value: "", label: lang() === "es" ? "Cualquier paso" : "Any step" },
+    { value: "biometrics", label: lang() === "es" ? "Biometría" : "Biometrics" },
+    { value: "interview", label: lang() === "es" ? "Entrevista" : "Interview" },
+    { value: "rfe", label: "RFE" },
+    { value: "approval", label: lang() === "es" ? "Aprobación" : "Approval" },
+    { value: "oath", label: lang() === "es" ? "Ceremonia de juramento" : "Oath ceremony" },
+    { value: "card-produced", label: lang() === "es" ? "Tarjeta producida" : "Card produced" },
+    { value: "actively-reviewed", label: lang() === "es" ? "En revisión activa" : "Actively reviewed" },
+    { value: "expedite", label: lang() === "es" ? "Acelerar" : "Expedite" },
+  ];
+}
+
+function askRedditCitationCard(citation) {
+  const date = citation.createdUtc ? new Date(citation.createdUtc).toLocaleDateString(lang() === "es" ? "es" : "en", { month: "short", day: "numeric", year: "numeric" }) : "";
+  const tags = [...(citation.formTags || []), ...(citation.stepTags || [])].slice(0, 3);
+  return `<article class="web-post ask-reddit-citation">
+    <p class="web-meta">r/${esc(citation.subreddit)}${date ? ` · ${esc(date)}` : ""}</p>
+    <h3>${esc(citation.title)}</h3>
+    <p class="web-stats">${esc(formatCount(citation.score))} ${esc(Q("dataPoints"))} · ${esc(formatCount(citation.numComments))} ${esc(Q("dataComments"))}</p>
+    ${tags.length ? `<div class="tag-chips">${tags.map((t) => `<span class="chip small">${esc(t)}</span>`).join("")}</div>` : ""}
+    <a class="text-link" href="${esc(citation.permalink)}" target="_blank" rel="noopener noreferrer">${esc(Q("askRedditViewThread"))}</a>
+  </article>`;
+}
+
+function askRedditScreen() {
+  const signed = Boolean(me(state));
+  const { loading, error, answer, citations, threadsUsed, fallback, feedbackGiven, status } = askReddit;
+  const limitReached = status.loaded && status.used >= status.limit;
+  const remaining = Math.max(0, status.limit - status.used);
+  
+  const filterSection = `<details class="ask-reddit-filters">
+    <summary>${esc(Q("askRedditFilters"))}</summary>
+    <div class="filter-row">
+      <label class="field compact">
+        <span>${esc(Q("askRedditForm"))}</span>
+        <select id="ask-reddit-form" data-act="ask-reddit-filter" data-field="form">
+          ${askRedditFormOptions().map((opt) => `<option value="${esc(opt.value)}" ${askReddit.form === opt.value ? "selected" : ""}>${esc(opt.label)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="field compact">
+        <span>${esc(Q("askRedditStep"))}</span>
+        <select id="ask-reddit-step" data-act="ask-reddit-filter" data-field="step">
+          ${askRedditStepOptions().map((opt) => `<option value="${esc(opt.value)}" ${askReddit.step === opt.value ? "selected" : ""}>${esc(opt.label)}</option>`).join("")}
+        </select>
+      </label>
+    </div>
+  </details>`;
+  
+  const feedbackSection = answer && !feedbackGiven ? `<div class="ask-reddit-feedback">
+    <p>${esc(Q("askRedditHelpful"))}</p>
+    <div class="feedback-btns">
+      <button class="chip" data-act="ask-reddit-feedback" data-helpful="true">${icon("thumbs-up", 14)} ${esc(Q("askRedditYes"))}</button>
+      <button class="chip" data-act="ask-reddit-feedback" data-helpful="false">${icon("thumbs-down", 14)} ${esc(Q("askRedditNo"))}</button>
+    </div>
+  </div>` : feedbackGiven ? `<p class="muted">${esc(Q("askRedditThanks"))}</p>` : "";
+  
+  const answerSection = answer ? `<article class="ask-reddit-answer">
+    <div class="answer-text">${answer.split("\n").filter((p) => p.trim()).map((p) => `<p>${esc(p)}</p>`).join("")}</div>
+    <p class="disclaimer">${esc(Q("askRedditDisclaimer"))}</p>
+    <p class="official-note">${esc(Q("askRedditOfficialNote"))}</p>
+    ${feedbackSection}
+    ${citations.length ? `<h3>${esc(fill(Q("askRedditSources"), { count: threadsUsed }))}</h3><div class="citations-grid">${citations.map(askRedditCitationCard).join("")}</div>` : ""}
+  </article>` : "";
+  
+  const examplesSection = `<div class="ask-reddit-examples">
+    <h3>${esc(Q("askRedditExamples"))}</h3>
+    <div class="example-questions">${askRedditExamples().map((q) => `<button class="example-q" data-act="ask-reddit-example" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+  </div>`;
+  
+  return `<div class="ask-reddit">
+    ${signed ? answersTabs("bot") : backButton(L("back"), 'data-act="public-home"')}
+    <h1>${esc(Q("askRedditTitle"))}</h1>
+    <p class="lede">${esc(Q("askRedditLead"))}</p>
+    ${!signed && status.loaded ? `<p class="limit-note">${remaining > 0 ? fill(lang() === "es" ? "{n} preguntas restantes hoy" : "{n} questions remaining today", { n: remaining }) : esc(Q("askRedditLimit"))}</p>` : ""}
+    <div class="ask-reddit-form">
+      <label class="field">
+        <textarea id="ask-reddit-q" placeholder="${esc(Q("askRedditPlaceholder"))}" rows="3" ${loading || limitReached ? "disabled" : ""}>${esc(askReddit.question)}</textarea>
+      </label>
+      ${filterSection}
+      <button class="btn" data-act="ask-reddit-submit" ${loading || limitReached ? "disabled" : ""}>${loading ? `<span class="spinner small"></span> ${esc(Q("askRedditLoading"))}` : esc(Q("askRedditBtn"))}</button>
+    </div>
+    ${error ? `<p class="danger" role="alert">${esc(error)}</p>` : ""}
+    ${answerSection}
+    ${!answer ? examplesSection : ""}
+  </div>`;
+}
+
+async function loadAskRedditStatus() {
+  if (askReddit.status.loaded) return;
+  try {
+    const res = await api("/api/reddit-ask/status");
+    if (res.ok) {
+      askReddit.status = { loaded: true, available: res.data.available, limit: res.data.dailyLimit || 5, used: res.data.used || 0 };
+    } else {
+      askReddit.status = { loaded: true, available: false, limit: 5, used: 0 };
+    }
+  } catch {
+    askReddit.status = { loaded: true, available: false, limit: 5, used: 0 };
+  }
+  render();
+}
+
+async function submitAskReddit() {
+  const question = askReddit.question.trim();
+  if (!question || askReddit.loading) return;
+  
+  askReddit.loading = true;
+  askReddit.error = "";
+  askReddit.answer = null;
+  askReddit.citations = [];
+  askReddit.threadsUsed = 0;
+  askReddit.fallback = false;
+  askReddit.feedbackGiven = false;
+  render();
+  
+  try {
+    const res = await api("/api/reddit-ask", {
+      method: "POST",
+      body: {
+        question,
+        lang: lang(),
+        form: askReddit.form || undefined,
+        office: askReddit.office || undefined,
+        step: askReddit.step || undefined,
+      },
+    });
+    
+    askReddit.loading = false;
+    
+    if (res.ok) {
+      askReddit.answer = res.data.answer || "";
+      askReddit.citations = res.data.citations || [];
+      askReddit.threadsUsed = res.data.threadsUsed || 0;
+      askReddit.fallback = res.data.fallback || false;
+      askReddit.status.used = (askReddit.status.used || 0) + 1;
+    } else if (res.status === 429) {
+      askReddit.error = Q("askRedditLimit");
+    } else {
+      askReddit.error = Q("askRedditUnavailable");
+    }
+  } catch {
+    askReddit.loading = false;
+    askReddit.error = Q("askRedditUnavailable");
+  }
+  
+  render();
+}
+
+async function submitAskRedditFeedback(helpful) {
+  if (askReddit.feedbackGiven) return;
+  askReddit.feedbackGiven = true;
+  render();
+  
+  try {
+    await api("/api/reddit-ask/feedback", {
+      method: "POST",
+      body: { question: askReddit.question, helpful },
+    });
+  } catch {
+    // Feedback is best-effort, don't show errors
+  }
 }
 
 function webCard(item, signed) {
@@ -4170,6 +4380,7 @@ document.addEventListener("click", (event) => {
   if (act === "sort") { filters.sort = node.dataset.sort; render(); return; }
   if (act === "kind") { filters.kind = filters.kind === node.dataset.kind ? "" : node.dataset.kind; render(); return; }
   if (act === "open-bot") {
+    loadAskRedditStatus();
     if (me(state)) state.route = { name: "bot" };
     else publicView = "bot";
     render();
@@ -4182,6 +4393,28 @@ document.addEventListener("click", (event) => {
     else publicView = "bot";
     render();
     document.querySelector(".bot-answer")?.scrollIntoView({ block: "start" });
+    return;
+  }
+  if (act === "ask-reddit-submit") {
+    askReddit.question = document.querySelector("#ask-reddit-q")?.value || "";
+    submitAskReddit();
+    return;
+  }
+  if (act === "ask-reddit-example") {
+    askReddit.question = node.dataset.q || "";
+    submitAskReddit();
+    return;
+  }
+  if (act === "ask-reddit-filter") {
+    const field = node.dataset.field;
+    if (field === "form") askReddit.form = node.value;
+    else if (field === "step") askReddit.step = node.value;
+    else if (field === "office") askReddit.office = node.value;
+    return;
+  }
+  if (act === "ask-reddit-feedback") {
+    const helpful = node.dataset.helpful === "true";
+    submitAskRedditFeedback(helpful);
     return;
   }
   if (act === "more-web") {

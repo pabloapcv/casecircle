@@ -773,6 +773,84 @@ class TestSpanishFormBoost(unittest.TestCase):
         self.assertIn("ciudadanía", question.lower())
 
 
+class TestPostgresRegexSemantics(unittest.TestCase):
+    """Test that regex patterns use correct Postgres syntax.
+    
+    In Postgres:
+    - \\b is BACKSPACE (ASCII 8), not a word boundary
+    - \\y is word boundary
+    - \\m is beginning of word
+    - \\M is end of word
+    
+    This test class documents these differences and verifies the migration
+    uses the correct syntax.
+    """
+    
+    def test_postgres_word_boundary_is_backslash_y(self):
+        """Verify the migration file uses \\y not \\b for word boundaries."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "supabase",
+            "migrations",
+            "20261113000300_postgres_regex_fix.sql"
+        )
+        
+        with open(migration_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Should use \y for word boundaries
+        self.assertIn(r"\y", content, "Migration should use \\y for word boundaries")
+        
+        # Should NOT use \b in regex patterns (except in comments)
+        lines = [l for l in content.split("\n") if not l.strip().startswith("--")]
+        code_content = "\n".join(lines)
+        
+        # Check that \b is not used as a word boundary in the actual SQL code
+        # Note: \b in SQL strings would be written as \\b in the file
+        import re
+        # Look for patterns like ~* '\b or ~* '...\b that indicate word boundary usage
+        bad_patterns = re.findall(r"~\*?\s*'[^']*\\b[^']*'", code_content)
+        self.assertEqual(len(bad_patterns), 0, 
+            f"Migration should not use \\b as word boundary. Found: {bad_patterns}")
+    
+    def test_migration_handles_accented_characters(self):
+        """Migration should match both accented and unaccented Spanish terms."""
+        import os
+        migration_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "supabase",
+            "migrations",
+            "20261113000300_postgres_regex_fix.sql"
+        )
+        
+        with open(migration_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Should handle ciudadanía (with accent) and ciudadania (without)
+        self.assertIn("ciudadania", content.lower(), 
+            "Should match ciudadania without accent")
+        
+        # Should use translate() to normalize accents
+        self.assertIn("translate", content.lower(),
+            "Should use translate() to normalize accents")
+    
+    def test_spanish_terms_detected_with_and_without_accents(self):
+        """Language detection should work with and without accents."""
+        # With accent
+        self.assertEqual(reddit_ask.detect_language("ciudadanía"), "es")
+        # Without accent (if someone types without)
+        self.assertEqual(reddit_ask.detect_language("ciudadania"), "es")
+        
+        # Full query with accent
+        self.assertEqual(
+            reddit_ask.detect_language("¿Cuánto tarda la entrevista de ciudadanía?"),
+            "es"
+        )
+
+
 class TestSpanishQueryIntegration(unittest.TestCase):
     """Integration tests for Spanish queries returning correct results."""
     

@@ -388,5 +388,135 @@ class TestBlogNavLinks(unittest.TestCase):
         self.assertIn('href="/es/blog" class="on"', html)
 
 
+class TestSpanishDisclaimerAndHeader(unittest.TestCase):
+    """Test Spanish disclaimer and header tag text."""
+
+    def test_spanish_disclaimer_text(self):
+        """Spanish disclaimer should use 'No estamos afiliados a USCIS'."""
+        self.assertEqual(
+            blog.DISCLAIMER_ES,
+            "No es asesoría legal. No estamos afiliados a USCIS."
+        )
+
+    def test_spanish_header_tag_in_index(self):
+        """Spanish blog index should show 'No estamos afiliados a USCIS' in header."""
+        html = blog.blog_index_html([], "es")
+        self.assertIn("No estamos afiliados a USCIS", html)
+
+    def test_spanish_header_tag_in_post(self):
+        """Spanish blog post should show 'No estamos afiliados a USCIS' in header."""
+        post = {
+            "slug": "test-es",
+            "lang": "es",
+            "title": "Título",
+            "meta_description": "Descripción",
+            "body_markdown": "Contenido",
+            "sources": [],
+            "cover_image_url": None,
+            "published_at": "2026-11-10T12:00:00Z",
+            "updated_at": "2026-11-10T12:00:00Z",
+        }
+        html = blog.blog_post_html(post, None, "es")
+        self.assertIn("No estamos afiliados a USCIS", html)
+
+    def test_spanish_footer_disclaimer(self):
+        """Spanish post footer should show full disclaimer."""
+        post = {
+            "slug": "test-es",
+            "lang": "es",
+            "title": "Título",
+            "meta_description": "Descripción",
+            "body_markdown": "Contenido",
+            "sources": [],
+            "cover_image_url": None,
+            "published_at": "2026-11-10T12:00:00Z",
+            "updated_at": "2026-11-10T12:00:00Z",
+        }
+        html = blog.blog_post_html(post, None, "es")
+        self.assertIn("No es asesoría legal. No estamos afiliados a USCIS.", html)
+
+
+class TestPostLangToggle(unittest.TestCase):
+    """Test that post page lang toggle links to translated post."""
+
+    def test_english_post_toggle_links_to_spanish_translation(self):
+        """EN toggle on English post with translation should link to Spanish post."""
+        post = {
+            "slug": "english-slug",
+            "lang": "en",
+            "title": "English Title",
+            "meta_description": "English desc",
+            "body_markdown": "Content",
+            "sources": [],
+            "cover_image_url": None,
+            "published_at": "2026-11-10T12:00:00Z",
+            "updated_at": "2026-11-10T12:00:00Z",
+        }
+        translation = {"slug": "spanish-slug", "lang": "es"}
+        html = blog.blog_post_html(post, translation, "en")
+        
+        # ES toggle should link to the Spanish translation
+        self.assertIn('href="/es/blog/spanish-slug"', html)
+        # EN toggle should link to current post
+        self.assertIn('href="/blog/english-slug"', html)
+
+    def test_spanish_post_toggle_links_to_english_translation(self):
+        """ES toggle on Spanish post with translation should link to English post."""
+        post = {
+            "slug": "spanish-slug",
+            "lang": "es",
+            "title": "Título",
+            "meta_description": "Descripción",
+            "body_markdown": "Contenido",
+            "sources": [],
+            "cover_image_url": None,
+            "published_at": "2026-11-10T12:00:00Z",
+            "updated_at": "2026-11-10T12:00:00Z",
+        }
+        translation = {"slug": "english-slug", "lang": "en"}
+        html = blog.blog_post_html(post, translation, "es")
+        
+        # EN toggle should link to the English translation
+        self.assertIn('href="/blog/english-slug"', html)
+        # ES toggle should link to current post
+        self.assertIn('href="/es/blog/spanish-slug"', html)
+
+    def test_english_post_toggle_fallback_to_index(self):
+        """ES toggle on English post without translation should link to Spanish index."""
+        post = {
+            "slug": "english-only",
+            "lang": "en",
+            "title": "English Only",
+            "meta_description": "No translation",
+            "body_markdown": "Content",
+            "sources": [],
+            "cover_image_url": None,
+            "published_at": "2026-11-10T12:00:00Z",
+            "updated_at": "2026-11-10T12:00:00Z",
+        }
+        html = blog.blog_post_html(post, None, "en")
+        
+        # ES toggle should fall back to Spanish blog index
+        self.assertIn('href="/es/blog" class=""', html)
+
+    def test_spanish_post_toggle_fallback_to_index(self):
+        """EN toggle on Spanish post without translation should link to English index."""
+        post = {
+            "slug": "solo-espanol",
+            "lang": "es",
+            "title": "Solo Español",
+            "meta_description": "Sin traducción",
+            "body_markdown": "Contenido",
+            "sources": [],
+            "cover_image_url": None,
+            "published_at": "2026-11-10T12:00:00Z",
+            "updated_at": "2026-11-10T12:00:00Z",
+        }
+        html = blog.blog_post_html(post, None, "es")
+        
+        # EN toggle should fall back to English blog index
+        self.assertIn('href="/blog" class=""', html)
+
+
 if __name__ == "__main__":
     unittest.main()

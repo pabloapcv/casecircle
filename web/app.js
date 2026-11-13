@@ -90,6 +90,8 @@ let approvalUi = { spaceId: "", month: "", nameMode: "none", firstName: "", show
 /* This week on Reddit: curated highlights from immigration subreddits. */
 const redditHighlightsCache = { loaded: false, loading: false, available: false, highlights: [], trends: null };
 const redditHighlightsAdmin = { loaded: false, loading: false, highlights: [], trends: [], busy: {} };
+/* Blog admin for managing blog posts. */
+const blogAdmin = { loaded: false, loading: false, posts: [], busy: {} };
 
 function withoutSamples(saved) {
   const sampleIds = new Set((saved.members || []).filter((person) => person.sample).map((person) => person.id));
@@ -576,6 +578,7 @@ function topbar() {
             ${signed ? `<button type="button" role="menuitem" data-act="open-settings">${icon("lock", 18)}<span>${esc(A("settings"))}</span></button>` : ""}
             ${mod ? `<button type="button" role="menuitem" data-act="mod">${icon("shield", 18)}<span>${esc(L("modQueue"))}</span></button>` : ""}
             ${mod ? `<button type="button" role="menuitem" data-act="reddit-admin">${icon("chat", 18)}<span>${esc(RH("title"))}</span></button>` : ""}
+            ${mod ? `<button type="button" role="menuitem" data-act="blog-admin">${icon("pen", 18)}<span>${esc(BL("blog"))}</span></button>` : ""}
             <div class="menu-sep" role="separator"></div>
             <div class="menu-label" role="presentation">${icon("globe", 16)}<span>${esc(L("language"))}</span></div>
             <div class="menu-lang" role="group" aria-label="${esc(L("language"))}">
@@ -712,6 +715,7 @@ function siteFoot() {
     </nav>
     <nav aria-label="Information">
       <h2>${esc(H("footRead"))}</h2>
+      <a href="/${lang() === "es" ? "es/" : ""}blog" class="foot-link">${esc(BL("blog"))}</a>
       <button class="foot-link" data-act="page" data-page="about">${esc(L("about"))}</button>
       <button class="foot-link" data-act="page" data-page="privacy">${esc(L("privacy"))}</button>
       <button class="foot-link" data-act="page" data-page="terms">${esc(A("terms"))}</button>
@@ -744,6 +748,7 @@ function screen() {
   if (route.name === "page") return pageScreen(route.page);
   if (route.name === "mod") return modScreen();
   if (route.name === "reddit-admin") return redditHighlightsAdminScreen();
+  if (route.name === "blog-admin") return blogAdminScreen();
   if (route.name === "profile-edit") return profileEditor(route.spaceId, route.existing || false);
   if (route.name === "ask") return askScreen();
   if (route.name === "prepare") return prepareScreen(route.spaceId);
@@ -776,7 +781,7 @@ function welcome() {
   return `<div class="site">
     <header class="topbar public-bar">
       <button class="brand" data-act="public-home" aria-label="CaseCircle Home">${logoMark(28)}<span class="brand-text"><strong>${esc(L("appName"))}</strong><span class="brand-tag">${esc(L("notAffiliated"))}</span></span></button>
-      ${home ? `<nav class="nav" aria-label="Navigation"><button data-act="start-tool" data-route="prepare">${esc(T("navBuilder"))}</button><button data-act="start-tool" data-route="timelines">${esc(T("navWait"))}</button><button data-act="start-tool" data-route="interview">${esc(T("navInterview"))}</button>${jump("insights-home", T("navInsights"))}${jump("talk", T("navCommunity"))}${jump("pricing", H("homeNavPricing"))}${jump("find-help", H("homeNavHelp"))}</nav>` : `<div class="nav"></div>`}
+      ${home ? `<nav class="nav" aria-label="Navigation"><button data-act="start-tool" data-route="prepare">${esc(T("navBuilder"))}</button><button data-act="start-tool" data-route="timelines">${esc(T("navWait"))}</button><button data-act="start-tool" data-route="interview">${esc(T("navInterview"))}</button>${jump("insights-home", T("navInsights"))}${jump("talk", T("navCommunity"))}<a href="/${lang() === "es" ? "es/" : ""}blog">${esc(BL("blog"))}</a>${jump("pricing", H("homeNavPricing"))}${jump("find-help", H("homeNavHelp"))}</nav>` : `<div class="nav"></div>`}
       <div class="top-actions">${langToggle()}${publicView === "auth" ? "" : `<button type="button" class="btn-secondary sign-in-btn" data-act="auth" data-mode="signin">${esc(A("signIn"))}</button>`}</div>
     </header>
     <main class="page" id="main">${publicMain()}</main>
@@ -3230,6 +3235,129 @@ function redditHighlightsAdminScreen() {
   </div>`;
 }
 
+/* ───────────── Blog admin ───────────── */
+const BL = (key, values = {}) => fill(blogText(lang())[key] || key, values);
+
+function blogText(locale) {
+  const es = locale === "es";
+  return {
+    adminTitle: es ? "Administrar blog" : "Manage Blog",
+    drafts: es ? "Borradores" : "Drafts",
+    published: es ? "Publicados" : "Published",
+    publish: es ? "Publicar" : "Publish",
+    unpublish: es ? "Despublicar" : "Unpublish",
+    delete: es ? "Eliminar" : "Delete",
+    confirmDelete: es ? "¿Seguro que deseas eliminar este artículo?" : "Are you sure you want to delete this post?",
+    working: es ? "Procesando..." : "Processing...",
+    empty: es ? "No hay artículos todavía." : "No posts yet.",
+    insertNote: es ? "Los artículos se insertan mediante SQL." : "Posts are inserted via SQL.",
+    viewPost: es ? "Ver artículo" : "View post",
+    blog: es ? "Blog" : "Blog",
+  };
+}
+
+async function loadBlogAdminData(force = false) {
+  const user = me(state);
+  if (!user || user.role !== "mod") return;
+  if (blogAdmin.loading || (blogAdmin.loaded && !force)) return;
+  blogAdmin.loading = true;
+  const res = await api("/api/blog/admin");
+  blogAdmin.loading = false;
+  blogAdmin.loaded = true;
+  if (res.ok) {
+    blogAdmin.posts = res.data.posts || [];
+  }
+  render();
+}
+
+async function blogAdminAction(act, node) {
+  const id = Number(node.dataset.id);
+  if (!id) return;
+  if (blogAdmin.busy[id]) return;
+
+  if (act === "blog-publish" || act === "blog-unpublish") {
+    blogAdmin.busy[id] = true; render();
+    const res = await api("/api/blog/publish", { method: "POST", body: { id, publish: act === "blog-publish" } });
+    blogAdmin.busy[id] = false;
+    if (res.ok) {
+      toast = act === "blog-publish" ? "Published" : "Unpublished";
+      await loadBlogAdminData(true);
+    } else {
+      toast = A(errorKey(res.error));
+    }
+    render();
+    return;
+  }
+
+  if (act === "blog-delete") {
+    if (!confirm(BL("confirmDelete"))) return;
+    blogAdmin.busy[id] = true; render();
+    const res = await api("/api/blog/delete", { method: "POST", body: { id } });
+    blogAdmin.busy[id] = false;
+    if (res.ok) {
+      toast = "Deleted";
+      await loadBlogAdminData(true);
+    } else {
+      toast = A(errorKey(res.error));
+    }
+    render();
+  }
+}
+
+function blogAdminScreen() {
+  const user = me(state);
+  if (!user || user.role !== "mod") {
+    state.route = { name: "home" };
+    save(); render();
+    return "";
+  }
+
+  if (!blogAdmin.loaded) {
+    loadBlogAdminData();
+    return `<div class="narrow">${backButton()}<h1>${esc(BL("adminTitle"))}</h1><p class="muted">${esc(A("loading"))}</p></div>`;
+  }
+
+  const es = lang() === "es";
+  const drafts = blogAdmin.posts.filter((p) => p.status === "draft");
+  const published = blogAdmin.posts.filter((p) => p.status === "published");
+
+  const adminCard = (post) => {
+    const busy = blogAdmin.busy[post.id];
+    const isPublished = post.status === "published";
+    const langLabel = post.lang === "es" ? "ES" : "EN";
+    const postUrl = `/${post.lang === "es" ? "es/" : ""}blog/${post.slug}`;
+    return `<article class="card blog-admin-card">
+      <div class="spread">
+        <strong>${esc(post.title?.slice(0, 80) || "(no title)")}${post.title?.length > 80 ? "…" : ""}</strong>
+        <span class="pill ${isPublished ? "green" : "plain"}">${esc(isPublished ? BL("published") : BL("drafts"))}</span>
+      </div>
+      <p class="meta">${esc(langLabel)} · ${esc(post.slug)}${post.translationSlug ? ` ↔ ${esc(post.translationSlug)}` : ""}</p>
+      ${post.metaDescription ? `<p class="blog-admin-preview">${esc(post.metaDescription.slice(0, 150))}${post.metaDescription.length > 150 ? "…" : ""}</p>` : ""}
+      <div class="row">
+        ${isPublished
+          ? `<button class="btn-secondary small" data-act="blog-unpublish" data-id="${post.id}" ${busy ? "disabled" : ""}>${esc(busy ? BL("working") : BL("unpublish"))}</button>`
+          : `<button class="btn small" data-act="blog-publish" data-id="${post.id}" ${busy ? "disabled" : ""}>${esc(busy ? BL("working") : BL("publish"))}</button>`}
+        ${isPublished ? `<a href="${esc(postUrl)}" class="btn-secondary small" target="_blank">${esc(BL("viewPost"))} →</a>` : ""}
+        <button class="btn-secondary small danger-btn" data-act="blog-delete" data-id="${post.id}" ${busy ? "disabled" : ""}>${esc(BL("delete"))}</button>
+      </div>
+    </article>`;
+  };
+
+  return `<div class="narrow">
+    ${backButton()}
+    <h1>${esc(BL("adminTitle"))}</h1>
+    <p class="muted">${esc(BL("insertNote"))}</p>
+    
+    <h2>${esc(BL("drafts"))} (${drafts.length})</h2>
+    ${drafts.length ? `<div class="stack">${drafts.map((p) => adminCard(p)).join("")}</div>` : `<p class="muted">${esc(BL("empty"))}</p>`}
+    
+    <h2>${esc(BL("published"))} (${published.length})</h2>
+    ${published.length ? `<div class="stack">${published.map((p) => adminCard(p)).join("")}</div>` : `<p class="muted">${esc(BL("empty"))}</p>`}
+    
+    <p class="disclaimer">${esc(es ? "No es asesoría legal. No afiliado con USCIS." : "Not legal advice. Not affiliated with USCIS.")}</p>
+  </div>`;
+}
+
 /* ───────────── Approval: mark approved + shareable card ───────────── */
 function currentMonth() {
   const now = new Date();
@@ -3988,7 +4116,7 @@ function youScreen() {
   const mine = mineEntry.posts;
   const saved = notBlocked(savedEntry.posts);
   return `<div class="profile-head">${avatar(user, "xl")}<div class="profile-who"><h1>${esc(acct ? user.username : A("guest"))}</h1>${acct ? `<div class="kicker">${esc(levelName(lang(), acct.reputation || 0))}</div><div class="muted">${esc(L("reputation"))} ${acct.reputation || 0} · ${esc(A("accountEmail", { email: acct.email }))}</div>` : ""}</div></div>
-    ${acct ? `<div class="row"><button class="btn-secondary" data-act="open-settings">${esc(A("settings"))}</button><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button><button class="btn-secondary" data-act="reddit-admin">${esc(RH("title"))}</button>` : ""}</div>` : guestCard()}
+    ${acct ? `<div class="row"><button class="btn-secondary" data-act="open-settings">${esc(A("settings"))}</button><button class="btn-secondary" data-act="logout">${esc(A("signOut"))}</button>${acct.isAdmin ? `<button class="btn-secondary" data-act="mod">${esc(L("modQueue"))}</button><button class="btn-secondary" data-act="reddit-admin">${esc(RH("title"))}</button><button class="btn-secondary" data-act="blog-admin">${esc(BL("blog"))}</button>` : ""}</div>` : guestCard()}
     <h2>${esc(L("caseProfiles"))}</h2>
     <div class="stack">${user.profiles.length ? user.profiles.map(caseCard).join("") : `<p class="muted">${esc(lang() === "es" ? "No tienes perfiles de caso todavía" : "No case profiles yet")}</p>`}<button class="btn-secondary" data-act="add-profile">${esc(L("addCase"))}</button></div>
     ${twinsSection("you")}
@@ -4589,6 +4717,8 @@ document.addEventListener("click", (event) => {
   if (act === "mod") { state.route = { name: "mod" }; render(); return; }
   if (act === "reddit-admin") { state.route = { name: "reddit-admin" }; render(); return; }
   if (act === "rh-publish" || act === "rh-unpublish" || act === "rh-delete") { redditHighlightsAdminAction(act, node); return; }
+  if (act === "blog-admin") { state.route = { name: "blog-admin" }; render(); return; }
+  if (act === "blog-publish" || act === "blog-unpublish" || act === "blog-delete") { blogAdminAction(act, node); return; }
   if (act === "mod-act") {
     api("/api/mod", { method: "POST", body: { target: node.dataset.id, action: node.dataset.do } }).then((res) => {
       if (!res.ok) { failToast(res); return; }

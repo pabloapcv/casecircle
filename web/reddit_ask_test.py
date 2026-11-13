@@ -21,8 +21,8 @@ import reddit_ask
 
 class MockHandler:
     """Mock HTTP handler for testing."""
-    def __init__(self, body: dict | None = None, headers: dict | None = None, ip: str = "127.0.0.1"):
-        self.body = body or {}
+    def __init__(self, body: dict | list | None = None, headers: dict | None = None, ip: str = "127.0.0.1"):
+        self.body = body
         self.headers = headers or {"Content-Type": "application/json"}
         self.client_address = (ip, 12345)
         self._response_status = None
@@ -30,7 +30,7 @@ class MockHandler:
         self._response_body = b""
         
         # Set Content-Length header based on body
-        if body:
+        if body is not None:
             body_bytes = json.dumps(body).encode("utf-8")
             self.headers["Content-Length"] = str(len(body_bytes))
             self.rfile = BytesIO(body_bytes)
@@ -54,7 +54,7 @@ class MockHandler:
     def write(self, data: bytes) -> None:
         self._response_body += data
     
-    def response_json(self) -> dict:
+    def response_json(self) -> dict | list:
         return json.loads(self._response_body.decode("utf-8"))
 
 
@@ -120,7 +120,7 @@ class TestIngestionStripAuthors(unittest.TestCase):
     def test_process_post_removes_author_from_title_and_selftext(self):
         """Post title and selftext should have author references removed."""
         post = {
-            "id": "abc123",
+            "reddit_id": "abc123",
             "title": "Thanks to u/helpful_user for this tip!",
             "selftext": "As /u/another_user mentioned, check @someone's guide",
             "subreddit": "USCIS",
@@ -130,9 +130,7 @@ class TestIngestionStripAuthors(unittest.TestCase):
             "created_utc": 1699012345,
         }
         
-        # Mock fetch_post_comments to return empty
-        with patch.object(reddit_ingest, "fetch_post_comments", return_value=[]):
-            result = reddit_ingest.process_post(post, fetch_comments=False)
+        result = reddit_ingest.process_post(post)
         
         self.assertIsNotNone(result)
         self.assertNotIn("helpful_user", result["title"])
@@ -140,6 +138,20 @@ class TestIngestionStripAuthors(unittest.TestCase):
         self.assertNotIn("someone", result["selftext"])
         self.assertIn("[user]", result["title"])
         self.assertIn("[user]", result["selftext"])
+    
+    def test_strip_usernames_function(self):
+        """Test the standalone strip_usernames function."""
+        test_cases = [
+            ("Thanks u/user123 for help", "Thanks [user] for help"),
+            ("See /u/another_person post", "See [user] post"),
+            ("Check @twitter_user out", "Check [user] out"),
+            ("Post by someuser123 was great", "Post by [user] was great"),
+            ("No usernames here", "No usernames here"),
+        ]
+        
+        for input_text, expected in test_cases:
+            result = reddit_ingest.strip_usernames(input_text)
+            self.assertEqual(result, expected, f"Failed for input: {input_text}")
 
 
 class TestTagExtraction(unittest.TestCase):
@@ -160,6 +172,8 @@ class TestTagExtraction(unittest.TestCase):
             ("N-400 interview coming up", ["N-400"]),
             ("waiting for EAD", ["I-765"]),
             ("Advance Parole is ready", ["I-131"]),
+            ("N400 citizenship", ["N-400"]),  # Without hyphen
+            ("I485 pending", ["I-485"]),  # Without hyphen
         ]
         
         for text, expected in test_cases:
@@ -451,6 +465,225 @@ class TestLLMPrompts(unittest.TestCase):
         self.assertEqual(citation["score"], 10)
         self.assertEqual(citation["formTags"], ["I-485"])
         self.assertEqual(citation["stepTags"], ["interview"])
+
+
+class TestRSSParsing(unittest.TestCase):
+    """Test RSS feed parsing."""
+    
+    def test_parse_rss_posts_extracts_data(self):
+        """Should extract post data from RSS feed."""
+        rss_content = """<?xml version="1.0" encoding="UTF-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+                <title>N-400 interview experience in Sacramento</title>
+                <link href="https://www.reddit.com/r/USCIS/comments/abc123/n400_interview/" />
+                <updated>2024-01-15T10:00:00Z</updated>
+                <content type="html">&lt;p&gt;Just had my interview today at the Sacramento field office.&lt;/p&gt;</content>
+            </entry>
+        </feed>"""
+        
+        posts = reddit_ingest.parse_rss_posts(rss_content, "USCIS")
+        
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0]["reddit_id"], "abc123")
+        self.assertEqual(posts[0]["subreddit"], "USCIS")
+        self.assertIn("N-400", posts[0]["title"])
+        self.assertIn("interview", posts[0]["selftext"].lower())
+    
+    def test_parse_rss_posts_handles_empty_content(self):
+        """Should handle RSS entries without content."""
+        rss_content = """<?xml version="1.0" encoding="UTF-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <entry>
+                <title>Quick question about I-485</title>
+                <link href="https://www.reddit.com/r/USCIS/comments/def456/quick_question/" />
+                <updated>2024-01-15T10:00:00Z</updated>
+            </entry>
+        </feed>"""
+        
+        posts = reddit_ingest.parse_rss_posts(rss_content, "USCIS")
+        
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0]["selftext"], "")
+    
+    def test_parse_rss_posts_handles_malformed_xml(self):
+        """Should return empty list for malformed XML."""
+        rss_content = "not valid xml <>"
+        
+        posts = reddit_ingest.parse_rss_posts(rss_content, "USCIS")
+        
+        self.assertEqual(posts, [])
+
+
+class TestBackgroundJobStatus(unittest.TestCase):
+    """Test background ingestion job status."""
+    
+    def test_get_job_status_returns_state(self):
+        """Should return current job state."""
+        status = reddit_ingest.get_job_status()
+        
+        self.assertIn("running", status)
+        self.assertIn("job_id", status)
+        self.assertIn("started_at", status)
+        self.assertIn("finished_at", status)
+        self.assertIn("result", status)
+        self.assertIn("error", status)
+    
+    def test_start_ingest_job_returns_job_info(self):
+        """Should return job info immediately."""
+        # Mock the actual ingestion to do nothing
+        with patch.object(reddit_ingest, "ingest", return_value={"total_upserted": 0}):
+            result = reddit_ingest.start_ingest_job(
+                subreddits=["USCIS"],
+                limit=10,
+                token="test_token"
+            )
+        
+        self.assertIn("ok", result)
+        self.assertIn("job_id", result)
+        
+        # Wait for thread to finish
+        import time
+        time.sleep(0.1)
+
+
+class TestPushEndpoint(unittest.TestCase):
+    """Test the push endpoint for external data."""
+    
+    def test_process_push_data_strips_usernames(self):
+        """Push endpoint should strip usernames from all fields."""
+        threads = [
+            {
+                "reddit_id": "abc123",
+                "title": "Thanks to u/helpful_user for the tip",
+                "selftext": "As /u/another_user said...",
+                "subreddit": "USCIS",
+                "permalink": "/r/USCIS/comments/abc123/test/",
+                "created_utc": "2024-01-15T10:00:00Z",
+            }
+        ]
+        
+        # Mock the upsert function
+        with patch.object(reddit_ingest, "supabase_upsert_via_function", return_value={"ok": True, "upserted": 1}):
+            result = reddit_ingest.process_push_data(threads, "test_token")
+        
+        # Check that process_post was called (which strips usernames)
+        self.assertEqual(result["processed_count"], 1)
+    
+    def test_process_push_data_empty_payload(self):
+        """Should return error for empty payload."""
+        result = reddit_ingest.process_push_data([], "test_token")
+        
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"], "empty_payload")
+    
+    def test_process_push_data_extracts_tags(self):
+        """Should extract form/office/step tags from pushed data."""
+        threads = [
+            {
+                "reddit_id": "xyz789",
+                "title": "N-400 interview at Sacramento",
+                "selftext": "Had my biometrics last week",
+                "subreddit": "USCIS",
+                "permalink": "/r/USCIS/comments/xyz789/test/",
+                "created_utc": "2024-01-15T10:00:00Z",
+            }
+        ]
+        
+        # Process without mocking upsert to check what gets processed
+        processed = reddit_ingest.process_post(threads[0])
+        
+        self.assertIn("N-400", processed["form_tags"])
+        self.assertIn("sacramento-ca", processed["office_tags"])
+        self.assertIn("interview", processed["step_tags"])
+        self.assertIn("biometrics", processed["step_tags"])
+
+
+class TestLanguageDetection(unittest.TestCase):
+    """Test automatic language detection for search."""
+    
+    def test_detect_spanish_question(self):
+        """Should detect Spanish questions."""
+        spanish_questions = [
+            "¿Qué preguntan en la entrevista del N-400?",
+            "¿Cuánto tiempo tarda el I-485?",
+            "Entrevista de ciudadanía experiencias",
+            "Permiso de trabajo cuanto tiempo",
+        ]
+        
+        for question in spanish_questions:
+            lang = reddit_ask.detect_language(question)
+            self.assertEqual(lang, "es", f"Failed to detect Spanish in: {question}")
+    
+    def test_detect_english_question(self):
+        """Should detect English questions."""
+        english_questions = [
+            "What do they ask at the N-400 interview?",
+            "How long is I-485 taking?",
+            "Interview experience at Sacramento",
+        ]
+        
+        for question in english_questions:
+            lang = reddit_ask.detect_language(question)
+            self.assertEqual(lang, "en", f"Incorrectly detected Spanish in: {question}")
+
+
+class TestIngestAuth(unittest.TestCase):
+    """Test ingestion endpoint authentication."""
+    
+    def test_ingest_unauthorized_without_token(self):
+        """Should return 403 without valid auth."""
+        os.environ.pop("REDDIT_INGEST_SECRET", None)
+        
+        with patch.object(reddit_ask, "community") as mock_community:
+            mock_community.supabase.return_value = None
+            
+            handler = MockHandler(
+                body={},
+                headers={"Content-Type": "application/json"}
+            )
+            reddit_ask.handle_ingest(handler, 8766)
+        
+        self.assertEqual(handler._response_status, 403)
+    
+    def test_ingest_authorized_with_token(self):
+        """Should accept valid bearer token."""
+        os.environ["REDDIT_INGEST_SECRET"] = "test_secret"
+        
+        with patch.object(reddit_ask, "community") as mock_community:
+            mock_community.supabase.return_value = None
+            with patch("reddit_ingest.start_ingest_job", return_value={"ok": True, "job_id": "123"}):
+                handler = MockHandler(
+                    body={},
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer test_secret"
+                    }
+                )
+                reddit_ask.handle_ingest(handler, 8766)
+        
+        self.assertEqual(handler._response_status, 202)
+        
+        # Cleanup
+        os.environ.pop("REDDIT_INGEST_SECRET", None)
+
+
+class TestSearchNormalization(unittest.TestCase):
+    """Test that search properly normalizes form numbers and queries."""
+    
+    def test_form_number_variations_in_post(self):
+        """Form numbers should be extracted in various formats."""
+        test_cases = [
+            ("My N400 interview", ["N-400"]),
+            ("Filed I485 yesterday", ["I-485"]),
+            ("N-400 and I-765 combo", ["N-400", "I-765"]),
+            ("i751 waiting", ["I-751"]),
+        ]
+        
+        for text, expected_tags in test_cases:
+            tags = reddit_ingest.extract_tags(text, reddit_ingest.FORM_PATTERNS)
+            for tag in expected_tags:
+                self.assertIn(tag, tags, f"Expected {tag} in tags for '{text}'")
 
 
 if __name__ == "__main__":

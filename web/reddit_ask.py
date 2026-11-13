@@ -10,6 +10,10 @@ POST /api/reddit-ask
 GET /api/reddit-ask/status
   Response: { available, reason, dailyLimit, used }
 
+POST /api/reddit-ingest - Start background ingestion (admin/token)
+GET /api/reddit-ingest/status - Check ingestion job status (admin/token)
+POST /api/reddit-ingest/push - Push pre-fetched threads (admin/token)
+
 Degrades gracefully when LLM key is not set, returning title-matching results only.
 """
 from __future__ import annotations
@@ -140,20 +144,59 @@ def client_ip(handler: Any) -> str:
     return handler.client_address[0] if handler.client_address else "unknown"
 
 
+def detect_language(text: str) -> str:
+    """Detect if text is likely Spanish based on common patterns."""
+    spanish_patterns = [
+        r"\b(qué|cómo|cuánto|cuándo|dónde|quién|por qué)\b",
+        r"\bentrevista\b", r"\bciudadanía\b", r"\bresidencia\b",
+        r"\bpermiso\b", r"\btrabajo\b", r"\bbiometría\b",
+        r"\baprobación\b", r"\bformulario\b", r"\bsolicitud\b",
+        r"\bpreguntan\b", r"\btarda\b", r"\btiempo\b",
+    ]
+    for pattern in spanish_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            return "es"
+    return "en"
+
+
 def search_threads(
     question: str,
+    lang: str = "en",
     form: str | None = None,
     office: str | None = None,
     step: str | None = None,
     limit: int = MAX_THREADS,
 ) -> list[dict[str, Any]]:
-    """Search reddit_threads using Supabase full-text search."""
+    """Search reddit_threads using Supabase bilingual full-text search."""
     supabase = community.supabase()
     if not supabase:
         return []
     
+    # Auto-detect language if not explicitly Spanish
+    detected_lang = detect_language(question) if lang != "es" else "es"
+    
     try:
-        # Call the search_reddit_threads function
+        from supa import call
+        # Use the bilingual search function
+        status, data, _ = call(
+            "POST",
+            "/rest/v1/rpc/search_reddit_threads_bilingual",
+            body={
+                "query": question,
+                "lang": detected_lang,
+                "form_filter": form,
+                "office_filter": office,
+                "step_filter": step,
+                "max_results": limit,
+            },
+        )
+        if status == 200 and isinstance(data, list):
+            return data
+    except Exception as e:
+        print(f"Bilingual search error: {e}")
+    
+    # Fallback to basic search
+    try:
         from supa import call
         status, data, _ = call(
             "POST",
@@ -169,7 +212,7 @@ def search_threads(
         if status == 200 and isinstance(data, list):
             return data
     except Exception as e:
-        print(f"Search error: {e}")
+        print(f"Basic search error: {e}")
     
     return []
 
@@ -427,8 +470,8 @@ def handle_ask(handler: Any, port: int) -> None:
     if step and not re.match(r"^[a-z-]{3,30}$", str(step)):
         step = None
     
-    # Search for relevant threads
-    threads = search_threads(question, form, office, step)
+    # Search for relevant threads (with language support)
+    threads = search_threads(question, lang, form, office, step)
     
     # Build response
     response: dict[str, Any] = {
@@ -541,45 +584,116 @@ def handle_feedback(handler: Any, port: int) -> None:
     handler.wfile.write(body)
 
 
-def handle_ingest(handler: Any, port: int) -> None:
-    """POST /api/reddit-ingest - Trigger ingestion (admin-only or secret token)."""
-    # Check authorization
+def _check_ingest_auth(handler: Any) -> bool:
+    """Check if request is authorized for ingestion endpoints."""
     auth_header = handler.headers.get("Authorization", "")
     secret = env_name("REDDIT_INGEST_SECRET")
     
-    # Check for admin session or secret token
-    is_admin = False
+    # Check for secret token
     if secret and auth_header == f"Bearer {secret}":
-        is_admin = True
-    else:
-        # Check for admin session
-        supabase = community.supabase()
-        if supabase:
-            from supa import fetch_account, read_cookies
-            at, rt = read_cookies(handler)
-            if at:
-                status, user = fetch_account(at)
-                if user and user.get("is_admin"):
-                    is_admin = True
+        return True
     
-    if not is_admin:
+    # Check for admin session
+    supabase = community.supabase()
+    if supabase:
+        from supa import fetch_account, read_cookies
+        at, rt = read_cookies(handler)
+        if at:
+            status, user = fetch_account(at)
+            if user and user.get("is_admin"):
+                return True
+    
+    return False
+
+
+def handle_ingest(handler: Any, port: int) -> None:
+    """POST /api/reddit-ingest - Start background ingestion (admin-only or secret token)."""
+    if not _check_ingest_auth(handler):
         _json_error(handler, 403, {"error": "unauthorized"})
         return
     
-    # Run ingestion (limited to avoid timeout)
+    # Start background job
+    from reddit_ingest import start_ingest_job
+    secret = env_name("REDDIT_INGEST_SECRET")
+    
+    result = start_ingest_job(
+        subreddits=None,  # All subreddits
+        limit=50,
+        token=secret,
+    )
+    
+    # Return 202 Accepted with job info
+    body = json.dumps(result, ensure_ascii=False).encode("utf-8")
+    handler.send_response(202 if result.get("ok") else 409)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def handle_ingest_status(handler: Any, port: int) -> None:
+    """GET /api/reddit-ingest/status - Check ingestion job status."""
+    if not _check_ingest_auth(handler):
+        _json_error(handler, 403, {"error": "unauthorized"})
+        return
+    
+    from reddit_ingest import get_job_status
+    status = get_job_status()
+    
+    body = json.dumps(status, ensure_ascii=False).encode("utf-8")
+    handler.send_response(200)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
+def handle_ingest_push(handler: Any, port: int) -> None:
+    """POST /api/reddit-ingest/push - Push pre-fetched threads (admin-only or secret token)."""
+    if not _check_ingest_auth(handler):
+        _json_error(handler, 403, {"error": "unauthorized"})
+        return
+    
+    # Parse request body
+    ctype = (handler.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    if ctype != "application/json":
+        _json_error(handler, 415, {"error": "invalid_content_type"})
+        return
+    
     try:
-        from reddit_ingest import ingest
-        results = ingest(limit=50, fetch_comments=False)  # Quick ingest without comments
-        
-        body = json.dumps(results, ensure_ascii=False).encode("utf-8")
-        handler.send_response(200)
-        handler.send_header("Content-Type", "application/json; charset=utf-8")
-        handler.send_header("Cache-Control", "no-store")
-        handler.send_header("Content-Length", str(len(body)))
-        handler.end_headers()
-        handler.wfile.write(body)
-    except Exception as e:
-        _json_error(handler, 500, {"error": "ingest_failed", "message": str(e)})
+        length = int(handler.headers.get("Content-Length") or "0")
+    except ValueError:
+        length = 0
+    
+    if length <= 0 or length > 10 * 1024 * 1024:  # 10MB max
+        _json_error(handler, 400, {"error": "invalid_body"})
+        return
+    
+    try:
+        data = json.loads(handler.rfile.read(length).decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        _json_error(handler, 400, {"error": "invalid_json"})
+        return
+    
+    if not isinstance(data, list):
+        _json_error(handler, 400, {"error": "expected_array", "message": "Body must be an array of threads"})
+        return
+    
+    # Process and upsert the pushed threads
+    from reddit_ingest import process_push_data
+    secret = env_name("REDDIT_INGEST_SECRET")
+    
+    result = process_push_data(data, secret)
+    
+    body = json.dumps(result, ensure_ascii=False).encode("utf-8")
+    handler.send_response(200 if result.get("ok") else 400)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
 
 
 def _json_error(handler: Any, status: int, payload: dict[str, Any]) -> None:

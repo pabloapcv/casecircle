@@ -376,7 +376,9 @@ class CommunityTest(unittest.TestCase):
     def test_healthz_headers_and_database_not_served(self):
         with urlopen(self.base + "/healthz", timeout=5) as response:
             self.assertEqual(json.loads(response.read()), {"ok": True})
-            self.assertIn("default-src 'self'", response.headers.get("Content-Security-Policy"))
+            csp = response.headers.get("Content-Security-Policy")
+            self.assertIn("default-src 'self'", csp)
+            self.assertIn("https://aucdxtyzyilcjqtgxrqf.supabase.co", csp, "CSP connect-src must allow Supabase insights API")
             self.assertEqual(response.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin")
         with urlopen(self.base + "/styles.css", timeout=5) as response:
             self.assertIn("no-cache", response.headers.get("Cache-Control"))

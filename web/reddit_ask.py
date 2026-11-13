@@ -145,13 +145,22 @@ def client_ip(handler: Any) -> str:
 
 
 def detect_language(text: str) -> str:
-    """Detect if text is likely Spanish based on common patterns."""
+    """Detect if text is likely Spanish based on common patterns.
+    
+    Handles both accented and unaccented versions of Spanish words.
+    """
     spanish_patterns = [
-        r"\b(qué|cómo|cuánto|cuándo|dónde|quién|por qué)\b",
-        r"\bentrevista\b", r"\bciudadanía\b", r"\bresidencia\b",
-        r"\bpermiso\b", r"\btrabajo\b", r"\bbiometría\b",
-        r"\baprobación\b", r"\bformulario\b", r"\bsolicitud\b",
+        # Question words (with and without accents)
+        r"\b(qué|que|cómo|como|cuánto|cuanto|cuándo|cuando|dónde|donde|quién|quien|por qué|por que)\b",
+        # Immigration terms (with and without accents)
+        r"\b(ciudadanía|ciudadania|naturalización|naturalizacion)\b",
+        r"\b(biometría|biometria|aprobación|aprobacion)\b",
+        r"\b(petición|peticion|inmigración|inmigracion)\b",
+        # Common Spanish terms
+        r"\bentrevista\b", r"\bresidencia\b", r"\bpermiso\b",
+        r"\btrabajo\b", r"\bformulario\b", r"\bsolicitud\b",
         r"\bpreguntan\b", r"\btarda\b", r"\btiempo\b",
+        r"\bjuramento\b", r"\bceremonia\b", r"\bcivica\b",
     ]
     for pattern in spanish_patterns:
         if re.search(pattern, text, re.IGNORECASE):

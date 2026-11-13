@@ -1763,3 +1763,107 @@ button.card.civics-test-card,
   .blog-card-content { padding: 16px; }
 }
 
+
+/* ───────── USCIS Official Section ───────── */
+.uscis-official {
+  margin: 48px 0;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.uscis-official h2 { margin: 0 0 8px; }
+.uscis-official .lede { margin: 0 0 16px; color: var(--secondary); }
+.uscis-official .label-chip.official { 
+  display: inline-block; 
+  margin: 0 0 24px; 
+  background: var(--accent-soft); 
+  color: var(--accent-deep);
+  padding: 6px 14px;
+  border-radius: var(--radius-chip);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.uscis-official h3 { 
+  margin: 32px 0 16px; 
+  font-size: 1.0625rem;
+  color: var(--ink);
+}
+.uscis-official h3:first-of-type { margin-top: 0; }
+
+.uscis-table-wrap { overflow-x: auto; margin: 0 0 12px; }
+.uscis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.uscis-table th, .uscis-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.uscis-table th {
+  font-weight: 600;
+  color: var(--secondary);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.uscis-table td { color: var(--ink); }
+.uscis-table tr:last-child td { border-bottom: none; }
+.uscis-table .negative { color: var(--danger); font-weight: 600; }
+.uscis-table .positive { color: var(--accent); font-weight: 600; }
+
+.pending-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 0 0 12px;
+}
+.pending-card {
+  padding: 20px;
+  background: var(--ground);
+  border-radius: var(--radius-card);
+}
+.pending-card h4 { margin: 0 0 8px; font-size: 1rem; }
+.pending-stat { 
+  margin: 0; 
+  font-size: 1.125rem; 
+  font-weight: 700; 
+  color: var(--ink);
+}
+.pending-range { 
+  margin: 4px 0 8px; 
+  font-size: 0.8125rem; 
+  color: var(--secondary); 
+}
+.pending-change {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.pending-change.up { color: var(--danger); }
+.pending-change.down { color: var(--accent); }
+
+.source-note {
+  font-size: 0.8125rem;
+  color: var(--secondary);
+  margin: 8px 0 0;
+}
+.source-note a { font-weight: 500; }
+
+.fo-note {
+  font-size: 0.875rem;
+  color: var(--secondary);
+  margin: 12px 0 4px;
+  font-style: italic;
+}
+
+.fo-table td:first-child { font-weight: 600; }
+
+@media (max-width: 640px) {
+  .uscis-official { padding: 20px 16px; }
+  .uscis-table { font-size: 0.8125rem; }
+  .uscis-table th, .uscis-table td { padding: 8px; }
+  .pending-cards { grid-template-columns: 1fr; }
+}

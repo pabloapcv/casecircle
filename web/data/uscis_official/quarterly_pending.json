@@ -1,0 +1,24 @@
+{
+  "source": {
+    "name": "USCIS Quarterly All-Forms Reports",
+    "url": "https://www.uscis.gov/tools/reports-and-studies/immigration-and-citizenship-data",
+    "note": "Pending case counts from quarterly reports",
+    "retrieved": "2026-11"
+  },
+  "N-400": {
+    "label": { "en": "Naturalization", "es": "Naturalización" },
+    "pending": [
+      { "quarter": "FY23 Q4", "count": 400908 },
+      { "quarter": "FY26 Q3", "count": 727371 }
+    ],
+    "note": "Verified from quarterly reports"
+  },
+  "I-485": {
+    "label": { "en": "Adjustment of Status (all classes)", "es": "Ajuste de Estatus (todas las clases)" },
+    "pending": [
+      { "quarter": "FY23 Q4", "count": 915059 },
+      { "quarter": "FY26 Q3", "count": 1560290 }
+    ],
+    "note": "Verified from quarterly reports"
+  }
+}

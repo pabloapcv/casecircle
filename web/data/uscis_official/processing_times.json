@@ -1,0 +1,38 @@
+{
+  "source": {
+    "name": "USCIS Historic Processing Times",
+    "url": "https://egov.uscis.gov/processing-times/historic-pt",
+    "note": "National median processing times in months for civilian filings",
+    "retrieved": "2026-11"
+  },
+  "forms": {
+    "N-400": {
+      "label": { "en": "Naturalization", "es": "Naturalización" },
+      "medians": {
+        "FY21": 11.5,
+        "FY22": 10.5,
+        "FY23": 6.0,
+        "FY24": 5.0,
+        "FY25": 5.6,
+        "FY26": 7.4
+      },
+      "note": "FY26 through Aug 30, 2026"
+    },
+    "I-485-family": {
+      "label": { "en": "Adjustment of Status (Family)", "es": "Ajuste de Estatus (Familiar)" },
+      "medians": {
+        "FY21": 12.9,
+        "FY26": 6.2
+      },
+      "note": "Only FY21 and FY26 verified from source"
+    },
+    "I-765-pending-aos": {
+      "label": { "en": "EAD (pending AOS)", "es": "Permiso de trabajo (AOS pendiente)" },
+      "medians": {
+        "FY25": 2.2,
+        "FY26": 6.4
+      },
+      "note": "Only FY25 and FY26 verified from source"
+    }
+  }
+}

@@ -27,6 +27,7 @@ import { TWIN_FORMS, TWIN_OFFICES, cohortFrom, monthKey, twinIssue, twinsView } 
 import { CARD_SIZE, cardModel, cleanCardName, drawCard, monthsBetween, shareLinks, shareUrl } from "./approval-card.js";
 import { folderSummaryHtml } from "./summary.js";
 import { NEXT_STEPS, OFFICIAL, WAIT_FORMS, rangeBar, waitPosition } from "./insights.js";
+import { fetchLiveInsights, fetchUscisOfficialData } from "./community-insights.js";
 
 const KEY = "casecircle.web.v3";
 /** A/B test Case Pass price: set to 19 or 29. Documented in README. */
@@ -80,7 +81,7 @@ const folderChats = new Map();
 // Tools state (in memory; folder data itself lives in state.folders and IndexedDB)
 let aiStatus = { loaded: false, inflight: false, available: false, mock: false, provider: "", host: "", model: "" };
 const builderUi = { desc: "", pending: null, pasteFor: "", pasteDraft: "", consentFor: "", consentDraft: "", consentCounts: 0, consentAgree: false, busy: {}, errors: {}, tailoring: "", showChat: false };
-const dataCache = { timelines: null, insights: null, loading: false, failed: false };
+const dataCache = { timelines: null, insights: null, uscisOfficial: null, loading: false, failed: false };
 const officialCache = new Map();
 let folderChatStatus = { available: null, mock: false, reason: "", loaded: false, inflight: false };
 let folderChatAbort = null;
@@ -2215,10 +2216,12 @@ function ensureData() {
   dataCache.loading = true;
   Promise.all([
     fetch("data/timelines.json").then((r) => { if (!r.ok) throw new Error("t"); return r.json(); }),
-    fetch("data/insights.json").then((r) => { if (!r.ok) throw new Error("i"); return r.json(); })
-  ]).then(([timelines, insights]) => {
+    fetchLiveInsights().catch(() => fetch("data/insights.json").then((r) => { if (!r.ok) throw new Error("i"); return r.json(); })),
+    fetchUscisOfficialData().catch(() => null)
+  ]).then(([timelines, insights, uscisOfficial]) => {
     dataCache.timelines = timelines;
     dataCache.insights = insights;
+    dataCache.uscisOfficial = uscisOfficial;
   }).catch(() => { dataCache.failed = true; }).finally(() => { dataCache.loading = false; render(); });
 }
 
@@ -3517,6 +3520,112 @@ async function approvalAction(act, node) {
 /* ───────────── Insights ───────────── */
 const QUESTION_TARGET = { documents: "prepare", evidence: "prepare", rfe: "prepare", fees: "prepare", timeline: "timelines", status: "timelines", interview: "interview", travel: "bot", work: "bot" };
 
+function uscisOfficialSection() {
+  const official = dataCache.uscisOfficial;
+  if (!official) return "";
+  const l = lang();
+  const pt = official.processingTimes;
+  const pend = official.quarterlyPending;
+  const fo = official.fieldOffices;
+  
+  const titleText = l === "es" ? "Tendencias Oficiales de USCIS" : "Official USCIS Trends";
+  const leadText = l === "es" 
+    ? "De datos publicados por USCIS: tiempos de procesamiento y casos pendientes."
+    : "From USCIS published data: processing times and pending cases.";
+  const disclaimerText = l === "es" 
+    ? "No es asesoría legal. No estamos afiliados a USCIS."
+    : "Not legal advice. Not affiliated with USCIS.";
+  const processingTitle = l === "es" 
+    ? "Tiempos medianos nacionales (meses)" 
+    : "National median processing times (months)";
+  const pendingTitle = l === "es" ? "Casos pendientes" : "Pending cases";
+  const fieldOfficeTitle = l === "es" 
+    ? "Cambios en oficina de N-400 (FY23 Q4 vs FY26 Q3)" 
+    : "N-400 field office changes (FY23 Q4 vs FY26 Q3)";
+  const sourceLabel = l === "es" ? "Fuente" : "Source";
+  const officeLabel = l === "es" ? "Oficina" : "Office";
+  const approvalsLabel = l === "es" ? "Aprobaciones" : "Approvals";
+  const pendingLabel = l === "es" ? "Pendiente" : "Pending";
+  const changeLabel = l === "es" ? "Cambio" : "Change";
+  
+  let html = `<section class="uscis-official" id="uscis-trends">
+    <h2>${esc(titleText)}</h2>
+    <p class="lede">${esc(leadText)}</p>
+    <p class="label-chip official">${esc(disclaimerText)}</p>`;
+  
+  if (pt?.forms) {
+    const forms = Object.keys(pt.forms);
+    const years = ["FY21", "FY22", "FY23", "FY24", "FY25", "FY26"];
+    html += `<h3>${esc(processingTitle)}</h3>
+    <div class="uscis-table-wrap">
+      <table class="uscis-table">
+        <thead><tr><th>${l === "es" ? "Formulario" : "Form"}</th>${years.map(y => `<th>${y}</th>`).join("")}</tr></thead>
+        <tbody>${forms.map(form => {
+          const f = pt.forms[form];
+          const label = l === "es" ? f.label?.es : f.label?.en;
+          return `<tr><td>${esc(label || form)}</td>${years.map(y => {
+            const v = f.medians?.[y];
+            return `<td>${v != null ? v : "—"}</td>`;
+          }).join("")}</tr>`;
+        }).join("")}</tbody>
+      </table>
+    </div>
+    <p class="source-note">${esc(sourceLabel)}: <a href="${esc(pt.source?.url)}" target="_blank" rel="noopener">${esc(pt.source?.name)}</a></p>`;
+  }
+  
+  if (pend) {
+    const n400 = pend["N-400"];
+    const i485 = pend["I-485"];
+    html += `<h3>${esc(pendingTitle)}</h3>
+    <div class="pending-cards">`;
+    if (n400?.pending?.length >= 2) {
+      const first = n400.pending[0];
+      const last = n400.pending[n400.pending.length - 1];
+      const change = Math.round(((last.count - first.count) / first.count) * 1000) / 10;
+      html += `<div class="pending-card">
+        <h4>N-400</h4>
+        <p class="pending-stat">${formatCount(first.count)} → ${formatCount(last.count)}</p>
+        <p class="pending-range">${first.quarter} → ${last.quarter}</p>
+        <p class="pending-change ${change > 0 ? "up" : "down"}">${change > 0 ? "+" : ""}${change}%</p>
+      </div>`;
+    }
+    if (i485?.pending?.length >= 2) {
+      const first = i485.pending[0];
+      const last = i485.pending[i485.pending.length - 1];
+      const change = Math.round(((last.count - first.count) / first.count) * 1000) / 10;
+      html += `<div class="pending-card">
+        <h4>I-485</h4>
+        <p class="pending-stat">${formatCount(first.count)} → ${formatCount(last.count)}</p>
+        <p class="pending-range">${first.quarter} → ${last.quarter}</p>
+        <p class="pending-change ${change > 0 ? "up" : "down"}">${change > 0 ? "+" : ""}${change}%</p>
+      </div>`;
+    }
+    html += `</div>
+    <p class="source-note">${esc(sourceLabel)}: <a href="${esc(pend.source?.url)}" target="_blank" rel="noopener">${esc(pend.source?.name)}</a></p>`;
+  }
+  
+  if (fo?.offices?.length) {
+    html += `<h3>${esc(fieldOfficeTitle)}</h3>
+    <div class="uscis-table-wrap">
+      <table class="uscis-table fo-table">
+        <thead><tr><th>${esc(officeLabel)}</th><th>${esc(approvalsLabel)}</th><th>${esc(changeLabel)}</th><th>${esc(pendingLabel)}</th><th>${esc(changeLabel)}</th></tr></thead>
+        <tbody>${fo.offices.map(o => `<tr>
+          <td>${esc(o.name)}</td>
+          <td>${formatCount(o.fy23q4_approvals)} → ${formatCount(o.fy26q3_approvals)}</td>
+          <td class="${o.change_pct_approvals < 0 ? "negative" : "positive"}">${o.change_pct_approvals > 0 ? "+" : ""}${o.change_pct_approvals}%</td>
+          <td>${formatCount(o.fy23q4_pending)} → ${formatCount(o.fy26q3_pending)}</td>
+          <td class="${o.change_pct_pending > 50 ? "negative" : "positive"}">${o.change_pct_pending > 0 ? "+" : ""}${o.change_pct_pending}%</td>
+        </tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <p class="fo-note">${l === "es" ? esc(fo.note?.es) : esc(fo.note?.en)}</p>
+    <p class="source-note">${esc(sourceLabel)}: <a href="${esc(fo.source?.url)}" target="_blank" rel="noopener">${esc(fo.source?.name)}</a></p>`;
+  }
+  
+  html += `</section>`;
+  return html;
+}
+
 function insightsScreen() {
   ensureData();
   const data = dataCache.insights;
@@ -3562,6 +3671,7 @@ function insightsScreen() {
     <section class="card ins-card"><h2>${esc(T("insightsRfe"))}</h2><p class="muted">${esc(T("insightsRfeBody", { n: data.rfe.posts }))}</p>${rfe}<button class="btn-secondary small" data-act="tab" data-tab="prepare">${esc(T("insightsOpenFolder"))} →</button></section>
     <section class="card ins-card wide"><h2>${esc(T("insightsThemes"))}</h2><p class="muted">${esc(T("insightsThemesBody", { n: formatCount(redditStats.posts), from: redditStats.from, to: redditStats.to }))}</p>${themeList}<div class="cta"><button class="btn-secondary small" data-act="tab" data-tab="bot">${esc(T("insightsOpenCommunity"))} →</button><button class="ghost small" data-act="tab" data-tab="questions">${esc(H("navAnswers"))}</button></div></section>
   </div>
+  ${uscisOfficialSection()}
   ${legalDisclaimer()}`;
 }
 

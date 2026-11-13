@@ -1,0 +1,28 @@
+{
+  "source": {
+    "name": "USCIS N-400 Field Office Data",
+    "url": "https://www.uscis.gov/tools/reports-and-studies/immigration-and-citizenship-data",
+    "note": "N-400 quarterly completions and pending by field office",
+    "retrieved": "2026-11"
+  },
+  "form": "N-400",
+  "comparison": {
+    "baseline": "FY23 Q4",
+    "current": "FY26 Q3"
+  },
+  "offices": [
+    {
+      "name": "Chicago",
+      "fy23q4_approvals": 7664,
+      "fy26q3_approvals": 557,
+      "change_pct_approvals": -92.7,
+      "fy23q4_pending": 12048,
+      "fy26q3_pending": 22685,
+      "change_pct_pending": 88.3
+    }
+  ],
+  "note": { 
+    "en": "Only Chicago shown — other field office figures not verified from source.",
+    "es": "Solo se muestra Chicago — los datos de otras oficinas no están verificados."
+  }
+}

@@ -37,7 +37,7 @@ ORIGIN = _canonical_origin()
 APP_NAME = "CaseCircle"
 
 DISCLAIMER_EN = "Not legal advice. Not affiliated with USCIS."
-DISCLAIMER_ES = "No es asesoría legal. No afiliado con USCIS."
+DISCLAIMER_ES = "No es asesoría legal. No estamos afiliados a USCIS."
 
 CTA_EN = {
     "title": "Plan your immigration case",
@@ -188,6 +188,8 @@ def blog_page_html(
     body_content: str,
     json_ld: dict[str, Any] | None = None,
     og_image: str | None = None,
+    lang_toggle_en: str | None = None,
+    lang_toggle_es: str | None = None,
 ) -> str:
     """Render a complete blog HTML page with SEO tags."""
     nav = NAV_ES if lang == "es" else NAV_EN
@@ -245,7 +247,7 @@ def blog_page_html(
           </svg>
           <span class="brand-text">
             <strong>{esc(APP_NAME)}</strong>
-            <span class="brand-tag">{"No afiliado con USCIS" if is_es else "Not affiliated with USCIS"}</span>
+            <span class="brand-tag">{"No estamos afiliados a USCIS" if is_es else "Not affiliated with USCIS"}</span>
           </span>
         </a>
         <nav class="nav blog-nav" aria-label="{"Navegación" if is_es else "Navigation"}">
@@ -256,8 +258,8 @@ def blog_page_html(
         </nav>
         <div class="top-actions">
           <div class="lang-toggle">
-            <a href="/blog" class="{"" if is_es else "on"}" aria-label="English">EN</a>
-            <a href="/es/blog" class="{"on" if is_es else ""}" aria-label="Español">ES</a>
+            <a href="{lang_toggle_en or "/blog"}" class="{"" if is_es else "on"}" aria-label="English">EN</a>
+            <a href="{lang_toggle_es or "/es/blog"}" class="{"on" if is_es else ""}" aria-label="Español">ES</a>
           </div>
         </div>
       </div>
@@ -356,14 +358,25 @@ def blog_post_html(post: dict[str, Any], translation: dict[str, Any] | None, lan
     
     hreflang_en = None
     hreflang_es = None
+    lang_toggle_en = None
+    lang_toggle_es = None
+    
     if is_es:
         hreflang_es = canonical
+        lang_toggle_es = f"/es/blog/{post['slug']}"
         if translation:
             hreflang_en = f"{ORIGIN}/blog/{translation['slug']}"
+            lang_toggle_en = f"/blog/{translation['slug']}"
+        else:
+            lang_toggle_en = "/blog"  # Fallback to index
     else:
         hreflang_en = canonical
+        lang_toggle_en = f"/blog/{post['slug']}"
         if translation:
             hreflang_es = f"{ORIGIN}/es/blog/{translation['slug']}"
+            lang_toggle_es = f"/es/blog/{translation['slug']}"
+        else:
+            lang_toggle_es = "/es/blog"  # Fallback to index
     
     body_html = markdown_to_html(post["body_markdown"])
     
@@ -456,7 +469,9 @@ def blog_post_html(post: dict[str, Any], translation: dict[str, Any] | None, lan
         hreflang_es=hreflang_es,
         body_content=body,
         json_ld=json_ld,
-        og_image=post.get("cover_image_url")
+        og_image=post.get("cover_image_url"),
+        lang_toggle_en=lang_toggle_en,
+        lang_toggle_es=lang_toggle_es,
     )
 
 

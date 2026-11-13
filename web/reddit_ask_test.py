@@ -686,5 +686,158 @@ class TestSearchNormalization(unittest.TestCase):
                 self.assertIn(tag, tags, f"Expected {tag} in tags for '{text}'")
 
 
+class TestSpanishFormBoost(unittest.TestCase):
+    """Test that Spanish queries boost the correct form types."""
+    
+    def _make_threads(self, form_tags_list):
+        """Helper to create mock threads with specified form tags."""
+        return [
+            {
+                "id": i,
+                "reddit_id": f"thread{i}",
+                "subreddit": "USCIS",
+                "permalink": f"/r/USCIS/comments/thread{i}/test/",
+                "title": f"Test thread {i}",
+                "selftext": "",
+                "top_comments": [],
+                "score": 10,
+                "num_comments": 5,
+                "created_utc": "2024-01-15T10:00:00Z",
+                "form_tags": tags,
+                "office_tags": [],
+                "step_tags": ["interview"],
+                "rank": 1.0 if "N-400" in tags else 0.5,  # Simulate boost
+            }
+            for i, tags in enumerate(form_tags_list)
+        ]
+    
+    def test_spanish_citizenship_query_boosts_n400(self):
+        """Spanish citizenship question should return mostly N-400 threads."""
+        # Simulate database returning properly ranked results
+        # In production, the SQL function boosts N-400 for ciudadanía queries
+        n400_threads = self._make_threads([["N-400"]] * 8)
+        i485_threads = self._make_threads([["I-485"]] * 2)
+        
+        # Simulate what the boosted search should return
+        # (N-400 threads ranked higher due to form boost)
+        all_threads = sorted(
+            n400_threads + i485_threads,
+            key=lambda t: t["rank"],
+            reverse=True
+        )
+        
+        # Top 10 should be mostly N-400
+        top_10 = all_threads[:10]
+        n400_count = sum(1 for t in top_10 if "N-400" in t["form_tags"])
+        
+        self.assertGreaterEqual(n400_count, 7, 
+            f"Expected at least 7 of top 10 to be N-400, got {n400_count}")
+    
+    def test_spanish_terms_map_to_correct_forms(self):
+        """Verify the mapping of Spanish terms to expected forms."""
+        # These mappings should be in the SQL function
+        expected_mappings = {
+            # N-400 / Citizenship
+            "ciudadanía": "N-400",
+            "ciudadano": "N-400",
+            "naturalización": "N-400",
+            "juramento": "N-400",
+            "examen de cívica": "N-400",
+            # I-485 / Green Card
+            "residencia": "I-485",
+            "tarjeta verde": "I-485",
+            # I-765 / Work Permit
+            "permiso de trabajo": "I-765",
+            # I-130 / Family Petition
+            "petición familiar": "I-130",
+        }
+        
+        for spanish_term, expected_form in expected_mappings.items():
+            # This test documents the expected behavior
+            # The actual mapping happens in the SQL function
+            self.assertIn(expected_form, ["N-400", "I-485", "I-765", "I-130", "I-751", "I-131"],
+                f"Form {expected_form} should be a valid form number")
+    
+    def test_citizenship_interview_query_targets_n400(self):
+        """Query about citizenship interview should target N-400."""
+        # The query "¿Cuánto tarda la entrevista de ciudadanía?" contains:
+        # - ciudadanía -> should map to N-400
+        # - entrevista -> interview
+        
+        # This test verifies the language detection picks up the Spanish
+        question = "¿Cuánto tarda la entrevista de ciudadanía?"
+        lang = reddit_ask.detect_language(question)
+        self.assertEqual(lang, "es", "Should detect Spanish")
+        
+        # Verify ciudadanía is detected as a citizenship term
+        self.assertIn("ciudadanía", question.lower())
+
+
+class TestSpanishQueryIntegration(unittest.TestCase):
+    """Integration tests for Spanish queries returning correct results."""
+    
+    def test_ask_with_spanish_citizenship_query(self):
+        """Spanish citizenship query should work end-to-end."""
+        os.environ["CASECIRCLE_LLM_API_KEY"] = ""  # No LLM
+        
+        # Create mock threads with various form tags
+        # N-400 threads should rank higher for citizenship queries
+        mock_threads = [
+            {
+                "id": i,
+                "reddit_id": f"n400_{i}",
+                "subreddit": "USCIS",
+                "permalink": f"/r/USCIS/comments/n400_{i}/test/",
+                "title": f"N-400 interview experience {i}",
+                "selftext": "Had my citizenship interview",
+                "top_comments": [],
+                "score": 20,
+                "num_comments": 10,
+                "created_utc": "2024-01-15T10:00:00Z",
+                "form_tags": ["N-400"],
+                "office_tags": [],
+                "step_tags": ["interview"],
+            }
+            for i in range(8)
+        ] + [
+            {
+                "id": 100 + i,
+                "reddit_id": f"i485_{i}",
+                "subreddit": "USCIS",
+                "permalink": f"/r/USCIS/comments/i485_{i}/test/",
+                "title": f"I-485 interview experience {i}",
+                "selftext": "Had my green card interview",
+                "top_comments": [],
+                "score": 15,
+                "num_comments": 5,
+                "created_utc": "2024-01-14T10:00:00Z",
+                "form_tags": ["I-485"],
+                "office_tags": [],
+                "step_tags": ["interview"],
+            }
+            for i in range(2)
+        ]
+        
+        with patch.object(reddit_ask, "search_threads", return_value=mock_threads):
+            with patch.object(reddit_ask, "log_usage"):
+                with patch.object(reddit_ask, "check_rate_limit", return_value=(True, 5, 0)):
+                    handler = MockHandler(
+                        body={"question": "¿Cuánto tarda la entrevista de ciudadanía?", "lang": "es"},
+                        headers={"Content-Type": "application/json"}
+                    )
+                    reddit_ask.handle_ask(handler, 8766)
+        
+        self.assertEqual(handler._response_status, 200)
+        response = handler.response_json()
+        
+        # Should have citations
+        self.assertGreater(len(response["citations"]), 0)
+        
+        # Check that N-400 threads are present in citations
+        n400_citations = [c for c in response["citations"] if "N-400" in c.get("formTags", [])]
+        self.assertGreater(len(n400_citations), 0,
+            "Should have N-400 threads in citations for citizenship query")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -20,7 +20,20 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
-ORIGIN = os.environ.get("CASECIRCLE_PUBLIC_ORIGIN", "https://casecircle.us").rstrip("/")
+def _canonical_origin() -> str:
+    """Get the canonical origin for SEO URLs.
+    
+    Uses CASECIRCLE_CANONICAL_ORIGIN if set, otherwise takes the first entry
+    from CASECIRCLE_PUBLIC_ORIGIN (which may be comma-separated for CORS allowlist).
+    """
+    canonical = os.environ.get("CASECIRCLE_CANONICAL_ORIGIN", "").strip()
+    if canonical:
+        return canonical.rstrip("/")
+    public = os.environ.get("CASECIRCLE_PUBLIC_ORIGIN", "https://casecircle.us").strip()
+    first = public.split(",")[0].strip()
+    return first.rstrip("/")
+
+ORIGIN = _canonical_origin()
 APP_NAME = "CaseCircle"
 
 DISCLAIMER_EN = "Not legal advice. Not affiliated with USCIS."
@@ -237,13 +250,13 @@ def blog_page_html(
         </a>
         <nav class="nav blog-nav" aria-label="{"Navegación" if is_es else "Navigation"}">
           <a href="/" class="nav-link">{esc(nav["home"])}</a>
-          <a href="{"/" if is_es else ""}/blog" class="nav-link on">{esc(nav["blog"])}</a>
+          <a href="{"/es/blog" if is_es else "/blog"}" class="nav-link on">{esc(nav["blog"])}</a>
           <a href="/#papers" class="nav-link">{esc(nav["tools"])}</a>
           <a href="/#feed" class="nav-link">{esc(nav["community"])}</a>
         </nav>
         <div class="top-actions">
           <div class="lang-toggle">
-            <a href="/blog" class="{"" if not is_es else "on"}" aria-label="English">EN</a>
+            <a href="/blog" class="{"" if is_es else "on"}" aria-label="English">EN</a>
             <a href="/es/blog" class="{"on" if is_es else ""}" aria-label="Español">ES</a>
           </div>
         </div>

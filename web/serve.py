@@ -113,6 +113,9 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/reddit-ask/status":
             reddit_ask.handle_status(self, self.server_port)
             return
+        if parsed.path == "/api/reddit-ingest/status":
+            reddit_ask.handle_ingest_status(self, self.server_port)
+            return
         if parsed.path in ("/api/auth/google", "/auth/callback"):
             supabase = community.supabase()
             if not supabase:   # SQLite accounts: no Google sign-in
@@ -152,6 +155,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path == "/api/reddit-ingest":
             reddit_ask.handle_ingest(self, self.server_port)
+            return
+        if path == "/api/reddit-ingest/push":
+            reddit_ask.handle_ingest_push(self, self.server_port)
             return
         if community.handles("POST", path):
             community.dispatch(self, "POST")

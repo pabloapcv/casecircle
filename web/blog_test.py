@@ -1,4 +1,6 @@
 """Tests for the blog module: server-rendered SEO pages, sitemap, and robots.txt."""
+import importlib
+import os
 import unittest
 from datetime import datetime, timezone
 
@@ -297,6 +299,93 @@ class TestIsoDate(unittest.TestCase):
 
     def test_empty(self):
         self.assertEqual(blog.iso_date(None), "")
+
+
+class TestCanonicalOrigin(unittest.TestCase):
+    """Test the _canonical_origin function with comma-separated values."""
+
+    def setUp(self):
+        self.orig_canonical = os.environ.get("CASECIRCLE_CANONICAL_ORIGIN")
+        self.orig_public = os.environ.get("CASECIRCLE_PUBLIC_ORIGIN")
+
+    def tearDown(self):
+        if self.orig_canonical is None:
+            os.environ.pop("CASECIRCLE_CANONICAL_ORIGIN", None)
+        else:
+            os.environ["CASECIRCLE_CANONICAL_ORIGIN"] = self.orig_canonical
+        if self.orig_public is None:
+            os.environ.pop("CASECIRCLE_PUBLIC_ORIGIN", None)
+        else:
+            os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = self.orig_public
+        importlib.reload(blog)
+
+    def test_comma_separated_uses_first(self):
+        os.environ.pop("CASECIRCLE_CANONICAL_ORIGIN", None)
+        os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = "https://casecircle.us,https://www.casecircle.us,https://casecircle.onrender.com"
+        importlib.reload(blog)
+        self.assertEqual(blog.ORIGIN, "https://casecircle.us")
+
+    def test_canonical_origin_overrides(self):
+        os.environ["CASECIRCLE_CANONICAL_ORIGIN"] = "https://custom.example.com"
+        os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = "https://casecircle.us,https://other.com"
+        importlib.reload(blog)
+        self.assertEqual(blog.ORIGIN, "https://custom.example.com")
+
+    def test_strips_trailing_slash(self):
+        os.environ.pop("CASECIRCLE_CANONICAL_ORIGIN", None)
+        os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = "https://casecircle.us/"
+        importlib.reload(blog)
+        self.assertEqual(blog.ORIGIN, "https://casecircle.us")
+
+    def test_comma_separated_in_urls(self):
+        os.environ.pop("CASECIRCLE_CANONICAL_ORIGIN", None)
+        os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = "https://casecircle.us,https://www.casecircle.us"
+        importlib.reload(blog)
+        html = blog.blog_index_html([], "en")
+        self.assertIn('href="https://casecircle.us/blog"', html)
+        self.assertNotIn("https://www.casecircle.us", html)
+        self.assertNotIn(",", html.split('href="')[1].split('"')[0])
+
+    def test_sitemap_uses_canonical_origin(self):
+        os.environ.pop("CASECIRCLE_CANONICAL_ORIGIN", None)
+        os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = "https://casecircle.us,https://other.com"
+        importlib.reload(blog)
+        xml = blog.sitemap_xml([])
+        self.assertIn("https://casecircle.us/", xml)
+        self.assertNotIn("https://other.com", xml)
+        self.assertNotIn(",", xml)
+
+    def test_robots_uses_canonical_origin(self):
+        os.environ.pop("CASECIRCLE_CANONICAL_ORIGIN", None)
+        os.environ["CASECIRCLE_PUBLIC_ORIGIN"] = "https://casecircle.us,https://other.com"
+        importlib.reload(blog)
+        txt = blog.robots_txt()
+        self.assertIn("Sitemap: https://casecircle.us/sitemap.xml", txt)
+        self.assertNotIn("https://other.com", txt)
+        self.assertNotIn(",", txt)
+
+
+class TestBlogNavLinks(unittest.TestCase):
+    """Test blog navigation links and toggle classes."""
+
+    def test_spanish_blog_nav_link(self):
+        html = blog.blog_index_html([], "es")
+        self.assertIn('href="/es/blog" class="nav-link on"', html)
+        self.assertNotIn('href="//blog"', html)
+
+    def test_english_blog_nav_link(self):
+        html = blog.blog_index_html([], "en")
+        self.assertIn('href="/blog" class="nav-link on"', html)
+
+    def test_english_toggle_classes(self):
+        html = blog.blog_index_html([], "en")
+        self.assertIn('href="/blog" class="on"', html)
+        self.assertIn('href="/es/blog" class=""', html)
+
+    def test_spanish_toggle_classes(self):
+        html = blog.blog_index_html([], "es")
+        self.assertIn('href="/blog" class=""', html)
+        self.assertIn('href="/es/blog" class="on"', html)
 
 
 if __name__ == "__main__":

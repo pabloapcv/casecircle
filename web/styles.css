@@ -776,6 +776,45 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 .answer { padding: 18px 0; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
 .answer h3 { margin: 0 0 8px; }
 .answer p { color: var(--secondary); font-size: 0.9375rem; }
+
+/* ───────── Ask Reddit ───────── */
+.ask-reddit h1 { margin: 0 0 12px; }
+.ask-reddit .lede { margin-bottom: 20px; }
+.ask-reddit .limit-note { font-size: 0.875rem; color: var(--secondary); margin-bottom: 12px; }
+.ask-reddit-form { margin-bottom: 24px; }
+.ask-reddit-form .field { margin-bottom: 12px; }
+.ask-reddit-form textarea { min-height: 80px; resize: vertical; }
+.ask-reddit-filters { margin-bottom: 16px; }
+.ask-reddit-filters summary { cursor: pointer; font-size: 0.875rem; color: var(--secondary); padding: 8px 0; }
+.ask-reddit-filters .filter-row { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 12px; }
+.ask-reddit-filters .field.compact { flex: 1; min-width: 160px; }
+.ask-reddit-filters .field.compact span { font-size: 0.8125rem; }
+.ask-reddit-filters select { width: 100%; padding: 8px 12px; font-size: 0.9375rem; }
+.ask-reddit-answer { margin-top: 24px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-panel); }
+.ask-reddit-answer .answer-text { line-height: 1.7; }
+.ask-reddit-answer .answer-text p { margin: 0 0 12px; }
+.ask-reddit-answer .answer-text p:last-child { margin-bottom: 0; }
+.ask-reddit-answer .disclaimer { margin-top: 16px; padding: 12px 16px; background: var(--amber-light, #fff8e1); border-radius: var(--radius); font-size: 0.875rem; color: var(--secondary); }
+.ask-reddit-answer .official-note { margin-top: 12px; font-size: 0.875rem; color: var(--secondary); }
+.ask-reddit-answer h3 { margin: 24px 0 16px; font-size: 1rem; }
+.ask-reddit-feedback { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ask-reddit-feedback p { margin: 0 0 8px; font-size: 0.875rem; color: var(--secondary); }
+.ask-reddit-feedback .feedback-btns { display: flex; gap: 8px; }
+.ask-reddit-feedback .feedback-btns .chip { padding: 6px 16px; cursor: pointer; }
+.citations-grid { display: grid; gap: 12px; }
+.ask-reddit-citation { padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.ask-reddit-citation .web-meta { margin: 0 0 8px; font-size: 0.8125rem; color: var(--secondary); }
+.ask-reddit-citation h3 { margin: 0 0 8px; font-size: 0.9375rem; font-weight: 600; }
+.ask-reddit-citation .web-stats { margin: 0 0 8px; font-size: 0.8125rem; color: var(--secondary); }
+.ask-reddit-citation .tag-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.ask-reddit-citation .tag-chips .chip.small { padding: 2px 8px; font-size: 0.75rem; }
+.ask-reddit-citation .text-link { font-size: 0.875rem; }
+.ask-reddit-examples { margin-top: 24px; }
+.ask-reddit-examples h3 { margin: 0 0 16px; font-size: 1rem; }
+.example-questions { display: flex; flex-direction: column; gap: 8px; }
+.example-q { display: block; width: 100%; padding: 12px 16px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; font-size: 0.9375rem; color: var(--primary); transition: background-color 0.15s, border-color 0.15s; }
+.example-q:hover { background: var(--hover); border-color: var(--secondary); }
+
 .jumps { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 4px 0 8px; }
 .jumps a { font-size: 0.875rem; text-decoration: none; }
 .jumps a:hover { text-decoration: underline; }

@@ -37,13 +37,14 @@ JSDELIVR = "https://cdn.jsdelivr.net"
 # Only what the page really loads: Google Fonts (Inter Tight), pdf.js + tesseract.js from jsDelivr (lazy, in-browser
 # reading), tesseract language data, and blob: workers/summary page. The one inline handler is the summary's
 # Print button (hash below).
+SUPABASE_INSIGHTS = "https://aucdxtyzyilcjqtgxrqf.supabase.co"
 CSP = "; ".join([
     "default-src 'self'",
     f"script-src 'self' {JSDELIVR} 'wasm-unsafe-eval' 'unsafe-hashes' 'sha256-MguIPR6qNR8D3B+eAlK+bIRTZe8t3wkOY4B/56Me9FU='",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    f"connect-src 'self' {JSDELIVR} https://tessdata.projectnaptha.com",
+    f"connect-src 'self' {JSDELIVR} https://tessdata.projectnaptha.com {SUPABASE_INSIGHTS}",
     f"worker-src 'self' blob: {JSDELIVR}",
     "object-src 'none'",
     "base-uri 'self'",

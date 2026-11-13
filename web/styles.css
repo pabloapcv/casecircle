@@ -1195,6 +1195,19 @@ input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none;
 
 /* ───────── Insights ───────── */
 .data-note { font-size: 0.8125rem; color: var(--secondary); }
+.sample-badge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius-chip);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
 .insights-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .ins-card { padding: 18px; border-radius: var(--radius-panel); display: flex; flex-direction: column; gap: 8px; }
 .ins-card.wide { grid-column: 1 / -1; }

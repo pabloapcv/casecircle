@@ -3663,8 +3663,10 @@ function insightsScreen() {
   const themes = redditThemes(lang()).slice(0, 10);
   const themeMax = Math.max(1, ...themes.map((t) => t.total));
   const themeList = `<ul class="bars">${themes.map((theme) => `<li><span class="bar-label">${esc(theme.label)}</span><span class="bar violet"><span style="width:${Math.round((theme.total / themeMax) * 100)}%"></span></span><span class="bar-n">${esc(formatCount(theme.total))}</span></li>`).join("")}</ul>`;
+  const isLive = data.generatedBy?.includes("Supabase") || data.generatedBy?.includes("live");
+  const sampleNote = isLive ? "" : `<span class="sample-badge">${esc(lang() === "es" ? "Muestra guardada" : "Bundled sample")}</span>`;
   return `${head}
-  <p class="data-note">${esc(T("insightsDataNote", { n: formatCount(src.posts), from: src.from, to: src.to }))}</p>
+  <p class="data-note">${sampleNote}${esc(T("insightsDataNote", { n: formatCount(src.posts), from: src.from, to: src.to }))}</p>
   <div class="insights-grid">
     <section class="card ins-card wide"><h2>${esc(T("insightsQuestions"))}</h2><p class="muted">${esc(T("insightsQuestionsBody", { n: formatCount(src.questions) }))}</p><div class="ins-forms">${questions}</div></section>
     <section class="card ins-card"><h2>${esc(T("insightsGaps"))}</h2><p class="muted">${esc(T("insightsGapsBody"))}</p>${gaps}<button class="btn-secondary small" data-act="tab" data-tab="timelines">${esc(T("insightsOpenWait"))} →</button></section>

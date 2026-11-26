@@ -80,7 +80,6 @@ function library() {
 }
 
 const cards = library();
-const posts = redditCatalog();
 
 function themeRows(query) {
   return redditStats.themes.map((row) => {
@@ -96,7 +95,7 @@ function matchingPosts(query) {
   const hinted = query.filter((token) => themeHints.some((hint) => hint[1].includes(token)));
   const specific = query.filter((token) => !generic.has(token));
   const needed = hinted.length ? hinted : specific.length ? specific : query;
-  return posts.map((post) => {
+  return redditCatalog().map((post) => {
     const words = new Set(tokens(`${post.title} ${post.flair}`));
     return { post, score: overlap(query, `${post.title} ${post.flair}`), hit: needed.some((token) => words.has(token)) };
   }).filter((item) => item.hit && item.score >= 2)

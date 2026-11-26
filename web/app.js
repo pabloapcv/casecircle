@@ -7,7 +7,8 @@ import {
 } from "./logic.js";
 import { blankFolder, guideReply, packetFor, prepareText, tally, calculateScore, parseRFE, calculateRiskFlags } from "./prepare.js";
 import { homeSteps, homeText, questionGroups, questionText, quietSteps, statusLines, waitNote, statusDecoder, interviewTips } from "./questions.js";
-import { formatCount, formatRedditDate, redditCatalog, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
+import { formatCount, formatRedditDate, redditCatalog, redditCatalogReady, redditFeed, redditForSpace, redditMonths, redditStats, redditThemes, themeForSpace } from "./reddit.js";
+import { localeHome, pathLang } from "./locale-path.js";
 import { askPosts, botPrompts } from "./bot.js";
 
 const KEY = "casecircle.web.v3";
@@ -44,16 +45,18 @@ function withoutSamples(saved) {
 }
 
 function load() {
+  const fromPath = pathLang();
   try {
     const saved = localStorage.getItem(KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       const clean = withoutSamples(parsed);
+      if (fromPath) clean.lang = fromPath;
       localStorage.setItem(KEY, JSON.stringify(clean));
       return clean;
     }
   } catch { /* start fresh */ }
-  const lang = (navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en";
+  const lang = fromPath || ((navigator.language || "en").toLowerCase().startsWith("es") ? "es" : "en");
   return initialState(lang);
 }
 
@@ -84,14 +87,32 @@ function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 }
 
-function boot() {
+export function bootApp() {
   if (new URLSearchParams(location.search).get("demo") === "1" && !state.meId) {
     state = enterDemo(state).state;
     save();
   }
   const hash = location.hash.replace("#", "");
   if (hash.startsWith("post=") && state.meId) state.route = { name: "post", id: hash.slice(5) };
+  const fromPath = pathLang();
+  if (fromPath && state.lang !== fromPath) {
+    state.lang = fromPath;
+    const user = me(state);
+    if (user) user.locale = fromPath;
+    save();
+  }
+  document.documentElement.lang = lang();
   render();
+}
+
+function langSwitchLinks() {
+  const cur = lang();
+  const enClass = `btn inline ${cur === "en" ? "on" : "off"}`;
+  const esClass = `btn inline ${cur === "es" ? "on" : "off"}`;
+  const enHref = localeHome("en");
+  const esHref = localeHome("es");
+  return `<a class="${enClass}" href="${enHref}" hreflang="en" lang="en" aria-label="English">EN</a>
+        <a class="${esClass}" href="${esHref}" hreflang="es" lang="es" aria-label="Español">ES</a>`;
 }
 
 let restoreFocus = "";
@@ -241,8 +262,7 @@ function welcome() {
       <button class="brand" data-act="public-home" aria-label="CaseCircle Home"><div class="mark" aria-hidden="true"></div><div><strong>${esc(L("appName"))}</strong><div class="muted">${esc(L("notAffiliated"))}</div></div></button>
       ${home ? `<nav class="nav" aria-label="Navigation">${jump("painpoints", H("homeNavPain"))}${jump("what", H("homeNavWhat"))}${jump("how", H("homeNavHow"))}</nav>` : `<div class="nav"></div>`}
       <div class="top-actions lang">
-        <button class="btn inline ${lang() === "en" ? "on" : "off"}" data-act="lang" data-lang="en" aria-label="Switch to English">${esc(L("english"))}</button>
-        <button class="btn inline ${lang() === "es" ? "on" : "off"}" data-act="lang" data-lang="es" aria-label="Switch to Spanish">${esc(L("spanish"))}</button>
+        ${langSwitchLinks()}
       </div>
     </header>
     <main class="page" id="main">${step === 0 ? (publicView === "home" ? landing() : publicView === "bot" ? botScreen() : publicPage(publicView)) : onboardingScreen()}</main>
@@ -297,12 +317,14 @@ function landing({ signed = false } = {}) {
 
     <section class="home-section" id="talk">
       <h2>${esc(Q("sayingTitle"))}</h2>
-      <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalog().length))} ${esc(Q("dataListed"))}</p>
+      <p class="lede">${esc(Q("sayingLead"))} ${esc(formatCount(redditCatalogReady() ? redditCatalog().length : redditStats.posts))} ${esc(Q("dataListed"))}</p>
       <button class="btn" data-act="open-bot">${esc(Q("botTitle"))}</button>
       ${redditStatsBlock()}
       <h3>${esc(Q("dataTitles"))}</h3>
-      <div class="feed">${redditCatalog().slice(0, webShown.home).map((item) => webCard(item, signed)).join("")}</div>
-      ${redditCatalog().length > webShown.home ? `<button class="ghost" data-act="more-web" data-list="home">${esc(Q("dataMore"))}</button>` : ""}
+      ${redditCatalogReady()
+        ? `<div class="feed">${redditCatalog().slice(0, webShown.home).map((item) => webCard(item, signed)).join("")}</div>
+      ${redditCatalog().length > webShown.home ? `<button class="ghost" data-act="more-web" data-list="home">${esc(Q("dataMore"))}</button>` : ""}`
+        : `<p class="muted">${esc(lang() === "es" ? "Cargando títulos públicos…" : "Loading public titles…")}</p>`}
     </section>
     
     <section class="home-section" id="what">
@@ -1133,10 +1155,16 @@ document.addEventListener("click", (event) => {
   const act = node.dataset.act;
   
   if (act === "lang") {
-    state.lang = node.dataset.lang;
+    const next = node.dataset.lang;
+    state.lang = next;
     const user = me(state);
-    if (user) user.locale = state.lang;
+    if (user) user.locale = next;
     save();
+    if (!state.meId && onboard.step === 0) {
+      location.assign(localeHome(next));
+      return;
+    }
+    document.documentElement.lang = next;
     render();
     return;
   }
@@ -1503,6 +1531,3 @@ function publishAsk() {
     state.route = { name: "post", id: result.postId };
   });
 }
-
-boot();
-save();

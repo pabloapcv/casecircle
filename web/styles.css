@@ -1,18 +1,18 @@
 /* CaseCircle — UX Overhaul with Dark Mode, Accessibility, Mobile-First */
 
 :root {
-  /* Light mode colors */
-  --paper: #ffffff;
+  /* Light mode — CaseCircle brand */
+  --paper: #f5f3ee;
   --surface: #ffffff;
-  --surface-elevated: #f8fafa;
-  --ink: #1b3330;
-  --secondary: #5c716d;
-  --muted: #8a9f9b;
-  --teal: #0e7c74;
-  --teal-deep: #0b655f;
-  --teal-soft: #d7f3ef;
-  --teal-hover: #095851;
-  --btn: #0e7c74;
+  --surface-elevated: #faf8f4;
+  --ink: #1b2422;
+  --secondary: #4a5c58;
+  --muted: #6b7d79;
+  --teal: #1f7a6e;
+  --teal-deep: #186258;
+  --teal-soft: #d9ebe8;
+  --teal-hover: #186258;
+  --btn: #1f7a6e;
   --line: #d3e6e2;
   --line-light: #e8f2f0;
   --coral: #b94a3a;
@@ -28,8 +28,8 @@
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-xl: 24px;
-  color-scheme: light dark;
-  font-family: "SF Pro Text", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+  font-family: "Inter Tight", "Segoe UI", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.55;
 }
@@ -698,6 +698,11 @@ button.card, button.post, .post {
 
 /* Language toggle */
 .lang { display: flex; gap: 6px; }
+.lang a.on, .lang a.off { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.static-shell { max-width: 720px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+.static-shell .kicker { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem; }
+.static-shell h1 { font-size: clamp(1.75rem, 4vw, 2.4rem); line-height: 1.15; margin: 0 0 1rem; }
+.static-shell .lede { font-size: 1.1rem; color: var(--secondary); margin: 0 0 1.5rem; }
 .lang .on, .lang .off {
   border-radius: 999px;
   padding: 6px 12px;

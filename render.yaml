@@ -1,0 +1,40 @@
+# Blueprint for the public marketing + web app (static publish from ./web).
+# If production still uses a Render *web service* on the free tier, cold starts
+# come from instance spin-down — migrate to this static site and apply the
+# Cloudflare notes in the pull request.
+
+services:
+  - type: web
+    name: casecircle-web
+    runtime: static
+    repo: https://github.com/pabloapcv/casecircle
+    branch: main
+    buildCommand: ""
+    staticPublishPath: ./web
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /es
+        destination: /es/index.html
+    headers:
+      - path: /health.json
+        name: Cache-Control
+        value: no-store
+      - path: /*.js
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*.css
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        value: public, max-age=0, s-maxage=3600, stale-while-revalidate=86400
+      - path: /es/index.html
+        name: Cache-Control
+        value: public, max-age=0, s-maxage=3600, stale-while-revalidate=86400
+      - path: /
+        name: Cache-Control
+        value: public, max-age=0, s-maxage=3600, stale-while-revalidate=86400
+      - path: /es/*
+        name: Cache-Control
+        value: public, max-age=0, s-maxage=3600, stale-while-revalidate=86400

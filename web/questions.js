@@ -259,14 +259,14 @@ export function leadQuestions(lang) {
 }
 
 const home = {
-  homeTitle: ["A community to share and discuss USCIS cases and processes.", "Una comunidad para compartir y hablar de casos y procesos de USCIS."],
+  homeTitle: ["The calm, bilingual companion for your USCIS paperwork.", "El compañero bilingüe y tranquilo para tu papeleo con USCIS."],
   homeLede: [
-    "Post a question or an experience. Read what people on the same form posted.",
-    "Publica una pregunta o una experiencia. Lee lo que publicaron personas del mismo formulario."
+    "Check the wait, organize your filing folder on your device, and prepare documents for your next step. We help with readiness, not approval odds.",
+    "Revisa la espera, organiza tu carpeta de presentación en tu dispositivo y prepara documentos para tu siguiente paso. Ayudamos con la preparación, no con probabilidades de aprobación."
   ],
   homeTrust: [
-    "Not USCIS. Not legal advice. Your posts stay in this browser. The post lists are public titles from Reddit.",
-    "No es USCIS. No es asesoría legal. Tus publicaciones se quedan en este navegador. Las listas son títulos públicos de Reddit."
+    "Not legal advice. Not affiliated with USCIS. Your notes stay on this device. Post lists are public titles from Reddit.",
+    "No es asesoría legal. No estamos afiliados a USCIS. Tus notas se quedan en este dispositivo. Las listas son títulos públicos de Reddit."
   ],
   homePreviewKicker: ["In Adjustment of status", "En Ajuste de estatus"],
   homePreviewStatus: ["Nothing has changed since biometrics. Is the case in trouble?", "No cambia nada desde la biometría. ¿El caso está en problemas?"],
@@ -303,8 +303,8 @@ const home = {
   homeNavPains: ["The waits", "Las esperas"],
   homeNavHow: ["How it works", "Cómo funciona"],
   footBlurb: [
-    "A community to share and discuss USCIS cases and processes. Not affiliated with USCIS.",
-    "Una comunidad para compartir y hablar de casos y procesos de USCIS. No afiliado a USCIS."
+    "Organize your case folder and read orientation while you wait. Not legal advice. Not affiliated with USCIS.",
+    "Organiza la carpeta de tu caso y lee orientación mientras esperas. No es asesoría legal. No estamos afiliados a USCIS."
   ],
   footSite: ["On this site", "En este sitio"],
   footRead: ["Read", "Leer"],

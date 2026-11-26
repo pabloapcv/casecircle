@@ -65,7 +65,7 @@ export const basedOn = ["marriage", "parent", "child", "sibling", "employment", 
 
 const strings = {
   appName: ["CaseCircle", "CaseCircle"],
-  notAffiliated: ["Not affiliated with USCIS", "Sin afiliación con USCIS"],
+  notAffiliated: ["Not legal advice. Not affiliated with USCIS.", "No es asesoría legal. No estamos afiliados a USCIS."],
   pitch: ["Post a question or an experience about a USCIS case.", "Publica una pregunta o una experiencia sobre un caso de USCIS."],
   welcomeTitle: ["A community to share and discuss USCIS cases and processes.", "Una comunidad para compartir y hablar de casos y procesos de USCIS."],
   whatPosting: ["What are you posting?", "¿Qué vas a publicar?"],

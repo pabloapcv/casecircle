@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { askPosts } from "./bot.js";
+import { loadRedditCatalog } from "./reddit.js";
+
+await loadRedditCatalog();
 
 const quiet = askPosts("en", "Nothing has changed since biometrics. Is the case in trouble?");
 assert.equal(quiet.kind, "answer");
